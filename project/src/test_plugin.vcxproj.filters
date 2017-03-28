@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files\teamspeak">
+      <UniqueIdentifier>{424f4ce9-e47e-43e3-91bc-85bbfec2c680}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\teamlog">
+      <UniqueIdentifier>{d76dfa87-907d-4936-a5cf-59462dba95d7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="plugin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ts3_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamspeak\clientlib_publicdefinitions.h">
+      <Filter>Header Files\teamspeak</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamspeak\public_definitions.h">
+      <Filter>Header Files\teamspeak</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamspeak\public_errors.h">
+      <Filter>Header Files\teamspeak</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamspeak\public_errors_rare.h">
+      <Filter>Header Files\teamspeak</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamspeak\public_rare_definitions.h">
+      <Filter>Header Files\teamspeak</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\teamlog\logtypes.h">
+      <Filter>Header Files\teamlog</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\plugin_definitions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="plugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
