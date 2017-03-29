@@ -85,7 +85,7 @@ const char* ts3plugin_name() {
 
 /* Plugin version */
 const char* ts3plugin_version() {
-    return "1.0.3";
+    return "1.0.4";
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
@@ -192,6 +192,19 @@ std::vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 ch
 	return result;
 }
 
+void resetVolumeAll(uint64 serverConnectionHandlerID)
+{
+	std::vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
+	anyID myId = getMyId(serverConnectionHandlerID);
+	for (auto it = clientsIds.begin(); it != clientsIds.end(); it++)
+	{
+		if (!(*it == myId))
+		{
+			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*it), 0.0f);
+		}
+	}
+}
+
 void unmuteAll(uint64 serverConnectionHandlerID)
 {
 	anyID* ids;
@@ -268,7 +281,22 @@ void	sendCallback(shared_ptr<WsServer::Connection> connection, string str)
 	server.send(connection, callback);
 }
 
+bool nameSet = false;
+int	setClientName(char* name)
+{
+	DWORD error;
+	char* currentName;
+	ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName);
+	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
+		outputLog("Error setting client nickname", error);
+		return (0);
+	}
+	else
+		return (1);
+}
+
 bool isTalking = false;
+char* originalName = "";
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
 	server.config.port = 1337;
@@ -281,6 +309,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		lua.script(message_str.c_str());
 		sol::table data = lua["data"]["Users"];
 		string channelName = lua["data"]["TSChannel"];
+		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "Plugin", 0);
 
@@ -289,11 +318,38 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		anyID clientId;
 		string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
 
+		char *version = "TokoVoip version:";
+		char full_text[23];
+		strcpy(full_text, version);
+		strcat(full_text, ts3plugin_version());
+		sendCallback(connection, full_text);
+
 		if (channelName != thisChannelName)
 		{
 			sendCallback(connection, "wrong channel");
+			if (originalName)
+			{
+				if (nameSet)
+					if (setClientName(originalName))
+						nameSet = false;
+			}
 			return (0);
 		}
+
+		if (originalName == "")
+			ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &originalName);
+
+		char * writable = new char[localName.size() + 1];
+		std::copy(localName.begin(), localName.end(), writable);
+		writable[localName.size()] = '\0'; // don't forget the terminating 0
+
+									 // don't forget to free the string after finished using it
+		
+		outputLog(writable, 0);
+		if (!nameSet)
+			if (setClientName(writable))
+				nameSet = true;
+		delete[] writable;
 
 		if (radioTalking)
 		{
@@ -310,6 +366,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		}
 
 		sendCallback(connection, "online");
+
 		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
 		{
 			clientId = *clientIdIterator;
