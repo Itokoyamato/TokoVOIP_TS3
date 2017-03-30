@@ -85,7 +85,7 @@ const char* ts3plugin_name() {
 
 /* Plugin version */
 const char* ts3plugin_version() {
-    return "1.0.4";
+    return "1.0.7";
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
@@ -270,10 +270,33 @@ void setClientTalking(bool status)
 	}
 }
 
-HANDLE threadService = INVALID_HANDLE_VALUE;
-WsServer server;
-volatile bool exitThread = FALSE;
+char* lastNameSet = "";
+int	setClientName(char* name)
+{
+	DWORD error;
+	char* currentName;
 
+	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok) {
+		outputLog("Error getting client nickname", error);
+		return (0);
+	}
+	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0)
+		return (1);
+	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
+		outputLog("Error setting client nickname", error);
+		return (0);
+	}
+	else
+	{
+		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		if (error != ERROR_ok && error != ERROR_ok_no_update)
+			outputLog("Can't flush self updates.", error);
+		lastNameSet = name;
+		return (1);
+	}
+}
+
+WsServer server;
 void	sendCallback(shared_ptr<WsServer::Connection> connection, string str)
 {
 	auto callback = make_shared<WsServer::SendStream>();
@@ -281,22 +304,13 @@ void	sendCallback(shared_ptr<WsServer::Connection> connection, string str)
 	server.send(connection, callback);
 }
 
-bool nameSet = false;
-int	setClientName(char* name)
-{
-	DWORD error;
-	char* currentName;
-	ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName);
-	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
-		outputLog("Error setting client nickname", error);
-		return (0);
-	}
-	else
-		return (1);
-}
+HANDLE threadService = INVALID_HANDLE_VALUE;
+HANDLE threadTimeout = INVALID_HANDLE_VALUE;
+volatile bool exitTimeoutThread = FALSE;
 
 bool isTalking = false;
 char* originalName = "";
+time_t lastPingTick = 0;
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
 	server.config.port = 1337;
@@ -304,6 +318,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::Message> message) {
 
+		lastPingTick = time(nullptr);
 		auto message_str = message->string();
 		sol::state lua;
 		lua.script(message_str.c_str());
@@ -319,37 +334,32 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
 
 		char *version = "TokoVoip version:";
-		char full_text[23];
+		char full_text[24];
 		strcpy(full_text, version);
 		strcat(full_text, ts3plugin_version());
+		full_text[23] = '\0';
 		sendCallback(connection, full_text);
 
 		if (channelName != thisChannelName)
 		{
 			sendCallback(connection, "wrong channel");
-			if (originalName)
-			{
-				if (nameSet)
-					if (setClientName(originalName))
-						nameSet = false;
-			}
+			if (originalName != "")
+				setClientName(originalName);
 			return (0);
 		}
 
 		if (originalName == "")
-			ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &originalName);
+			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
+				outputLog("Error getting client nickname", error);
+				return (0);
+			}
 
-		char * writable = new char[localName.size() + 1];
-		std::copy(localName.begin(), localName.end(), writable);
-		writable[localName.size()] = '\0'; // don't forget the terminating 0
-
-									 // don't forget to free the string after finished using it
-		
-		outputLog(writable, 0);
-		if (!nameSet)
-			if (setClientName(writable))
-				nameSet = true;
-		delete[] writable;
+		char * newName = new char[localName.size() + 1];
+		std::copy(localName.begin(), localName.end(), newName);
+		newName[localName.size()] = '\0';
+		if (strcmp(lastNameSet, newName) != 0)
+			setClientName(newName);
+		delete[] newName;
 
 		if (radioTalking)
 		{
@@ -399,14 +409,42 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 		}
 	};
+	//echo.on_close = [](shared_ptr<WsServer::Connection> connection, int status, const string& /*reason*/) {
+	//	if (originalName != "")
+	//		setClientName(originalName);
+	//	outputLog("Lost connection: client websocket closed", 0);
+	//};
 	server.start();
 
 	return NULL;
 }
 
+bool connected = false;
+DWORD WINAPI TimeoutThread(LPVOID lpParam)
+{
+	while (!exitTimeoutThread)
+	{
+		time_t currentTick = time(nullptr);
+		if (currentTick - lastPingTick > 5 && lastPingTick > 0 && connected == true)
+		{
+			outputLog("Lost connection: plugin timed out client", 0);
+			connected = false;
+			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			if (originalName != "")
+				setClientName(originalName);
+		}
+		else if(currentTick - lastPingTick < 5)
+			connected = true;
+		Sleep(100);
+	}
+	return NULL;
+}
+
 int ts3plugin_init() {
 	outputLog("TokoVoip loaded", 0);
+	exitTimeoutThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
+	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 
 	return 0;
 }
@@ -416,14 +454,24 @@ void ts3plugin_shutdown() {
     /* Your plugin cleanup code here */
     printf("PLUGIN: shutdown\n");
 
-	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	connected = false;
 	server.stop();
+	exitTimeoutThread = true;
+	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	if (originalName != "")
+		setClientName(originalName);
 	Sleep(1000);
 	DWORD exitCode;
 	BOOL result = GetExitCodeThread(threadService, &exitCode);
 	if (!result || exitCode == STILL_ACTIVE)
 	{
 		outputLog("service thread not terminated", LogLevel_CRITICAL);
+	}
+	DWORD exitCode2;
+	BOOL result2 = GetExitCodeThread(threadTimeout, &exitCode2);
+	if (!result2 || exitCode2 == STILL_ACTIVE)
+	{
+		outputLog("timeout thread not terminated", LogLevel_CRITICAL);
 	}
 
 
