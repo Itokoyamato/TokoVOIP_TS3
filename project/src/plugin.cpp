@@ -85,7 +85,7 @@ const char* ts3plugin_name() {
 
 /* Plugin version */
 const char* ts3plugin_version() {
-    return "1.0.7";
+    return "1.0.8";
 }
 
 /* Plugin API version. Must be the same as the clients API major version, else the plugin fails to load. */
@@ -297,6 +297,7 @@ int	setClientName(char* name)
 }
 
 WsServer server;
+shared_ptr<WsServer::Connection> ServerConnection;
 void	sendCallback(shared_ptr<WsServer::Connection> connection, string str)
 {
 	auto callback = make_shared<WsServer::SendStream>();
@@ -327,6 +328,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "Plugin", 0);
+		ServerConnection = connection;
 
 		std::vector<anyID> clients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), getCurrentChannel(ts3Functions.getCurrentServerConnectionHandlerID()));
 		DWORD error;
@@ -425,15 +427,16 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 	while (!exitTimeoutThread)
 	{
 		time_t currentTick = time(nullptr);
-		if (currentTick - lastPingTick > 5 && lastPingTick > 0 && connected == true)
+		if (currentTick - lastPingTick > 10 && lastPingTick > 0 && connected == true)
 		{
 			outputLog("Lost connection: plugin timed out client", 0);
 			connected = false;
 			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 			if (originalName != "")
 				setClientName(originalName);
 		}
-		else if(currentTick - lastPingTick < 5)
+		else if(currentTick - lastPingTick < 10)
 			connected = true;
 		Sleep(100);
 	}
@@ -458,6 +461,7 @@ void ts3plugin_shutdown() {
 	server.stop();
 	exitTimeoutThread = true;
 	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	if (originalName != "")
 		setClientName(originalName);
 	Sleep(1000);
@@ -1165,9 +1169,15 @@ void ts3plugin_onTalkStatusChangeEvent(uint64 serverConnectionHandlerID, int sta
 	char name[512];
 	if(ts3Functions.getClientDisplayName(serverConnectionHandlerID, clientID, name, 512) == ERROR_ok) {
 		if(status == STATUS_TALKING) {
-			printf("--> %s starts talking\n", name);
+			if (ServerConnection)
+				sendCallback(ServerConnection, "startedtalking");
+			//printf("--> %s starts talking\n", name);
+			//ts3Functions.logMessage("started talking", LogLevel_ERROR, "TokoVoip", serverConnectionHandlerID);
 		} else {
-			printf("--> %s stops talking\n", name);
+			if (ServerConnection)
+				sendCallback(ServerConnection, "stoppedtalking");
+			//printf("--> %s stops talking\n", name);
+			//ts3Functions.logMessage("stopped talking", LogLevel_ERROR, "TokoVoip", serverConnectionHandlerID);
 		}
 	}
 }
@@ -1430,6 +1440,7 @@ void ts3plugin_onMenuItemEvent(uint64 serverConnectionHandlerID, enum PluginMenu
 				case MENU_ID_GLOBAL_1:
 					/* Menu global 1 was triggered */
 					unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+					resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 					break;
 				//case MENU_ID_GLOBAL_2:
 				//	/* Menu global 2 was triggered */
