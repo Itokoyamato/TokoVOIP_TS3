@@ -273,16 +273,20 @@ void setClientTalking(bool status)
 }
 
 char* lastNameSet = "";
+time_t lastNameSetTick = 0;
 int	setClientName(char* name)
 {
 	DWORD error;
 	char* currentName;
 
+	error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+	if (error != ERROR_ok && error != ERROR_ok_no_update)
+		outputLog("Can't flush self updates.", error);
 	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok) {
 		outputLog("Error getting client nickname", error);
 		return (0);
 	}
-	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0)
+	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0 || time(nullptr) - lastNameSetTick < 1)
 		return (1);
 	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
 		outputLog("Error setting client nickname", error);
@@ -294,19 +298,28 @@ int	setClientName(char* name)
 		if (error != ERROR_ok && error != ERROR_ok_no_update)
 			outputLog("Can't flush self updates.", error);
 		lastNameSet = name;
+		lastNameSetTick = time(nullptr);
 		return (1);
 	}
 }
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
-void	sendCallback(shared_ptr<WsServer::Connection> connection, string str)
+void	sendCallback(string str)
 {
-	if (!ServerConnection)
-		outputLog("Couldn't send callback, no connection open", 1);
-	auto callback = make_shared<WsServer::SendStream>();
-	*callback << str;
-	server.send(connection, callback);
+	for (auto &a_connection : server.get_connections()) {
+		auto send_stream = make_shared<WsServer::SendStream>();
+		*send_stream << str;
+
+		server.send(a_connection, send_stream, [](const boost::system::error_code& ec) {
+			if (ec) {
+				std::ostringstream oss;
+				oss << "Server: Error sending message. " << "Error: " << ec << ", error message: " << ec.message();
+				outputLog((char*)oss.str().c_str(), 1);
+			}
+		});
+	}
+	//outputLog("Sent callback", 0);
 }
 
 char	*getPluginVersionAsString()
@@ -349,7 +362,16 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		// Load the lua table //
 		sol::state lua;
-		lua.script(message_str.c_str());
+		auto error_handler = [](lua_State*, sol::protected_function_result result) {
+			// You can just pass it through to let the call-site handle it
+			return result;
+		};
+		auto luaResult = lua.script(message_str.c_str(), error_handler);
+		if (!luaResult.valid()) {
+			outputLog("Caught error while loading lua table.", 1);
+			return (0);
+		}
+
 		sol::table data = lua["data"]["Users"];
 		string channelName = lua["data"]["TSChannel"];
 		string localName = lua["data"]["localName"];
@@ -447,6 +469,22 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		processingMessage = false;
 		//--------------------------------------------------------
 	};
+	echo.on_open = [](shared_ptr<WsServer::Connection> connection) {
+		std::ostringstream oss;
+		oss << "Server: Opened connection " << (size_t)connection.get();
+		outputLog((char*)oss.str().c_str(), 1);
+	};
+	echo.on_close = [](shared_ptr<WsServer::Connection> connection, int status, const string& /*reason*/) {
+		std::ostringstream oss;
+		oss << "Server: Closed connection " << (size_t)connection.get() << " with status code " << status;
+		//outputLog((char*)oss.str().c_str(), 1);
+	};
+	echo.on_error = [](shared_ptr<WsServer::Connection> connection, const boost::system::error_code& ec) {
+		std::ostringstream oss;
+		oss << "Server: Error in connection " << (size_t)connection.get() << ". " <<
+			"Error: " << ec << ", error message: " << ec.message();
+		//outputLog((char*)oss.str().c_str(), 1);
+	};
 	server.start();
 	return NULL;
 }
@@ -464,6 +502,7 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 		{
 			outputLog("Lost connection: plugin timed out client", 0);
 			pluginStatus = 0;
+			ServerConnection = NULL;
 			connected = false;
 			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
@@ -480,14 +519,14 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 	while (!exitSendDataThread)
 	{
 		if (pluginStatus != 0 && processingMessage == false) {
-			sendCallback(ServerConnection, getPluginVersionAsString());
+			sendCallback(getPluginVersionAsString());
 			char *base_text = "TokoVOIP status:";
 			char full_text[24];
 			strcpy(full_text, base_text);
 			strcat(full_text, to_string(pluginStatus).c_str());
 			full_text[23] = '\0';
-			sendCallback(ServerConnection, full_text);
-			outputLog("Sent plugin data", 0);
+			sendCallback(full_text);
+			//outputLog("Sent plugin data", 0);
 		}
 		if (processingMessage == false)
 			Sleep(1000);
@@ -563,13 +602,15 @@ DWORD WINAPI checkUpdateThread(LPVOID lpParam)
 			Sleep(3600000);
 		}
 		else
-			Sleep(60000);
+			Sleep(600000);
 	}
 	return NULL;
 }
 
 int ts3plugin_init() {
 	outputLog("TokoVOIP initialized", 0);
+	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	exitTimeoutThread = false;
 	exitSendDataThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
@@ -1309,13 +1350,17 @@ void ts3plugin_onTalkStatusChangeEvent(uint64 serverConnectionHandlerID, int sta
 	char name[512];
 	if(ts3Functions.getClientDisplayName(serverConnectionHandlerID, clientID, name, 512) == ERROR_ok && clientID == getMyId(ts3Functions.getCurrentServerConnectionHandlerID())) {
 		if(status == STATUS_TALKING) {
-			sendCallback(ServerConnection, "startedtalking");
+			if (pluginStatus == 3) {
+				sendCallback("startedtalking");
+			}
 			//printf("--> %s starts talking\n", name);
-			ts3Functions.logMessage("started talking", LogLevel_ERROR, "TokoVOIP", serverConnectionHandlerID);
+			//ts3Functions.logMessage("started talking", LogLevel_INFO, "TokoVOIP", serverConnectionHandlerID);
 		} else {
-			sendCallback(ServerConnection, "stoppedtalking");
+			if (pluginStatus == 3) {
+				sendCallback("stoppedtalking");
+			}
 			//printf("--> %s stops talking\n", name);
-			ts3Functions.logMessage("stopped talking", LogLevel_ERROR, "TokoVOIP", serverConnectionHandlerID);
+			//ts3Functions.logMessage("stopped talking", LogLevel_INFO, "TokoVOIP", serverConnectionHandlerID);
 		}
 	}
 }
