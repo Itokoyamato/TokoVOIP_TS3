@@ -13,9 +13,6 @@
 #include <atomic>
 #include <list>
 
-FILE _iob[] = { *stdin, *stdout, *stderr };
-extern "C" FILE * __cdecl __iob_func(void) { return _iob; }
-
 #ifndef CASE_INSENSITIVE_EQUALS_AND_HASH
 #define CASE_INSENSITIVE_EQUALS_AND_HASH
 //Based on http://www.boost.org/doc/libs/1_60_0/doc/html/unordered/hash_equality.html
@@ -195,6 +192,12 @@ namespace SimpleWeb {
             resolver->cancel();
             if(internal_io_service)
                 io_service->stop();
+            
+            if(connection) {
+                boost::system::error_code ec;
+                connection->socket->lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+                connection->socket->lowest_layer().close();
+            }
         }
         
         ///fin_rsv_opcode: 129=one fragment, text, 130=one fragment, binary, 136=close connection.

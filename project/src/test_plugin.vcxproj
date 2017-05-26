@@ -117,14 +117,14 @@
       <PrecompiledHeader />
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\libs\boost_1_63_0;C:\Program Files %28x86%29\Lua\5.1\include;C:\libs\OpenSSL-Win32\include;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\libs\curl-7.54.0\builds\libcurl-vc14-x86-release-static-ipv6-sspi-winssl\include\curl;C:\libs\boost_1_63_0;C:\Program Files %28x86%29\Lua\5.1\include;C:\libs\OpenSSL-Win32\include;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <DataExecutionPrevention />
       <TargetMachine>MachineX86</TargetMachine>
-      <AdditionalLibraryDirectories>C:\Program Files %28x86%29\Lua\5.1\lib;C:\libs\OpenSSL-Win32\lib;C:\libs\boost_1_63_0\stage\win32\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libeay32.lib;lua51.lib;libboost_system-vc140-mt-1_63.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\libs\curl-7.54.0\builds\libcurl-vc14-x86-release-static-ipv6-sspi-winssl\lib;C:\Program Files %28x86%29\Lua\5.1\lib;C:\libs\OpenSSL-Win32\lib;C:\libs\boost_1_63_0\stage\win32\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcurl_a.lib;libeay32.lib;lua51.lib;libboost_system-vc140-mt-1_63.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -135,14 +135,14 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\libs\boost_1_63_0;C:\libs\lua\include;C:\libs\OpenSSL-Win64\include;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\libs\curl-7.54.0\builds\libcurl-vc14-x64-release-static-ipv6-sspi-winssl\include\curl;C:\libs\boost_1_63_0;C:\libs\lua\include;C:\libs\OpenSSL-Win64\include;..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <DataExecutionPrevention>
       </DataExecutionPrevention>
-      <AdditionalLibraryDirectories>C:\libs\boost_1_63_0\stage\x64\lib;C:\libs\OpenSSL-Win64\lib;C:\libs\lua;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libboost_system-vc140-mt-1_63.lib;libeay64.lib;lua53.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\libs\curl-7.54.0\builds\libcurl-vc14-x64-release-static-ipv6-sspi-winssl\lib;C:\libs\boost_1_63_0\stage\x64\lib;C:\libs\OpenSSL-Win64\lib;C:\libs\lua</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcurl_a.lib;libboost_system-vc140-mt-1_63.lib;libeay64.lib;lua53.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

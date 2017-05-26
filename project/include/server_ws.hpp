@@ -190,13 +190,13 @@ namespace SimpleWeb {
             std::mutex connections_mutex;
 
         public:
-            //DEPRECATED std::function<void(std::shared_ptr<Connection>)> onopen;
+            DEPRECATED std::function<void(std::shared_ptr<Connection>)> onopen;
             std::function<void(std::shared_ptr<Connection>)> on_open;
-            //DEPRECATED std::function<void(std::shared_ptr<Connection>, std::shared_ptr<Message>)> onmessage;
+            DEPRECATED std::function<void(std::shared_ptr<Connection>, std::shared_ptr<Message>)> onmessage;
             std::function<void(std::shared_ptr<Connection>, std::shared_ptr<Message>)> on_message;
-            //DEPRECATED std::function<void(std::shared_ptr<Connection>, int, const std::string&)> onclose;
+            DEPRECATED std::function<void(std::shared_ptr<Connection>, int, const std::string&)> onclose;
             std::function<void(std::shared_ptr<Connection>, int, const std::string&)> on_close;
-            //DEPRECATED std::function<void(std::shared_ptr<Connection>, const boost::system::error_code&)> onerror;
+            DEPRECATED std::function<void(std::shared_ptr<Connection>, const boost::system::error_code&)> onerror;
             std::function<void(std::shared_ptr<Connection>, const boost::system::error_code&)> on_error;
             
             std::unordered_set<std::shared_ptr<Connection> > get_connections() {
@@ -243,6 +243,17 @@ namespace SimpleWeb {
         std::map<regex_orderable, Endpoint> endpoint;
         
         virtual void start() {
+            for(auto &endp: endpoint) {
+                // TODO: remove when onopen, onmessage, etc is removed:
+                if(endp.second.onopen)
+                    endp.second.on_open=endp.second.onopen;
+                if(endp.second.onmessage)
+                    endp.second.on_message=endp.second.onmessage;
+                if(endp.second.onclose)
+                    endp.second.on_close=endp.second.onclose;
+                if(endp.second.onerror)
+                    endp.second.on_error=endp.second.onerror;
+            }
             
             if(!io_service)
                 io_service=std::make_shared<boost::asio::io_service>();
@@ -287,8 +298,14 @@ namespace SimpleWeb {
             if(config.thread_pool_size>0)
                 io_service->stop();
             
-            for(auto& p: endpoint)
-                p.second.connections.clear();
+            for(auto &pair: endpoint) {
+                std::lock_guard<std::mutex> lock(pair.second.connections_mutex);
+                for(auto &connection: pair.second.connections) {
+                    connection->socket->lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+                    connection->socket->lowest_layer().close();
+                }
+                pair.second.connections.clear();
+            }
         }
         
         ///fin_rsv_opcode: 129=one fragment, text, 130=one fragment, binary, 136=close connection.
