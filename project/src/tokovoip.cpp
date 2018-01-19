@@ -14,11 +14,14 @@
 #include <teamspeak/public_errors.h>
 
 #include "core/plugin_base.h"
+#include "mod_radio.h"
 
 #include "tokovoip.h"
 #include "client_ws.hpp"
 #include "server_ws.hpp"
 #include "sol.hpp"
+#define CURL_STATICLIB
+#include "curl.h"
 
 using namespace std;
 typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
@@ -27,6 +30,18 @@ typedef SimpleWeb::SocketClient<SimpleWeb::WS> WsClient;
 int isRunning = 0;
 
 HANDLE threadService = INVALID_HANDLE_VALUE;
+HANDLE threadTimeout = INVALID_HANDLE_VALUE;
+HANDLE threadSendData = INVALID_HANDLE_VALUE;
+HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
+volatile bool exitTimeoutThread = FALSE;
+volatile bool exitSendDataThread = FALSE;
+volatile bool exitCheckUpdateThread = FALSE;
+
+bool isTalking = false;
+char* originalName = "";
+time_t lastPingTick = 0;
+int pluginStatus = 0;
+bool processingMessage = false;
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
@@ -42,7 +57,48 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		auto message_str = message->string();
 		ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
+
+		DWORD error;
+		anyID clientId;
+		std::vector<anyID> clients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), getCurrentChannel(ts3Functions.getCurrentServerConnectionHandlerID()));
+		string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
+
 		//--------------------------------------------------------
+
+		// Check if connected to any channel
+		if (thisChannelName == "") {
+			return (0);
+		}
+
+		// Retrieve client ID and UUID and send it to fiveM
+
+		//anyID localcID = getMyId(ts3Functions.getCurrentServerConnectionHandlerID());
+		//char **localUUID;
+		//anyID id = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), localcID, CLIENT_UNIQUE_IDENTIFIER, localUUID);
+		//sendCallback("localUUID:" + ((string)*localUUID));
+
+		//--------------------------------------------------------
+
+		// Load the lua table //
+		sol::state lua;
+		auto error_handler = [](lua_State*, sol::protected_function_result result) {
+			// You can just pass it through to let the call-site handle it
+			return result;
+		};
+		auto luaResult = lua.script(message_str.c_str(), error_handler);
+		if (!luaResult.valid()) {
+			outputLog("Caught error while loading lua table.", 1);
+			return (0);
+		}
+
+		sol::table data = lua["data"]["Users"];
+		string channelName = lua["data"]["TSChannel"];
+		string localName = lua["data"]["localName"];
+		bool radioTalking = lua["data"]["radioTalking"];
+
+		//--------------------------------------------------------
+
+
 	};
 	echo.on_open = [](shared_ptr<WsServer::Connection> connection) {
 		std::ostringstream oss;
@@ -64,6 +120,124 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 	return NULL;
 }
 
+bool connected = false;
+DWORD WINAPI TimeoutThread(LPVOID lpParam)
+{
+	while (!exitTimeoutThread)
+	{
+		time_t currentTick = time(nullptr);
+
+		if (currentTick - lastPingTick < 10)
+			connected = true;
+		if (lastPingTick > 0 && currentTick - lastPingTick > 10 && connected == true)
+		{
+			outputLog("Lost connection: plugin timed out client", 0);
+			pluginStatus = 0;
+			ServerConnection = NULL;
+			connected = false;
+			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			if (originalName != "")
+				setClientName(originalName);
+		}
+		Sleep(100);
+	}
+	return NULL;
+}
+
+DWORD WINAPI SendDataThread(LPVOID lpParam)
+{
+	while (!exitSendDataThread)
+	{
+		if (pluginStatus != 0 && processingMessage == false) {
+			sendCallback(getPluginVersionAsString());
+			char *base_text = "TokoVOIP status:";
+			char full_text[24];
+			strcpy(full_text, base_text);
+			strcat(full_text, to_string(pluginStatus).c_str());
+			full_text[23] = '\0';
+			sendCallback(full_text);
+			//outputLog("Sent plugin data", 0);
+		}
+		if (processingMessage == false)
+			Sleep(1000);
+		else
+			Sleep(50);
+	}
+	return NULL;
+}
+
+// callback function writes data to a std::ostream
+static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp)
+{
+	if (userp)
+	{
+		std::ostream& os = *static_cast<std::ostream*>(userp);
+		std::streamsize len = size * nmemb;
+		if (os.write(static_cast<char*>(buf), len))
+			return len;
+	}
+
+	return 0;
+}
+
+/**
+* timeout is in seconds
+**/
+CURLcode curl_read(const std::string& url, std::ostream& os, long timeout = 30)
+{
+	CURLcode code(CURLE_FAILED_INIT);
+	CURL* curl = curl_easy_init();
+
+	if (curl)
+	{
+		if (CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &data_write))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FILE, &os))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())))
+		{
+			code = curl_easy_perform(curl);
+		}
+		curl_easy_cleanup(curl);
+	}
+	return code;
+}
+
+bool isUpdateAvaible() {
+	curl_global_init(CURL_GLOBAL_ALL);
+
+	std::ostringstream oss;
+	bool isUpdate = false;
+	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_version.txt", oss))
+	{
+		// Web page successfully written to string
+		const std::string html = oss.str();
+		if (strcmp((char*)oss.str().c_str(), ts3plugin_version()))
+			isUpdate = true;
+	}
+	curl_global_cleanup();
+	if (isUpdate == true)
+		return (1);
+	return (0);
+}
+
+DWORD WINAPI checkUpdateThread(LPVOID lpParam)
+{
+	while (!exitCheckUpdateThread)
+	{
+		outputLog("Checking for updates", 0);
+		if (isUpdateAvaible() == true) {
+			MessageBox(NULL, "A new update is available for TokoVOIP ! Download it at forums.rmog.us.", "TokoVOIP: Update", MB_OK);
+			Sleep(3600000);
+		}
+		else
+			Sleep(600000);
+	}
+	return NULL;
+}
+
 int Tokovoip::initialize()
 {
 	if (isRunning != 0)
@@ -71,12 +245,12 @@ int Tokovoip::initialize()
 	outputLog("TokoVOIP initialized", 0);
 	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
-	//exitTimeoutThread = false;
-	//exitSendDataThread = false;
+	exitTimeoutThread = false;
+	exitSendDataThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
-	//threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
-	//threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
-	//threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
+	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
+	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
+	threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
 	isRunning = false;
 	return (1);
 }
@@ -94,6 +268,111 @@ void Tokovoip::shutdown()
 }
 
 // Utils
+
+char* lastNameSet = "";
+time_t lastNameSetTick = 0;
+int	setClientName(char* name)
+{
+	DWORD error;
+	char* currentName;
+
+	error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+	if (error != ERROR_ok && error != ERROR_ok_no_update)
+		outputLog("Can't flush self updates.", error);
+	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok) {
+		outputLog("Error getting client nickname", error);
+		return (0);
+	}
+	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0 || time(nullptr) - lastNameSetTick < 1)
+		return (1);
+	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
+		outputLog("Error setting client nickname", error);
+		return (0);
+	}
+	else
+	{
+		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		if (error != ERROR_ok && error != ERROR_ok_no_update)
+			outputLog("Can't flush self updates.", error);
+		lastNameSet = name;
+		lastNameSetTick = time(nullptr);
+		return (1);
+	}
+}
+
+void setClientTalking(bool status)
+{
+	DWORD error;
+	if (status)
+	{
+		if ((error = ts3Functions.setClientSelfVariableAsInt(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
+			outputLog("Can't active input.", error);
+		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		if (error != ERROR_ok && error != ERROR_ok_no_update)
+			outputLog("Can't flush self updates.", error);
+	}
+	else
+	{
+		if ((error = ts3Functions.setClientSelfVariableAsInt(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_INPUT_DEACTIVATED, 1)) != ERROR_ok)
+			outputLog("Can't deactive input.", error);
+		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		if (error != ERROR_ok && error != ERROR_ok_no_update)
+			outputLog("Can't flush self updates.", error);
+	}
+}
+
+void	sendCallback(string str)
+{
+	for (auto &a_connection : server.get_connections()) {
+		auto send_stream = make_shared<WsServer::SendStream>();
+		*send_stream << str;
+
+		server.send(a_connection, send_stream, [](const boost::system::error_code& ec) {
+			if (ec) {
+				std::ostringstream oss;
+				oss << "Server: Error sending message. " << "Error: " << ec << ", error message: " << ec.message();
+				outputLog((char*)oss.str().c_str(), 1);
+			}
+		});
+	}
+}
+
+void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status)
+{
+	anyID clientIds[2];
+	clientIds[0] = clientId;
+	clientIds[1] = 0;
+	if (clientIds[0] <= 0)
+		return;
+	DWORD error;
+	int isLocalMuted;
+	if ((error = ts3Functions.getClientVariableAsInt(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_IS_MUTED, &isLocalMuted)) != ERROR_ok) {
+		outputLog("Error getting client nickname", error);
+	}
+	else
+	{
+		if (status && isLocalMuted == 0)
+		{
+			if ((error = ts3Functions.requestMuteClients(serverConnectionHandlerID, clientIds, NULL)) != ERROR_ok)
+				outputLog("Can't mute client", error);
+		}
+		if (!status && isLocalMuted == 1)
+		{
+			if ((error = ts3Functions.requestUnmuteClients(serverConnectionHandlerID, clientIds, NULL)) != ERROR_ok)
+				outputLog("Can't unmute client", error);
+		}
+	}
+}
+
+char	*getPluginVersionAsString()
+{
+	char *version = "TokoVOIP version:";
+	char full_text[24];
+	strcpy(full_text, version);
+	strcat(full_text, ts3plugin_version());
+	full_text[23] = '\0';
+	return (full_text);
+}
 
 void outputLog(char* message, DWORD errorCode)
 {

@@ -5,6 +5,9 @@
 #include <ts3_functions.h>
 #include "plugin.h"
 #include "teamspeak/public_errors.h"
+#include "tokovoip.h"
+
+std::unique_ptr<Tokovoip> tokovoip;
 
 Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
 	: m_servers_info(servers_info)
@@ -13,6 +16,7 @@ Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
 	setParent(parent);
     setObjectName("Radio");
     m_isPrintEnabled = false;
+	tokovoip->initialize();
 }
 
 void Radio::setHomeId(uint64 serverConnectionHandlerID)
@@ -351,7 +355,11 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
     if (!(server_dsp_radios->contains(clientID)))
         return;
 
-    server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+	char* TSName;
+	ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientID, CLIENT_NICKNAME, &TSName);
+	//ts3Functions.logMessage(tokovoip->bruh.c_str() , LogLevel_INFO, "TokoVOIP", 0);
+	//if (strcmp(TSName, lastName.c_str()) == 0)
+		server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
 }
 
 QHash<QString, RadioFX_Settings> Radio::GetSettingsMap() const

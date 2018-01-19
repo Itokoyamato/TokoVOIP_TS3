@@ -7,14 +7,11 @@
 
 #include "mod_radio.h"
 #include "settings_radio.h"
-#include "tokovoip.h"
 
 const char* Plugin::kPluginName = "Radio FX";
 const char* Plugin::kPluginVersion = "1.0";
 const char* Plugin::kPluginAuthor = "Thorsten Weinz";
 const char* Plugin::kPluginDescription = "Features:\n\nRadio FX\n";
-
-std::unique_ptr<Tokovoip> tokovoip;
 
 Plugin::Plugin(const char* plugin_id, QObject *parent)
 	: Plugin_Base(plugin_id, parent)
@@ -30,7 +27,6 @@ int Plugin::initialize()
 	context_menu().setMainIcon("ct_16x16.png");
 	translator().update();
 	m_settings_radio->Init(m_radio);
-	tokovoip->initialize();
 	return 0;
 }
 

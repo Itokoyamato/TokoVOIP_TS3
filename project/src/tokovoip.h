@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/plugin_base.h"
+
 #ifndef _WINDEF_
 typedef unsigned long DWORD;
 #endif
@@ -21,3 +22,8 @@ uint64 getCurrentChannel(uint64 serverConnectionHandlerID);
 anyID getMyId(uint64 serverConnectionHandlerID);
 std::string getChannelName(uint64 serverConnectionHandlerID, anyID clientId);
 bool isConnected(uint64 serverConnectionHandlerID);
+void sendCallback(std::string str);
+int	setClientName(char* name);
+void setClientTalking(bool status);
+void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
+char *getPluginVersionAsString();
