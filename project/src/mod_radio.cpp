@@ -355,11 +355,7 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
     if (!(server_dsp_radios->contains(clientID)))
         return;
 
-	char* TSName;
-	ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientID, CLIENT_NICKNAME, &TSName);
-	//ts3Functions.logMessage(tokovoip->bruh.c_str() , LogLevel_INFO, "TokoVOIP", 0);
-	//if (strcmp(TSName, lastName.c_str()) == 0)
-		server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+    server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
 }
 
 QHash<QString, RadioFX_Settings> Radio::GetSettingsMap() const

@@ -1,6 +1,5 @@
 ﻿#include "plugin_qt.h"
 
-
 #include "teamspeak/clientlib_publicdefinitions.h"
 
 #include "core/ts_serversinfo.h"

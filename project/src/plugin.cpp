@@ -31,8 +31,6 @@ struct TS3Functions ts3Functions;
 
 std::unique_ptr<Plugin> plugin;
 
-std::string justSomeTest = "bruh";
-
 #ifdef _WIN32
 #define _strcpy(dest, destSize, src) strcpy_s(dest, destSize, src)
 #define snprintf sprintf_s

@@ -9,9 +9,10 @@ typedef unsigned long DWORD;
 class Tokovoip
 {
 public:
-	
 	int initialize();
 	void shutdown();
+private:
+	std::map<std::string, int> radioData;
 };
 
 void outputLog(char* message, DWORD errorCode);

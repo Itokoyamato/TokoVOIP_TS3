@@ -1,5 +1,5 @@
 build*/
-deps/*
+deps/
 CMakeSettings.json
 cmake*.bat
 lupdate.bat

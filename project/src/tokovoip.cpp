@@ -23,6 +23,7 @@
 #define CURL_STATICLIB
 #include "curl.h"
 
+Tokovoip *tokovoip;
 using namespace std;
 typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
 typedef SimpleWeb::SocketClient<SimpleWeb::WS> WsClient;
@@ -42,6 +43,8 @@ char* originalName = "";
 time_t lastPingTick = 0;
 int pluginStatus = 0;
 bool processingMessage = false;
+char* lastNameSet = "";
+time_t lastNameSetTick = 0;
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
@@ -53,6 +56,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::Message> message) {
 
+		processingMessage = true;
+		lastPingTick = time(nullptr);
+		pluginStatus = 1;
 		ServerConnection = connection;
 
 		auto message_str = message->string();
@@ -96,6 +102,111 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
 
+		//--------------------------------------------------------
+
+		// Check if connected to any channel
+		if (thisChannelName == "") {
+			processingMessage = false;
+			return (0);
+		}
+
+		// Check if right channel
+		if (channelName != thisChannelName)
+		{
+			if (originalName != "")
+				setClientName(originalName);
+			pluginStatus = 2;
+			processingMessage = false;
+			return (0);
+		}
+
+		// Save client's original name
+		if (originalName == "")
+			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
+				outputLog("Error getting client nickname", error);
+				processingMessage = false;
+				return (0);
+			}
+
+		// Set client's name to ingame name
+		char * newName = new char[localName.size() + 1];
+		std::copy(localName.begin(), localName.end(), newName);
+		newName[localName.size()] = '\0';
+		if (strcmp(lastNameSet, newName) != 0)
+			setClientName(newName);
+		delete[] newName;
+
+		// Activate input if talking on radio
+		if (radioTalking)
+		{
+			setClientTalking(true);
+			isTalking = true;
+		}
+		else
+		{
+			if (isTalking)
+			{
+				setClientTalking(false);
+				isTalking = false;
+			}
+		}
+
+		// Handle positional audio
+		TS3_VECTOR myPosition;
+		myPosition.x = (float)lua["data"]["posX"];
+		myPosition.y = (float)lua["data"]["posY"];
+		myPosition.z = (float)lua["data"]["posZ"];
+		ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
+		ts3Functions.systemset3DSettings(ts3Functions.getCurrentServerConnectionHandlerID(), (float)lua["data"]["distanceFactor"], (float)lua["data"]["rolloffScale"]);
+
+		// Process other clients
+		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
+		{
+			clientId = *clientIdIterator;
+			char* TSName;
+			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_NICKNAME, &TSName)) != ERROR_ok) {
+				outputLog("Error getting client nickname", error);
+				continue;
+			}
+			else
+			{
+				data.for_each([&](sol::object const& key, sol::table const& user) {
+					string gameName = user["username"];
+					int muted = user["muted"];
+					float volume = user["volume"];
+					bool radioEffect = user["radioEffect"];
+
+					char **UUID;
+					anyID id = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, UUID);
+					ts3Functions.logMessage(*UUID, LogLevel_INFO, "TokoVOIP", 0);
+					ts3Functions.logMessage((radioEffect ? "true" : "false"), LogLevel_INFO, "TokoVOIP", 0);
+
+					//tokovoip->setRadioData(*UUID, radioEffect);
+
+					TS3_VECTOR Vector;
+					Vector.x = (float)user["posX"];
+					Vector.y = (float)user["posY"];
+					Vector.z = (float)user["posZ"];
+
+					if (channelName == thisChannelName && TSName == gameName)
+					{
+						if (muted)
+						{
+							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
+						}
+						else
+						{
+							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
+							ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
+							ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
+						}
+					}
+				});
+				ts3Functions.freeMemory(TSName);
+			}
+		}
+		pluginStatus = 3;
+		processingMessage = false;
 		//--------------------------------------------------------
 
 
@@ -252,6 +363,7 @@ int Tokovoip::initialize()
 	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
 	threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
 	isRunning = false;
+	//radioData["A1"] = false;
 	return (1);
 }
 
@@ -269,8 +381,6 @@ void Tokovoip::shutdown()
 
 // Utils
 
-char* lastNameSet = "";
-time_t lastNameSetTick = 0;
 int	setClientName(char* name)
 {
 	DWORD error;
