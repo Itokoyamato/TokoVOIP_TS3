@@ -157,7 +157,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		myPosition.y = (float)lua["data"]["posY"];
 		myPosition.z = (float)lua["data"]["posZ"];
 		ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
-		ts3Functions.systemset3DSettings(ts3Functions.getCurrentServerConnectionHandlerID(), (float)lua["data"]["distanceFactor"], (float)lua["data"]["rolloffScale"]);
+		//ts3Functions.systemset3DSettings(ts3Functions.getCurrentServerConnectionHandlerID(), (float)lua["data"]["distanceFactor"], (float)lua["data"]["rolloffScale"]);
 
 		// Process other clients
 		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
@@ -174,14 +174,17 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 					string gameName = user["username"];
 					int muted = user["muted"];
 					float volume = user["volume"];
-					bool radioEffect = user["radioEffect"];
+					bool isRadioEffect = user["radioEffect"];
 
-					char **UUID;
-					anyID id = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, UUID);
-					ts3Functions.logMessage(*UUID, LogLevel_INFO, "TokoVOIP", 0);
-					ts3Functions.logMessage((radioEffect ? "true" : "false"), LogLevel_INFO, "TokoVOIP", 0);
-
-					//tokovoip->setRadioData(*UUID, radioEffect);
+					char *UUID;
+					if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+						outputLog("Error getting client UUID", error);
+					}
+					else
+					{
+						tokovoip->setRadioData(UUID, isRadioEffect);
+					}
+					outputLog((isRadioEffect ? "true" : "false"), 0);
 
 					TS3_VECTOR Vector;
 					Vector.x = (float)user["posX"];
@@ -363,7 +366,7 @@ int Tokovoip::initialize()
 	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
 	threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
 	isRunning = false;
-	//radioData["A1"] = false;
+	tokovoip = this;
 	return (1);
 }
 

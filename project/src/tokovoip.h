@@ -8,11 +8,26 @@ typedef unsigned long DWORD;
 
 class Tokovoip
 {
+private:
+	std::map<std::string, bool> radioData;
+	int x;
+
 public:
 	int initialize();
 	void shutdown();
-private:
-	std::map<std::string, int> radioData;
+	void setRadioData(std::string uuid, bool state)
+	{
+		radioData[uuid] = state;
+	}
+	bool getRadioData(std::string uuid)
+	{
+		if (radioData.find(uuid) != radioData.end())
+		{
+			if (radioData[uuid] == true)
+				return (true);
+		}
+		return (false);
+	}
 };
 
 void outputLog(char* message, DWORD errorCode);

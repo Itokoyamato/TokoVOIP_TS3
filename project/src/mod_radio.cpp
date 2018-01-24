@@ -7,7 +7,7 @@
 #include "teamspeak/public_errors.h"
 #include "tokovoip.h"
 
-std::unique_ptr<Tokovoip> tokovoip;
+Tokovoip tokovoip;
 
 Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
 	: m_servers_info(servers_info)
@@ -16,7 +16,7 @@ Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
 	setParent(parent);
     setObjectName("Radio");
     m_isPrintEnabled = false;
-	tokovoip->initialize();
+	tokovoip.initialize();
 }
 
 void Radio::setHomeId(uint64 serverConnectionHandlerID)
@@ -345,6 +345,7 @@ bool Radio::onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bo
  */
 void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID clientID, short *samples, int sampleCount, int channels)
 {
+	DWORD error;
     if (!(isRunning()))
         return;
 
@@ -355,7 +356,16 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
     if (!(server_dsp_radios->contains(clientID)))
         return;
 
-    server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+	char *UUID;
+	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientID, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+		outputLog("Error getting client UUID", error);
+	}
+	else
+	{
+		//outputLog((tokovoip.getRadioData(UUID) == true ? "true" : "false"), 0);
+		if (tokovoip.getRadioData(UUID) == true)
+			server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+	}
 }
 
 QHash<QString, RadioFX_Settings> Radio::GetSettingsMap() const
