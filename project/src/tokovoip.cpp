@@ -45,9 +45,12 @@ int pluginStatus = 0;
 bool processingMessage = false;
 char* lastNameSet = "";
 time_t lastNameSetTick = 0;
+string mainChannel = "";
+string waitChannel = "";
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
+time_t noiseWait = 0;
 
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
@@ -64,6 +67,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		auto message_str = message->string();
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
 
+		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
+			return (0);
+
 		DWORD error;
 		anyID clientId;
 		std::vector<anyID> clients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), getCurrentChannel(ts3Functions.getCurrentServerConnectionHandlerID()));
@@ -75,13 +81,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		if (thisChannelName == "") {
 			return (0);
 		}
-
-		// Retrieve client ID and UUID and send it to fiveM
-
-		//anyID localcID = getMyId(ts3Functions.getCurrentServerConnectionHandlerID());
-		//char **localUUID;
-		//anyID id = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), localcID, CLIENT_UNIQUE_IDENTIFIER, localUUID);
-		//sendCallback("localUUID:" + ((string)*localUUID));
 
 		//--------------------------------------------------------
 
@@ -98,7 +97,15 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		}
 
 		sol::table data = lua["data"]["Users"];
-		string channelName = lua["data"]["TSChannel"];
+		//string channelName = lua["data"]["TSChannel"];
+		//string channelPass = lua["data"]["TSPassword"];
+		//string waitingChannelName = lua["data"]["TSChannelWait"];
+
+		string channelName = "SERVER_3";
+		mainChannel = channelName;
+		string channelPass = "";
+		string waitingChannelName = "TokoVOIP Server Waiting Room IPS DESC";
+		waitChannel = waitingChannelName;
 		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
 
@@ -115,9 +122,66 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		{
 			if (originalName != "")
 				setClientName(originalName);
-			pluginStatus = 2;
-			processingMessage = false;
-			return (0);
+			if (thisChannelName == waitingChannelName)
+			{
+				if (noiseWait == 0 || (time(nullptr) - noiseWait) > 1)
+					noiseWait = time(nullptr);
+				uint64* result;
+				if ((error = ts3Functions.getChannelList(ts3Functions.getCurrentServerConnectionHandlerID(), &result)) != ERROR_ok)
+				{
+					outputLog("Can't get channel list", error);
+				}
+				else
+				{
+					bool joined = false;
+					uint64* iter = result;
+					while (*iter && !joined)
+					{
+						uint64 channelId = *iter;
+						iter++;
+						char* cName;
+						if ((error = ts3Functions.getChannelVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+							outputLog("Can't get channel name", error);
+						}
+						else
+						{
+							if (!strcmp(channelName.c_str(), cName))
+							{
+								if (time(nullptr) - noiseWait < 1)
+								{
+									std::vector<anyID> channelClients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), channelId);
+									for (auto clientIdIterator = channelClients.begin(); clientIdIterator != channelClients.end(); clientIdIterator++)
+									{
+										setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), *clientIdIterator, true);
+									}
+									pluginStatus = 2;
+									processingMessage = false;
+									return (0);
+								}
+								if ((error = ts3Functions.requestClientMove(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
+									outputLog("Can't join channel", error);
+									pluginStatus = 2;
+									processingMessage = false;
+									return (0);
+								}
+								else
+								{
+									joined = true;
+								}
+							}
+							ts3Functions.freeMemory(cName);
+						}
+					}
+					ts3Functions.freeMemory(result);
+				}
+			}
+			else
+			{
+				unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+				pluginStatus = 2;
+				processingMessage = false;
+				return (0);
+			}
 		}
 
 		// Save client's original name
@@ -192,9 +256,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 						if (channelName == thisChannelName && TSName == gameName)
 						{
-							outputLog(UUID, 0);
-							outputLog((isRadioEffect == true) ? "RadioTalking: true" : "RadioTalking: false", 0);
-							outputLog((tokovoip->getRadioData(UUID) == true) ? "RadioTalkingData: true" : "RadioTalkingData: false", 0);
 							if (isRadioEffect == false && tokovoip->getRadioData(UUID) == true)
 								playWavFile("mic_click_off");
 							tokovoip->setRadioData(UUID, isRadioEffect);
@@ -252,6 +313,49 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 			connected = true;
 		if (lastPingTick > 0 && currentTick - lastPingTick > 10 && connected == true)
 		{
+			string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
+			if (mainChannel == thisChannelName)
+			{
+				uint64* result;
+				DWORD error;
+				if ((error = ts3Functions.getChannelList(ts3Functions.getCurrentServerConnectionHandlerID(), &result)) != ERROR_ok)
+				{
+					outputLog("Can't get channel list", error);
+				}
+				else
+				{
+					bool joined = false;
+					uint64* iter = result;
+					while (*iter && !joined)
+					{
+						uint64 channelId = *iter;
+						iter++;
+						char* cName;
+						if ((error = ts3Functions.getChannelVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+							outputLog("Can't get channel name", error);
+						}
+						else
+						{
+							if (!strcmp(waitChannel.c_str(), cName))
+							{
+								if ((error = ts3Functions.requestClientMove(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), channelId, "", NULL)) != ERROR_ok) {
+									outputLog("Can't join channel", error);
+									pluginStatus = 2;
+									processingMessage = false;
+									return (0);
+								}
+								else
+								{
+									joined = true;
+								}
+							}
+							ts3Functions.freeMemory(cName);
+						}
+					}
+					ts3Functions.freeMemory(result);
+				}
+			}
+			Sleep(500);
 			outputLog("Lost connection: plugin timed out client", 0);
 			pluginStatus = 0;
 			ServerConnection = NULL;
@@ -423,7 +527,7 @@ void playWavFile(const char* fileNameWithoutExtension)
 	outputLog(pluginPath, 0);
 	std::string path = std::string((string)pluginPath);
 	DWORD error;
-	std::string to_play = path + "radiofx_plugin/" + std::string(fileNameWithoutExtension) + ".wav";
+	std::string to_play = path + "tokovoip_plugin/" + std::string(fileNameWithoutExtension) + ".wav";
 	if ((error = ts3Functions.playWaveFile(ts3Functions.getCurrentServerConnectionHandlerID(), to_play.c_str())) != ERROR_ok)
 	{
 		outputLog("can't play sound", error);
