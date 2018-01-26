@@ -10,12 +10,12 @@
 const char* Plugin::kPluginName = "TokoVoip";
 const char* Plugin::kPluginVersion = "1.0.9";
 const char* Plugin::kPluginAuthor = "Itokoyamato, Thorsten Weinz";
-const char* Plugin::kPluginDescription = "Features:\n\nTokoVoip\nRadio FX\n";
+const char* Plugin::kPluginDescription = "Features:\n- TokoVoip\n- Radio FX\n";
 
 Plugin::Plugin(const char* plugin_id, QObject *parent)
 	: Plugin_Base(plugin_id, parent)
 	, m_servers_info(new TSServersInfo(this))
-	, m_radio(new Radio(*m_servers_info, talkers(), this))
+	, m_radio(new Radio(*m_servers_info, talkers(), plugin_id, this))
 	, m_settings_radio(new SettingsRadio(*m_servers_info, this))
 {}
 
@@ -31,6 +31,7 @@ int Plugin::initialize()
 
 void Plugin::shutdown()
 {
+	m_radio->getTokovoip().shutdown();
 	m_settings_radio->shutdown();
 }
 

@@ -7,16 +7,14 @@
 #include "teamspeak/public_errors.h"
 #include "tokovoip.h"
 
-Tokovoip tokovoip;
-
-Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent)
+Radio::Radio(TSServersInfo& servers_info, Talkers& talkers, const char* plugin_id, QObject* parent)
 	: m_servers_info(servers_info)
 	, m_talkers(talkers)
 {
 	setParent(parent);
     setObjectName("Radio");
     m_isPrintEnabled = false;
-	tokovoip.initialize();
+	tokovoip.initialize((char *)plugin_id);
 }
 
 void Radio::setHomeId(uint64 serverConnectionHandlerID)

@@ -8,6 +8,7 @@
 #include "dsp_radio.h"
 #include "core/ts_serversinfo.h"
 #include "core/talkers.h"
+#include "tokovoip.h"
 
 struct RadioFX_Settings
 {
@@ -29,7 +30,7 @@ class Radio : public Module, public TalkInterface
     Q_PROPERTY(uint64 homeId READ homeId WRITE setHomeId)
 
 public:
-    explicit Radio(TSServersInfo& servers_info, Talkers& talkers, QObject* parent = nullptr);
+    explicit Radio(TSServersInfo& servers_info, Talkers& talkers, const char* plugin_id, QObject* parent = nullptr);
     
     bool onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bool isReceivedWhisper, anyID clientID, bool isMe);
 
@@ -43,6 +44,8 @@ public:
 
     QHash<QString, RadioFX_Settings> GetSettingsMap() const;
     QHash<QString, RadioFX_Settings>& GetSettingsMapRef();
+
+	Tokovoip getTokovoip() { return tokovoip; };
 
 signals:
     void ChannelStripEnabledSet(QString, bool);
@@ -74,8 +77,9 @@ public slots:
     //void saveSettings(int r);
 
 private:
-    uint64 m_homeId = 0;
-    
+	Tokovoip tokovoip;
+	uint64 m_homeId = 0;
+
 	TSServersInfo& m_servers_info;
 	Talkers& m_talkers;
 	

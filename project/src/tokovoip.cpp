@@ -62,7 +62,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		ServerConnection = connection;
 
 		auto message_str = message->string();
-		ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
+		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
 
 		DWORD error;
 		anyID clientId;
@@ -139,6 +139,8 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		// Activate input if talking on radio
 		if (radioTalking)
 		{
+			if (!isTalking)
+				playWavFile("mic_click_on");
 			setClientTalking(true);
 			isTalking = true;
 		}
@@ -148,6 +150,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			{
 				setClientTalking(false);
 				isTalking = false;
+				playWavFile("mic_click_off");
 			}
 		}
 
@@ -189,6 +192,11 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 						if (channelName == thisChannelName && TSName == gameName)
 						{
+							outputLog(UUID, 0);
+							outputLog((isRadioEffect == true) ? "RadioTalking: true" : "RadioTalking: false", 0);
+							outputLog((tokovoip->getRadioData(UUID) == true) ? "RadioTalkingData: true" : "RadioTalkingData: false", 0);
+							if (isRadioEffect == false && tokovoip->getRadioData(UUID) == true)
+								playWavFile("mic_click_off");
 							tokovoip->setRadioData(UUID, isRadioEffect);
 							if (muted)
 							{
@@ -309,7 +317,8 @@ CURLcode curl_read(const std::string& url, std::ostream& os, long timeout = 30)
 			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L))
 			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FILE, &os))
 			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str())))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str()))
+			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FAILONERROR, true)))
 		{
 			code = curl_easy_perform(curl);
 		}
@@ -318,7 +327,8 @@ CURLcode curl_read(const std::string& url, std::ostream& os, long timeout = 30)
 	return code;
 }
 
-bool isUpdateAvaible() {
+bool isUpdateAvaible()
+{
 	curl_global_init(CURL_GLOBAL_ALL);
 
 	std::ostringstream oss;
@@ -326,14 +336,31 @@ bool isUpdateAvaible() {
 	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_version.txt", oss))
 	{
 		// Web page successfully written to string
-		const std::string html = oss.str();
 		if (strcmp((char*)oss.str().c_str(), ts3plugin_version()))
 			isUpdate = true;
+		if (strcmp((char*)oss.str().c_str(), ""))
+			isUpdate = false;
 	}
 	curl_global_cleanup();
 	if (isUpdate == true)
 		return (1);
 	return (0);
+}
+
+char *getUpdateMessage()
+{
+	curl_global_init(CURL_GLOBAL_ALL);
+
+	std::ostringstream oss;
+	char *message = "N/A";
+	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_update_message.txt", oss))
+	{
+		// Web page successfully written to string
+		const std::string html = oss.str();
+		message = (char*)oss.str().c_str();
+	}
+	curl_global_cleanup();
+	return (message);
 }
 
 DWORD WINAPI checkUpdateThread(LPVOID lpParam)
@@ -342,7 +369,8 @@ DWORD WINAPI checkUpdateThread(LPVOID lpParam)
 	{
 		outputLog("Checking for updates", 0);
 		if (isUpdateAvaible() == true) {
-			MessageBox(NULL, "A new update is available for TokoVOIP ! Download it at forums.rmog.us.", "TokoVOIP: Update", MB_OK);
+			outputLog("Update available", 0);
+			MessageBox(NULL, getUpdateMessage(), "TokoVOIP: Update", MB_OK);
 			Sleep(3600000);
 		}
 		else
@@ -351,11 +379,16 @@ DWORD WINAPI checkUpdateThread(LPVOID lpParam)
 	return NULL;
 }
 
-int Tokovoip::initialize()
+int Tokovoip::initialize(char *id)
 {
+	plugin_id = id;
+	const int sz = strlen(id) + 1;
+	plugin_id = (char*)malloc(sz * sizeof(char));
+	strcpy(plugin_id, id);
 	if (isRunning != 0)
 		return (0);
 	outputLog("TokoVOIP initialized", 0);
+	outputLog(id, 0);
 	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	exitTimeoutThread = false;
@@ -382,6 +415,20 @@ void Tokovoip::shutdown()
 }
 
 // Utils
+
+void playWavFile(const char* fileNameWithoutExtension)
+{
+	char pluginPath[PATH_BUFSIZE];
+	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->getPluginID());
+	outputLog(pluginPath, 0);
+	std::string path = std::string((string)pluginPath);
+	DWORD error;
+	std::string to_play = path + "radiofx_plugin/" + std::string(fileNameWithoutExtension) + ".wav";
+	if ((error = ts3Functions.playWaveFile(ts3Functions.getCurrentServerConnectionHandlerID(), to_play.c_str())) != ERROR_ok)
+	{
+		outputLog("can't play sound", error);
+	}
+}
 
 int	setClientName(char* name)
 {

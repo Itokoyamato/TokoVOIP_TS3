@@ -10,14 +10,19 @@ class Tokovoip
 {
 private:
 	std::map<std::string, bool> radioData;
-	int x;
+	char *plugin_id;
+	char *plugin_path;
 
 public:
-	int initialize();
+	int initialize(char *id);
 	void shutdown();
 	void setRadioData(std::string uuid, bool state)
 	{
 		radioData[uuid] = state;
+	}
+	char *getPluginID()
+	{
+		return plugin_id;
 	}
 	bool getRadioData(std::string uuid)
 	{
@@ -43,3 +48,4 @@ int	setClientName(char* name);
 void setClientTalking(bool status);
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
 char *getPluginVersionAsString();
+void playWavFile(const char* fileNameWithoutExtension);

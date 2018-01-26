@@ -66,7 +66,7 @@ void SettingsRadio::Init(Radio *radio)
         if (name == "HomeTab")
             name = "Home";
 
-        radio->setChannelStripEnabled(name, cfg.value("enabled", false).toBool());
+        radio->setChannelStripEnabled(name, cfg.value("enabled", true).toBool());
         radio->setInLoFreq(name, cfg.value("low_freq", 300.0f).toDouble());
         radio->setInHiFreq(name, cfg.value("high_freq", 3000.0f).toDouble());
         radio->setFudge(name, cfg.value("fudge", 2.0f).toDouble());
@@ -142,7 +142,7 @@ void SettingsRadio::onContextMenuEvent(uint64 serverConnectionHandlerID, PluginM
                     if (name == "HomeTab")
                         name = "Home";
 
-                    p_config->UpdateEnabled(name, cfg.value("enabled", false).toBool());
+                    p_config->UpdateEnabled(name, cfg.value("enabled", true).toBool());
                     p_config->UpdateBandpassInLowFrequency(name, cfg.value("low_freq", 300.0).toDouble());
                     p_config->UpdateBandpassInHighFrequency(name, cfg.value("high_freq", 3000.0).toDouble());
                     p_config->UpdateDestruction(name, cfg.value("fudge", 2.0).toDouble());
