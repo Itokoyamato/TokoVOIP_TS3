@@ -5,7 +5,7 @@
 #ifndef _WINDEF_
 typedef unsigned long DWORD;
 #endif
-
+void outputLog(char* message, DWORD errorCode);
 class Tokovoip
 {
 private:
@@ -30,7 +30,7 @@ public:
 	}
 };
 
-void outputLog(char* message, DWORD errorCode);
+
 void resetVolumeAll(uint64 serverConnectionHandlerID);
 void unmuteAll(uint64 serverConnectionHandlerID);
 std::vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId);

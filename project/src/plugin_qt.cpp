@@ -7,10 +7,10 @@
 #include "mod_radio.h"
 #include "settings_radio.h"
 
-const char* Plugin::kPluginName = "Radio FX";
-const char* Plugin::kPluginVersion = "1.0";
-const char* Plugin::kPluginAuthor = "Thorsten Weinz";
-const char* Plugin::kPluginDescription = "Features:\n\nRadio FX\n";
+const char* Plugin::kPluginName = "TokoVoip";
+const char* Plugin::kPluginVersion = "1.0.9";
+const char* Plugin::kPluginAuthor = "Itokoyamato, Thorsten Weinz";
+const char* Plugin::kPluginDescription = "Features:\n\nTokoVoip\nRadio FX\n";
 
 Plugin::Plugin(const char* plugin_id, QObject *parent)
 	: Plugin_Base(plugin_id, parent)

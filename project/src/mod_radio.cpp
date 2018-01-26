@@ -362,9 +362,9 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
 	}
 	else
 	{
-		//outputLog((tokovoip.getRadioData(UUID) == true ? "true" : "false"), 0);
 		if (tokovoip.getRadioData(UUID) == true)
 			server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
+		ts3Functions.freeMemory(UUID);
 	}
 }
 

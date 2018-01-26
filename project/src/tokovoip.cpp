@@ -164,48 +164,47 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		{
 			clientId = *clientIdIterator;
 			char* TSName;
-			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_NICKNAME, &TSName)) != ERROR_ok) {
-				outputLog("Error getting client nickname", error);
-				continue;
+			char *UUID;
+			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+				outputLog("Error getting client UUID", error);
 			}
 			else
 			{
-				data.for_each([&](sol::object const& key, sol::table const& user) {
-					string gameName = user["username"];
-					int muted = user["muted"];
-					float volume = user["volume"];
-					bool isRadioEffect = user["radioEffect"];
+				if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_NICKNAME, &TSName)) != ERROR_ok) {
+					outputLog("Error getting client nickname", error);
+					continue;
+				}
+				else
+				{
+					data.for_each([&](sol::object const& key, sol::table const& user) {
+						string gameName = user["username"];
+						int muted = user["muted"];
+						float volume = user["volume"];
+						bool isRadioEffect = user["radioEffect"];
 
-					char *UUID;
-					if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
-						outputLog("Error getting client UUID", error);
-					}
-					else
-					{
-						tokovoip->setRadioData(UUID, isRadioEffect);
-					}
-					outputLog((isRadioEffect ? "true" : "false"), 0);
+						TS3_VECTOR Vector;
+						Vector.x = (float)user["posX"];
+						Vector.y = (float)user["posY"];
+						Vector.z = (float)user["posZ"];
 
-					TS3_VECTOR Vector;
-					Vector.x = (float)user["posX"];
-					Vector.y = (float)user["posY"];
-					Vector.z = (float)user["posZ"];
-
-					if (channelName == thisChannelName && TSName == gameName)
-					{
-						if (muted)
+						if (channelName == thisChannelName && TSName == gameName)
 						{
-							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
+							tokovoip->setRadioData(UUID, isRadioEffect);
+							if (muted)
+							{
+								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
+							}
+							else
+							{
+								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
+								ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
+								ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
+							}
 						}
-						else
-						{
-							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
-							ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
-							ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
-						}
-					}
-				});
-				ts3Functions.freeMemory(TSName);
+					});
+					ts3Functions.freeMemory(TSName);
+					ts3Functions.freeMemory(UUID);
+				}
 			}
 		}
 		pluginStatus = 3;
