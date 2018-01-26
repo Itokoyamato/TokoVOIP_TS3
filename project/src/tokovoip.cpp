@@ -97,15 +97,15 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		}
 
 		sol::table data = lua["data"]["Users"];
-		//string channelName = lua["data"]["TSChannel"];
-		//string channelPass = lua["data"]["TSPassword"];
-		//string waitingChannelName = lua["data"]["TSChannelWait"];
-
-		string channelName = "SERVER_3";
+		string channelName = lua["data"]["TSChannel"];
+		string channelPass = lua["data"]["TSPassword"];
+		string waitingChannelName = lua["data"]["TSChannelWait"];
 		mainChannel = channelName;
-		string channelPass = "";
-		string waitingChannelName = "TokoVOIP Server Waiting Room IPS DESC";
 		waitChannel = waitingChannelName;
+
+		//string channelName = "SERVER_3";
+		//string channelPass = "";
+		//string waitingChannelName = "TokoVOIP Server Waiting Room IPS DESC";
 		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
 
