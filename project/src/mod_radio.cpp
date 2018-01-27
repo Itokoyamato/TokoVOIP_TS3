@@ -218,6 +218,10 @@ void Radio::onRunningStateChanged(bool value)
 //! Returns true iff it will or has been an active processing
 bool Radio::onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bool isReceivedWhisper, anyID clientID, bool isMe)
 {
+	if (isMe && status == STATUS_TALKING)
+		sendCallback("startedtalking");
+	if (isMe && status == STATUS_NOT_TALKING)
+		sendCallback("stoppedtalking");
     if (isMe || !isRunning())
         return false;
 

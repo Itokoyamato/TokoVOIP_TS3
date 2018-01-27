@@ -68,7 +68,10 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
 
 		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
+		{
+			processingMessage = false;
 			return (0);
+		}
 
 		DWORD error;
 		anyID clientId;
@@ -78,7 +81,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		//--------------------------------------------------------
 
 		// Check if connected to any channel
-		if (thisChannelName == "") {
+		if (thisChannelName == "")
+		{
+			processingMessage = false;
 			return (0);
 		}
 
@@ -154,7 +159,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 									{
 										setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), *clientIdIterator, true);
 									}
-									pluginStatus = 2;
 									processingMessage = false;
 									return (0);
 								}
@@ -492,7 +496,6 @@ int Tokovoip::initialize(char *id)
 	if (isRunning != 0)
 		return (0);
 	outputLog("TokoVOIP initialized", 0);
-	outputLog(id, 0);
 	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 	exitTimeoutThread = false;
@@ -524,10 +527,9 @@ void playWavFile(const char* fileNameWithoutExtension)
 {
 	char pluginPath[PATH_BUFSIZE];
 	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->getPluginID());
-	outputLog(pluginPath, 0);
 	std::string path = std::string((string)pluginPath);
 	DWORD error;
-	std::string to_play = path + "tokovoip_plugin/" + std::string(fileNameWithoutExtension) + ".wav";
+	std::string to_play = path + "tokovoip/" + std::string(fileNameWithoutExtension) + ".wav";
 	if ((error = ts3Functions.playWaveFile(ts3Functions.getCurrentServerConnectionHandlerID(), to_play.c_str())) != ERROR_ok)
 	{
 		outputLog("can't play sound", error);
