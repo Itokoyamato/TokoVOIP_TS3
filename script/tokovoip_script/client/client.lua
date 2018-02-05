@@ -26,7 +26,7 @@ function initializeVoip()
 					localRadioClicks = false,
 					local_click_on = true,
 					local_click_off = true,
-					remote_click_on = true,
+					remote_click_on = false,
 					remote_click_off = true,
 					Users = {}
 				};
@@ -37,7 +37,6 @@ function initializeVoip()
 						{name = "Police Radio", subscribers = {}},
 						{name = "EMS Radio", subscribers = {}},
 						{name = "Police/EMS Shared Radio", subscribers = {}},
-						{name = "Call with bleh", subscribers = {}},
 	};
 	voip.myChannels = {};
 
@@ -198,7 +197,7 @@ function clientProcessing()
 				for j, data in pairs(voip.channels) do
 					local channel = voip.channels[j];
 					if (channel.subscribers[GetPlayerName(PlayerId())] and channel.subscribers[GetPlayerName(player)] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio == 1) then
-						if (not string.match(channel.name, "Call")) then
+						if (remotePlayerChannel <= 3) then
 							usersdata[i].radioEffect = true;
 						end
 						usersdata[i].volume = 0;
