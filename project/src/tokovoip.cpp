@@ -47,6 +47,7 @@ char* lastNameSet = "";
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
+time_t lastChannelJoin = 0;
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
@@ -113,6 +114,11 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		//string waitingChannelName = "TokoVOIP Server Waiting Room IPS DESC";
 		string localName = lua["data"]["localName"];
 		bool radioTalking = lua["data"]["radioTalking"];
+		bool radioClicks = lua["data"]["localRadioClicks"];
+		bool local_click_on = lua["data"]["local_click_on"];
+		bool local_click_off = lua["data"]["local_click_off"];
+		bool remote_click_on = lua["data"]["remote_click_on"];
+		bool remote_click_off = lua["data"]["remote_click_off"];
 
 		//--------------------------------------------------------
 
@@ -127,6 +133,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		{
 			if (originalName != "")
 				setClientName(originalName);
+			// Handle auto channel switch
 			if (thisChannelName == waitingChannelName)
 			{
 				if (noiseWait == 0 || (time(nullptr) - noiseWait) > 1)
@@ -140,7 +147,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 				{
 					bool joined = false;
 					uint64* iter = result;
-					while (*iter && !joined)
+					while (*iter && !joined && (time(nullptr) - lastChannelJoin) > 1)
 					{
 						uint64 channelId = *iter;
 						iter++;
@@ -162,6 +169,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 									processingMessage = false;
 									return (0);
 								}
+								lastChannelJoin = time(nullptr);
 								if ((error = ts3Functions.requestClientMove(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
 									outputLog("Can't join channel", error);
 									pluginStatus = 2;
@@ -207,9 +215,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		// Activate input if talking on radio
 		if (radioTalking)
 		{
-			if (!isTalking)
-				playWavFile("mic_click_on");
 			setClientTalking(true);
+			if (!isTalking && radioClicks == true && local_click_on == true)
+				playWavFile("mic_click_on");
 			isTalking = true;
 		}
 		else
@@ -217,8 +225,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			if (isTalking)
 			{
 				setClientTalking(false);
+				if (radioClicks == true && local_click_off == true)
+					playWavFile("mic_click_off");
 				isTalking = false;
-				playWavFile("mic_click_off");
 			}
 		}
 
@@ -260,13 +269,13 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 						if (channelName == thisChannelName && TSName == gameName)
 						{
-							if (isRadioEffect == false && tokovoip->getRadioData(UUID) == true)
+							if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
+								playWavFile("mic_click_on");
+							if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(ts3Functions.getCurrentServerConnectionHandlerID()))
 								playWavFile("mic_click_off");
 							tokovoip->setRadioData(UUID, isRadioEffect);
 							if (muted)
-							{
 								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
-							}
 							else
 							{
 								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
@@ -652,11 +661,21 @@ void resetVolumeAll(uint64 serverConnectionHandlerID)
 {
 	std::vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
 	anyID myId = getMyId(serverConnectionHandlerID);
+	DWORD error;
+	char *UUID;
+
 	for (auto it = clientsIds.begin(); it != clientsIds.end(); it++)
 	{
 		if (!(*it == myId))
 		{
 			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*it), 0.0f);
+			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), *it, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+				outputLog("Error getting client UUID", error);
+			}
+			else
+			{
+				tokovoip->setRadioData(UUID, false);
+			}
 		}
 	}
 }
@@ -665,6 +684,7 @@ void unmuteAll(uint64 serverConnectionHandlerID)
 {
 	anyID* ids;
 	DWORD error;
+
 	if ((error = ts3Functions.getClientList(serverConnectionHandlerID, &ids)) != ERROR_ok)
 	{
 		outputLog("Error getting all clients from server", error);

@@ -48,6 +48,7 @@ private:
     int m_ContextMenuUi = -1;
     int m_ContextMenuChannelUi = -1;
     int m_ContextMenuToggleClientBlacklisted = -1;
+	int m_ContextMenuUnmute = -1;
     QPointer<ConfigRadio> m_config;
 
     QPointer<Radio> mP_radio;
