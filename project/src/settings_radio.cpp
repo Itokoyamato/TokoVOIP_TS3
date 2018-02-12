@@ -176,6 +176,7 @@ void SettingsRadio::onContextMenuEvent(uint64 serverConnectionHandlerID, PluginM
 		if (menuItemID == m_ContextMenuUnmute)
 		{
 			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
 		}
     }
     else if (type == PLUGIN_MENU_TYPE_CHANNEL)
