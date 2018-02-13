@@ -134,6 +134,13 @@ function TokoVoip.initialize(self)
 				end
 				self.updateTokoVoipInfo(self);
 				if lastTalkState == false then
+					if (not string.match(self.channels[self.data.radioChannel].name, "Call") and not IsPedSittingInAnyVehicle(PlayerPedId())) then
+						RequestAnimDict("random@arrests");
+						while not HasAnimDictLoaded("random@arrests") do
+							Wait(5);
+						end
+						TaskPlayAnim(PlayerPedId(),"random@arrests","generic_radio_chatter", 8.0, 0.0, -1, 49, 0, 0, 0, 0);
+					end
 					--TriggerEvent("meCommand", " started talking on their radio/phone")
 					lastTalkState = true
 				end
@@ -147,6 +154,7 @@ function TokoVoip.initialize(self)
 				if lastTalkState == true then
 					--TriggerEvent("meCommand", " stopped talking on their radio/phone")
 					lastTalkState = false
+					StopAnimTask(PlayerPedId(), "random@arrests","generic_radio_chatter", -4.0);
 				end
 			end
 		end

@@ -41,17 +41,6 @@ function initializeVoip()
 	};
 	voip.myChannels = {};
 
-	-- DecorRegister("voip:mode",  3);
-	-- DecorRegister("voip:talking",  3);
-	-- DecorRegister("radio:channel",  3);
-	-- DecorRegister("radio:talking",  3);
-	-- DecorRegister("voip:pluginStatus",  3);
-	-- DecorRegister("voip:pluginVersion",  3);
-
-	-- DecorSetInt(GetPlayerPed(-1), "voip:pluginStatus", 0);
-	-- DecorSetInt(GetPlayerPed(-1), "voip:pluginVersion", 0);
-	-- DecorSetInt(GetPlayerPed(-1), "voip:mode", 1);
-
 	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
 	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.data.radioChannel, true);
@@ -110,7 +99,7 @@ function initializeVoip()
 	voip.initialize(voip);	--	Initialize the websocket and controls
 	voip:loop(voip);	--	Start TokoVoip's loop
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.1)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.2)\n");
 
 	-- exports.pNotify:SendNotification(
 	-- {
@@ -282,10 +271,14 @@ function setPlayerTalking(data)
 		end
 		local localPos = GetEntityCoords(GetPlayerPed(-1));
 		local localHeading = GetEntityHeading(GetPlayerPed(-1));
-		TaskPlayAnim(PlayerPedId(),"mp_facial","mic_chatter", 8.0, 0.0, -1, 32, 0, 0, 0, 0);
+		PlayFacialAnim(PlayerPedId(), "mic_chatter", "mp_facial");
 	else
 		setPlayerData(GetPlayerName(PlayerId()), "voip:talking", 0, true);
-		StopAnimTask(PlayerPedId(), 'mp_facial', 'mic_chatter', 10.0);
+		RequestAnimDict("facials@gen_male@base");
+		while not HasAnimDictLoaded("facials@gen_male@base") do
+			Wait(5);
+		end
+		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 	end
 end
 RegisterNUICallback("setPlayerTalking", setPlayerTalking);
