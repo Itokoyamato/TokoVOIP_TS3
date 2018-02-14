@@ -40,7 +40,7 @@ function TokoVoip.loop(self)
 	end);
 end
 
-function TokoVoip.sendDataToTS3(self)	--	Send usersdata to the Javascript Websocket
+function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
 	SendNUIMessage(
 		{
 			type = "updateTokoVoip",
@@ -49,7 +49,7 @@ function TokoVoip.sendDataToTS3(self)	--	Send usersdata to the Javascript Websoc
 	);
 end
 
-function TokoVoip.updateTokoVoipInfo(self)	--	Update the top-left info
+function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 	local info = "";
 	if (self.mode == 1) then
 		info = "Normal";
@@ -88,7 +88,7 @@ function TokoVoip.initialize(self)
 		while (true) do
 			Citizen.Wait(5);
 
-			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then	--	Switch radio channels (main / shared)
+			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then -- Switch radio channels (main / shared)
 				if (IsControlJustPressed(0, Keys["Z"]) and tablelength(self.myChannels) > 0) then
 					local myChannels = {};
 					local currentChannel = 0;
@@ -110,7 +110,7 @@ function TokoVoip.initialize(self)
 					setPlayerData(GetPlayerName(PlayerId()), "radio:channel", currentChannelID, true);
 					self.updateTokoVoipInfo(self);
 				end
-			elseif (IsControlJustPressed(0, Keys["Z"])) then	--	Switch proximity modes (normal / whisper / shout)
+			elseif (IsControlJustPressed(0, Keys["Z"])) then -- Switch proximity modes (normal / whisper / shout)
 				if (not self.mode) then
 					self.mode = 1;
 				end
@@ -123,10 +123,10 @@ function TokoVoip.initialize(self)
 			end
 
 
-			if (IsControlPressed(0, Keys["CAPS"]) and self.data.radioChannel ~= 0) then	--	Talk on radio
+			if (IsControlPressed(0, Keys["CAPS"]) and self.data.radioChannel ~= 0) then -- Talk on radio
 				self.data.radioTalking = true;
 				self.data.localRadioClicks = true;
-				if (self.data.radioChannel > 3) then
+				if (self.data.radioChannel > 100) then
 					self.data.localRadioClicks = false;
 				end
 				if (not getPlayerData(GetPlayerName(PlayerId()), "radio:talking")) then

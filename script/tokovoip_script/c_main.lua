@@ -7,40 +7,44 @@ local targetPed;
 local useLocalPed = true;
 
 function initializeVoip()
-	voip = TokoVoip:init();	--	Initialize TokoVoip and set default settings
-	voip.refreshRate = 100;	--	Rate at which the data is sent to the TSPlugin
-	voip.networkRefreshRate = 2000;	--	Rate at which the network data is updated/reset on the local ped
-	voip.playerListRefreshRate = 5000;	--	Rate at which the playerList is updated
+	voip = TokoVoip:init(); -- Initialize TokoVoip and set default settings
+	voip.refreshRate = 100; -- Rate at which the data is sent to the TSPlugin
+	voip.networkRefreshRate = 2000; -- Rate at which the network data is updated/reset on the local ped
+	voip.playerListRefreshRate = 5000; -- Rate at which the playerList is updated
 	voip.latestVersion = 115;
 	voip.distance = {};
-	voip.distance[1] = 15;	--	Normal speech
-	voip.distance[2] = 5;	--	Whisper
-	voip.distance[3] = 40;	--	Shout
+	voip.distance[1] = 15; -- Normal speech
+	voip.distance[2] = 5; -- Whisper
+	voip.distance[3] = 40; -- Shout
+
+	-- Data that will be sent to the TS plugin
 	voip.data = {	
-					TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC",	--	TeamSpeak waiting channel name
-					TSChannel = "SERVER_1",	--	TeamSpeak channel name
-					TSPassword = "Revolution_pass",	--	TeamSpeak channel password
-					localName = GetPlayerName(PlayerId()),	--	The local username
-					radioTalking = false,
-					radioChannel = 0,
-					localRadioClicks = false,
-					local_click_on = true,
-					local_click_off = true,
-					remote_click_on = false,
-					remote_click_off = true,
-					Users = {}
+					TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC", -- TeamSpeak waiting channel name
+					TSChannel = "SERVER_1", -- TeamSpeak channel name
+					TSPassword = "Revolution_pass", -- TeamSpeak channel password
+					localName = GetPlayerName(PlayerId()), -- The local username
+					radioTalking = false, -- Is the player talking on radio (used to force active mic on TS)
+					radioChannel = 0, -- The radio channel
+					localRadioClicks = false, -- Should the local radio clicks be active (mostly to handle phone calls with no clicks)
+					-- The following is purely client settings, to match tastes
+					local_click_on = true, -- Is local click on active
+					local_click_off = true, -- Is local click off active
+					remote_click_on = false, -- Is remote click on active
+					remote_click_off = true, -- Is remote click off active
+					Users = {} -- All users data
 				};
+
+	-- Variables used script-side
 	voip.mode = 1;
 	voip.talking = false;
 	voip.pluginStatus = 0;
 	voip.pluginVersion = 0;
-	voip.channels = {
-						{name = "Police Radio", subscribers = {}},
-						{name = "EMS Radio", subscribers = {}},
-						{name = "Police/EMS Shared Radio", subscribers = {}},
-	};
+
+	-- Radio channels
+	voip.channels = {};
 	voip.myChannels = {};
 
+	-- Player data shared on the network
 	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
 	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.data.radioChannel, true);
@@ -57,27 +61,47 @@ function initializeVoip()
 			Wait(5)
 
 			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
-				if (IsControlJustPressed(1, Keys["3"]) or IsDisabledControlJustPressed(1, Keys["3"])) then
+				if (IsControlJustPressed(1, Keys["0"]) or IsDisabledControlJustPressed(1, Keys["0"])) then
 					debugData = not debugData;
 				end
 				
-				if (IsDisabledControlJustPressed(1, Keys["1"]) and exports.GTALife:isPlayerCop()) then
-					if (not voip.myChannels[1]) then
-						addPlayerToRadio(1);
-						addPlayerToRadio(3);
-					else
-						removePlayerFromRadio(1);
-						removePlayerFromRadio(3);
+				if (IsDisabledControlJustPressed(1, Keys["1"])) then
+					if (exports.GTALife:isPlayerCop()) then
+						if (not voip.myChannels[1]) then
+							addPlayerToRadio(1);
+						else
+							removePlayerFromRadio(1);
+						end
+					elseif (exports.GTALife:isPlayerFire()) then
+						if (not voip.myChannels[2]) then
+							addPlayerToRadio(2);
+						else
+							removePlayerFromRadio(2);
+						end
 					end
-				end
-
-				if (IsDisabledControlJustPressed(1, Keys["2"]) and exports.GTALife:isPlayerFire()) then
-					if (not voip.myChannels[2]) then
-						addPlayerToRadio(2);
-						addPlayerToRadio(3);
-					else
-						removePlayerFromRadio(2);
-						removePlayerFromRadio(3);
+				elseif ((IsDisabledControlJustPressed(1, Keys["2"]))) then
+					if (exports.GTALife:isPlayerCop() or exports.GTALife:isPlayerFire()) then
+						if (not voip.myChannels[3]) then
+							addPlayerToRadio(3);
+						else
+							removePlayerFromRadio(3);
+						end
+					end
+				elseif ((IsDisabledControlJustPressed(1, Keys["3"]))) then
+					if (exports.GTALife:isPlayerCop()) then
+						if (not voip.myChannels[4]) then
+							addPlayerToRadio(4);
+						else
+							removePlayerFromRadio(4);
+						end
+					end
+				elseif ((IsDisabledControlJustPressed(1, Keys["4"]))) then
+					if (exports.GTALife:isPlayerCop()) then
+						if (not voip.myChannels[5]) then
+							addPlayerToRadio(5);
+						else
+							removePlayerFromRadio(5);
+						end
 					end
 				end
 			end
@@ -95,20 +119,12 @@ function initializeVoip()
 	end);
 	----------------------------------------------------------------------------
 
-	voip.processFunction = clientProcessing;	--	Link the processing function that will be looped
-	voip.initialize(voip);	--	Initialize the websocket and controls
-	voip:loop(voip);	--	Start TokoVoip's loop
+	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
+	voip.initialize(voip); -- Initialize the websocket and controls
+	voip:loop(voip); -- Start TokoVoip's loop
+	requestUpdateChannels(); -- Retrieve the channels list
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.2)\n");
-
-	-- exports.pNotify:SendNotification(
-	-- {
-	-- 	text = "TokoVoip Started", 
-	-- 	type = "info", 
-	-- 	timeout = 3000,
-	-- 	layout = "centerRight"
-	-- })
-
+	-- View block screen handling
 	Citizen.CreateThread(function()
 		local lastTSConnected = 0;
 		while not isLoggedIn do
@@ -127,6 +143,8 @@ function initializeVoip()
 			end
 		end
 	end);
+
+	Citizen.Trace("TokoVoip: Initialized script (1.2.3)\n");
 end
 
 function resourceStart(resource)
@@ -193,7 +211,7 @@ function clientProcessing()
 					for j, data in pairs(voip.channels) do
 						local channel = voip.channels[j];
 						if (channel.subscribers[GetPlayerName(PlayerId())] and channel.subscribers[GetPlayerName(player)] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
-							if (remotePlayerChannel <= 3) then
+							if (remotePlayerChannel <= 100) then
 								usersdata[i].radioEffect = true;
 							end
 							usersdata[i].volume = 0;
@@ -248,6 +266,10 @@ function updateChannels(updatedChannels)
 end
 RegisterNetEvent("TokoVoip:updateChannels");
 AddEventHandler("TokoVoip:updateChannels", updateChannels);
+
+function requestUpdateChannels()
+	TriggerServerEvent("TokoVoip:clientRequestUpdateChannels");
+end
 
 function setPluginStatus(data)
 	voip.pluginStatus = tonumber(data.msg);
@@ -304,10 +326,9 @@ function displayPluginScreen(toggle)
 	end
 end
 
-
+-- Used for admin spectator feature
 function updateVoipTargetPed(newTargetPed, useLocal)
 	targetPed = newTargetPed
 	useLocalPed = useLocal
 end
-
 AddEventHandler("updateVoipTargetPed", updateVoipTargetPed)
