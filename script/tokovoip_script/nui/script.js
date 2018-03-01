@@ -14,11 +14,11 @@ var lastPing = 0;
 var lastReconnect = 0;
 var pluginStatus = 0;
 var pluginVersion = 0;
-var pluginChannel = "";
-var pluginLatestVersion = "1.1.5";
+var TSServer = ""
+var TSChannel = "";
+var TSChannelSupport= "";
+var pluginLatestVersion = "";
 
-var lastReceived = 0;
-var lastReceivedAny = 0;
 function init() {
 	console.log("TokoVOIP: attempt new connection");
 	websocket = new WebSocket("ws://127.0.0.1:1337/echo");
@@ -33,45 +33,25 @@ function init() {
 
 	websocket.onmessage = function(evt)
 	{
-		// lastReceivedAny = getTickCount();
-		if (evt.data == "online")
-		{
-			connected = true;
-			lastPing = getTickCount();
-			forcedInfo = false;
-			setPluginStatus(1);
-		}
-		if (evt.data.includes("TokoVoip version:"))
-		{
-			setPluginVersion(evt.data.split(":")[1].replace(/\./g, ''));
-		}
-		if (evt.data == "wrong channel")
-		{
-			connected = true;
-			lastPing = getTickCount();
-			setPluginStatus(1);
-			updateTokovoipInfo("Connected to the wrong TeamSpeak channel", 2, 1, 2000);
-		}
+		// Handle plugin status
 		if (evt.data.includes("TokoVOIP status:"))
 		{
 			connected = true;
 			lastPing = getTickCount();
 			forcedInfo = false;
 			var pluginStatus = evt.data.split(":")[1].replace(/\./g, '');
-			// console.log(evt.data);
 			setPluginStatus(parseInt(pluginStatus));
-			// lastReceived = getTickCount();
 			switch (parseInt(pluginStatus)) {
 				case 0:
 					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>not running</font>";
 					updateTokovoipInfo("Wait what? how do you get that plugin status ?!", 2, 1, 2000);
 					break;
 				case 1:
-					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>wrong TeamSpeak server</font><br>Join the server: <font color='yellow'>ts.rmog.us</font>";
-					updateTokovoipInfo("Connected to teamspeak, but not to any server ?", 2, 1, 2000);
+					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>wrong TeamSpeak server</font><br>Join the server: <font color='yellow'>" + TSServer + "</font>";
+					updateTokovoipInfo("Connected to the wrong TeamSpeak server", 2, 1, 2000);
 					break;
 				case 2:
-					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>wrong TeamSpeak channel</font><br>Join the channel: <font color='yellow'>" + pluginChannel + "</font>";
+					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>wrong TeamSpeak channel</font><br>Join the channel: <font color='yellow'>" + TSChannel + "</font>";
 					updateTokovoipInfo("Connected to the wrong TeamSpeak channel", 2, 1, 2000);
 					break;
 				case 3:
@@ -79,14 +59,18 @@ function init() {
 					break;
 			}
 		}
+
+		// Handle plugin version
 		if (evt.data.includes("TokoVOIP version:"))
 		{
-			setPluginVersion(evt.data.split(":")[1].replace(/\./g, ''));
+			setPluginVersion(evt.data.split(":")[1]);
 			if (evt.data.split(":")[1] == pluginLatestVersion)
 				document.getElementById("pluginScreenVersion").innerHTML = "Plugin version: <font color='green'>" + evt.data.split(":")[1] + "</font> (up-to-date)";
 			else
 				document.getElementById("pluginScreenVersion").innerHTML = "Plugin version: <font color='red'>" + evt.data.split(":")[1] + "</font> (" + pluginLatestVersion + " is available)";
 		}
+
+		// Handle talking states
 		if (evt.data == "startedtalking")
 		{
 			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 1}));
@@ -143,21 +127,21 @@ function init() {
 	};
 }
 
-var lastSent = 0;
 function sendData(message) {
 	if (websocket.readyState == websocket.OPEN) {
 		websocket.send(message);
-		// document.getElementById("lastSent").innerHTML = "Last data sent: " + (getTickCount() - lastSent) + " ms ago";
-		// document.getElementById("lastReceived").innerHTML = "Last data received: " + (getTickCount() - lastReceived) + " ms ago";
-		// document.getElementById("lastReceivedAny").innerHTML = "Last data received (any): " + (getTickCount() - lastReceivedAny) + " ms ago";
-		// lastSent = getTickCount();
 	}
 }
 
 function receivedClientCall(event) {
 	if (event.data.type == "initializeSocket")
 	{
-		pluginChannel = event.data.channel;
+		pluginLatestVersion = event.data.latestVersion;
+		TSServer = event.data.TSServer;
+		TSChannel = event.data.TSChannel;
+		TSChannelSupport = event.data.TSChannelSupport;
+		document.getElementById("TSServer").innerHTML = TSServer;
+		document.getElementById("TSChannelSupport").innerHTML = TSChannelSupport;
 		lastPing = getTickCount();
 		lastReconnect = getTickCount();
 		init();
@@ -176,7 +160,6 @@ function receivedClientCall(event) {
 			console.log("TokoVOIP: timed out - " + (timeout) + " - " + (lastRetry));
 			lastReconnect = getTickCount();
 			connected = false;
-			// websocket.close();
 			document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>not running</font>";
 			updateTokovoipInfo("OFFLINE", 2, 1, 5000);
 			setPluginStatus(0);

@@ -1,3 +1,7 @@
+--------------------------------------------------------------------------------
+--	Server_utils: Data system functions
+--------------------------------------------------------------------------------
+
 local playersData = {};
 
 function setPlayerData(playerName, key, data, shared)

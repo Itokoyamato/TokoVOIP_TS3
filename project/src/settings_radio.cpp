@@ -10,6 +10,7 @@
 #include <teamspeak/public_errors.h>
 
 #include "core/plugin_base.h"
+#include "tokovoip.h"
 
 SettingsRadio::SettingsRadio(TSServersInfo& servers_info, QObject* parent)
 	: QObject(parent)

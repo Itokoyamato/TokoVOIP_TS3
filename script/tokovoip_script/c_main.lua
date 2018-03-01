@@ -2,36 +2,41 @@
 --	Client: Voip data processed before sending it to TS3Plugin
 --------------------------------------------------------------------------------
 
-local isLoggedIn = true;
+local isLoggedIn = false;
 local targetPed;
 local useLocalPed = true;
+local isRunning = false;
 
 function initializeVoip()
 	voip = TokoVoip:init(); -- Initialize TokoVoip and set default settings
 	voip.refreshRate = 100; -- Rate at which the data is sent to the TSPlugin
 	voip.networkRefreshRate = 2000; -- Rate at which the network data is updated/reset on the local ped
 	voip.playerListRefreshRate = 5000; -- Rate at which the playerList is updated
-	voip.latestVersion = 115;
+	voip.latestVersion = "1.1.6";
 	voip.distance = {};
 	voip.distance[1] = 15; -- Normal speech
 	voip.distance[2] = 5; -- Whisper
 	voip.distance[3] = 40; -- Shout
+	voip.radioKey = Keys["CAPS"]; -- Keybind used for radio
 
 	-- Data that will be sent to the TS plugin
-	voip.data = {	
-					TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC", -- TeamSpeak waiting channel name
-					TSChannel = "SERVER_1", -- TeamSpeak channel name
-					TSPassword = "Revolution_pass", -- TeamSpeak channel password
+	voip.plugin_data = {	
+					TSServer = "ts.rmog.us", -- TeamSpeak server address to be displayed on screen
+					TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC", -- TeamSpeak support channel name
+					TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak waiting channel name
+					TSChannel = "SERVER_2", -- TeamSpeak channel name
+					TSPassword = "Revolution_pass", -- TeamSpeak channel password (can be empty)
 					localName = GetPlayerName(PlayerId()), -- The local username
 					radioTalking = false, -- Is the player talking on radio (used to force active mic on TS)
 					radioChannel = 0, -- The radio channel
 					localRadioClicks = false, -- Should the local radio clicks be active (mostly to handle phone calls with no clicks)
+					Users = {}, -- All users data
+
 					-- The following is purely client settings, to match tastes
 					local_click_on = true, -- Is local click on active
 					local_click_off = true, -- Is local click off active
 					remote_click_on = false, -- Is remote click on active
-					remote_click_off = true, -- Is remote click off active
-					Users = {} -- All users data
+					remote_click_off = true -- Is remote click off active
 				};
 
 	-- Variables used script-side
@@ -47,21 +52,51 @@ function initializeVoip()
 	-- Player data shared on the network
 	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.data.radioChannel, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:talking", voip.data.radioTalking, true);
+	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
+	setPlayerData(GetPlayerName(PlayerId()), "radio:talking", voip.plugin_data.radioTalking, true);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
 
+	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
 
-	--	Remove for deploy	----------------------------------------------------
+	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
+	voip.initialize(voip); -- Initialize the websocket and controls
+	voip:loop(voip); -- Start TokoVoip's loop
+	requestUpdateChannels(); -- Retrieve the channels list
+
+	-- View block screen handling
+	Citizen.CreateThread(function()
+		local lastTSConnected = 0;
+		while not isLoggedIn do
+			Wait(50);
+		end
+		while true do
+			Wait(50);
+			lastTSConnected = lastTSConnected + 50;
+			if (voip.pluginStatus == 3 and voip.pluginVersion == voip.latestVersion) then
+				lastTSConnected = 0;
+				displayPluginScreen(false);
+			else
+				if (lastTSConnected > 5000) then
+					displayPluginScreen(true);
+				end
+			end
+		end
+	end);
+
+	Citizen.Trace("TokoVoip: Initialized script (1.2.5)\n");
+
+	-- Not meant to be here, but well
+	-- Handles the channel joining for PD/EMS, supposed to be moved to said parts of the scripts but
+	-- somehow always stayed here along the debug data stuff
 	local debugData = false;
 	Citizen.CreateThread(function()
 		while true do
 			Wait(5)
 
 			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
-				if (IsControlJustPressed(1, Keys["0"]) or IsDisabledControlJustPressed(1, Keys["0"])) then
+				if (IsControlJustPressed(1, Keys["9"]) or IsDisabledControlJustPressed(1, Keys["9"])) then
 					debugData = not debugData;
 				end
 				
@@ -114,44 +149,35 @@ function initializeVoip()
 						drawTxt(0.60 + (i-12)/15, 1.4, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")), 255, 255, 255, 255);
 					end
 				end
-			end
-		end
-	end);
-	----------------------------------------------------------------------------
-
-	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
-	voip.initialize(voip); -- Initialize the websocket and controls
-	voip:loop(voip); -- Start TokoVoip's loop
-	requestUpdateChannels(); -- Retrieve the channels list
-
-	-- View block screen handling
-	Citizen.CreateThread(function()
-		local lastTSConnected = 0;
-		while not isLoggedIn do
-			Wait(50);
-		end
-		while true do
-			Wait(50);
-			lastTSConnected = lastTSConnected + 50;
-			if (voip.pluginStatus == 3 and voip.pluginVersion == voip.latestVersion) then
-				lastTSConnected = 0;
-				displayPluginScreen(false);
-			else
-				if (lastTSConnected > 5000) then
-					displayPluginScreen(true);
+				local i = 0;
+				for channelIndex, channel in pairs(voip.channels) do
+					i = i + 1;
+					drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
+					local j = 0;
+					for _, player in pairs(channel.subscribers) do
+						j = j + 1;
+						drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
+					end
+				end
+				i = 0;
+				for channelIndex, channel in pairs(voip.myChannels) do
+					i = i + 1;
+					drawTxt(0.5, 0.75 + i/60, 1.0, 1.0, 0.2, channelIndex .. ": true", 255, 255, 255, 255);
 				end
 			end
 		end
 	end);
-
-	Citizen.Trace("TokoVoip: Initialized script (1.2.3)\n");
+	----------------------------------------------------------------------------
 end
 
 function resourceStart(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
 		Citizen.CreateThread(function()
 			Wait(3000);
-			initializeVoip();
+			if (not isRunning) then
+				isRunning = true;
+				initializeVoip();
+			end
 		end);
 	end
 end
@@ -221,9 +247,13 @@ function clientProcessing()
 					--
 				end
 		end
-		voip.data.Users = usersdata;	--	Update TokoVoip's data
-		voip.data.localName = GetPlayerName(PlayerId());		-- Update the localName
+		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
+		voip.plugin_data.localName = GetPlayerName(PlayerId());		-- Update the localName
 end
+
+--------------------------------------------------------------------------------
+--	Radio functions
+--------------------------------------------------------------------------------
 
 function addPlayerToRadio(channel)
 	if voip.channels[channel] == nil then
@@ -233,9 +263,9 @@ function addPlayerToRadio(channel)
 
 	voip.channels[channel].subscribers[GetPlayerName(PlayerId())] = GetPlayerName(PlayerId());
 	voip.myChannels[channel] = true;
-	voip.data.radioChannel = channel;
+	voip.plugin_data.radioChannel = channel;
 	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", channel, true);
-	Chat("Joined channel: " .. voip.channels[channel].name);
+	notification("Joined channel: " .. voip.channels[channel].name);
 	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, GetPlayerName(PlayerId()));
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
@@ -244,18 +274,18 @@ AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 function removePlayerFromRadio(channel)
 	voip.channels[channel].subscribers[GetPlayerName(PlayerId())] = nil;
 	voip.myChannels[channel] = nil;
-	if (voip.data.radioChannel == channel) then
+	if (voip.plugin_data.radioChannel == channel) then
 		if (tablelength(voip.myChannels) > 0) then
 			for channelID, _ in pairs(voip.myChannels) do
-				voip.data.radioChannel = channelID;
+				voip.plugin_data.radioChannel = channelID;
 				break;
 			end
 		else
-			voip.data.radioChannel = 0;
+			voip.plugin_data.radioChannel = 0;
 		end
 	end
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", 0, true);
-	Chat("Left channel: " .. voip.channels[channel].name);
+	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
+	notification("Left channel: " .. voip.channels[channel].name);
 	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, GetPlayerName(PlayerId()));
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
@@ -271,6 +301,11 @@ function requestUpdateChannels()
 	TriggerServerEvent("TokoVoip:clientRequestUpdateChannels");
 end
 
+
+--------------------------------------------------------------------------------
+--	Plugin functions
+--------------------------------------------------------------------------------
+
 function setPluginStatus(data)
 	voip.pluginStatus = tonumber(data.msg);
 	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
@@ -278,7 +313,7 @@ end
 RegisterNUICallback("setPluginStatus", setPluginStatus);
 
 function setPluginVersion(data)
-	voip.pluginVersion = tonumber(data.msg);
+	voip.pluginVersion = data.msg;
 	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
 end
 RegisterNUICallback("setPluginVersion", setPluginVersion);
@@ -304,6 +339,11 @@ function setPlayerTalking(data)
 	end
 end
 RegisterNUICallback("setPlayerTalking", setPlayerTalking);
+
+
+--------------------------------------------------------------------------------
+--	Specific utils
+--------------------------------------------------------------------------------
 
 function playerLoggedIn(toggle)
 	if (toggle) then

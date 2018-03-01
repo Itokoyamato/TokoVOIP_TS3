@@ -6,7 +6,6 @@
 				padding: 5px;
 				font-family:Arial;
 				font-weight: bold;
-				/*font-size: 15px;*/
 				color: white;
 			}
 			.pluginScreen {
@@ -35,6 +34,12 @@
 				font-size: 12px;
 				text-shadow: 1px 1px #000000;
 				font-weight: bold;
+			}
+			.talking {
+				color: rgba(244, 196, 65, 255);
+			}
+			.normal {
+				color: #01b0f0;
 			}
 		</style>
 		<script src="nui://game/ui/jquery.js" type="text/javascript"></script>
@@ -68,15 +73,17 @@
 					<li>Radio system</li>
 					<li>Proximity chat unique to each player</li>
 					<li>Phone calls</li>
+					<li>Radio clicks</li>
+					<li>Radio effects</li>
 				</ul>
 
 				<br>
 
 				<font color="#01b0f0">TokoVOIP</font> has to be <font color="red">installed</font> and <font color="red">running</font> to play on our servers.
 				<br><br>
-				Our Teamspeak server is <font color="#01b0f0">ts.rmog.us</font>
+				Our Teamspeak server is <font color="#01b0f0" id="TSServer"></font>
 				<br><br>
-				If you cannot join the appropriate server channel, please join <font color="#01b0f0">S1: Waiting for Support</font> channel in teamspeak, so that a support team member can help you.
+				If you cannot join the appropriate server channel, please join <font color="#01b0f0" id="TSChannelSupport"></font> channel in teamspeak, so that a support team member can help you.
 				<br><br>
 				You can find more <font color="#f0eb01">information</font> and <font color="#f0eb01">download</font> links at: <font color="#01b0f0">http://forums.rmog.us</font>
 				<br><br><br>

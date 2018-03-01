@@ -8,7 +8,7 @@
 #include "settings_radio.h"
 
 const char* Plugin::kPluginName = "TokoVoip";
-const char* Plugin::kPluginVersion = "1.1.5";
+const char* Plugin::kPluginVersion = "1.1.6";
 const char* Plugin::kPluginAuthor = "Itokoyamato, Thorsten Weinz";
 const char* Plugin::kPluginDescription = "Features:\n- TokoVoip\n- Radio FX\n";
 

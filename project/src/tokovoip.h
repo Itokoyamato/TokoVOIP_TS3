@@ -49,3 +49,6 @@ void setClientTalking(bool status);
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
 char *getPluginVersionAsString();
 void playWavFile(const char* fileNameWithoutExtension);
+void update_whitelist();
+int isServerAllowed(uint64 serverConnectionHandlerID);
+void outputLog(char* message, DWORD errorCode);

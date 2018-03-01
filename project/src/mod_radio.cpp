@@ -364,7 +364,7 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
 	}
 	else
 	{
-		if (tokovoip.getRadioData(UUID) == true)
+		if (tokovoip.getRadioData(UUID))
 			server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
 		ts3Functions.freeMemory(UUID);
 	}

@@ -48,6 +48,7 @@ time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
 time_t lastChannelJoin = 0;
+std::vector<std::string> allowed_servers;
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
@@ -67,6 +68,12 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		auto message_str = message->string();
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
+
+		if (!isServerAllowed(ts3Functions.getCurrentServerConnectionHandlerID()))
+		{
+			processingMessage = false;
+			return (0);
+		}
 
 		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
 		{
@@ -102,23 +109,20 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			return (0);
 		}
 
-		sol::table data = lua["data"]["Users"];
-		string channelName = lua["data"]["TSChannel"];
-		string channelPass = lua["data"]["TSPassword"];
-		string waitingChannelName = lua["data"]["TSChannelWait"];
+		sol::table data = lua["plugin_data"]["Users"];
+		string channelName = lua["plugin_data"]["TSChannel"];
+		string channelPass = lua["plugin_data"]["TSPassword"];
+		string waitingChannelName = lua["plugin_data"]["TSChannelWait"];
 		mainChannel = channelName;
 		waitChannel = waitingChannelName;
 
-		//string channelName = "SERVER_3";
-		//string channelPass = "";
-		//string waitingChannelName = "TokoVOIP Server Waiting Room IPS DESC";
-		string localName = lua["data"]["localName"];
-		bool radioTalking = lua["data"]["radioTalking"];
-		bool radioClicks = lua["data"]["localRadioClicks"];
-		bool local_click_on = lua["data"]["local_click_on"];
-		bool local_click_off = lua["data"]["local_click_off"];
-		bool remote_click_on = lua["data"]["remote_click_on"];
-		bool remote_click_off = lua["data"]["remote_click_off"];
+		string localName = lua["plugin_data"]["localName"];
+		bool radioTalking = lua["plugin_data"]["radioTalking"];
+		bool radioClicks = lua["plugin_data"]["localRadioClicks"];
+		bool local_click_on = lua["plugin_data"]["local_click_on"];
+		bool local_click_off = lua["plugin_data"]["local_click_off"];
+		bool remote_click_on = lua["plugin_data"]["remote_click_on"];
+		bool remote_click_off = lua["plugin_data"]["remote_click_off"];
 
 		//--------------------------------------------------------
 
@@ -233,9 +237,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		// Handle positional audio
 		TS3_VECTOR myPosition;
-		myPosition.x = (float)lua["data"]["posX"];
-		myPosition.y = (float)lua["data"]["posY"];
-		myPosition.z = (float)lua["data"]["posZ"];
+		myPosition.x = (float)lua["plugin_data"]["posX"];
+		myPosition.y = (float)lua["plugin_data"]["posY"];
+		myPosition.z = (float)lua["plugin_data"]["posZ"];
 		ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
 		//ts3Functions.systemset3DSettings(ts3Functions.getCurrentServerConnectionHandlerID(), (float)lua["data"]["distanceFactor"], (float)lua["data"]["rolloffScale"]);
 
@@ -261,6 +265,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 						int muted = user["muted"];
 						float volume = user["volume"];
 						bool isRadioEffect = user["radioEffect"];
+						std::ostringstream oss;
+						oss << gameName << ": " << isRadioEffect;
+						//outputLog((char *)oss.str().c_str(), 1);
 
 						TS3_VECTOR Vector;
 						Vector.x = (float)user["posX"];
@@ -450,12 +457,14 @@ bool isUpdateAvaible()
 
 	std::ostringstream oss;
 	bool isUpdate = false;
-	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_version.txt", oss))
+	std::ostringstream link;
+	link << "http://itokoyamato.net/files/tokovoip/tokovoip_version.txt?version=" << ts3plugin_version();
+	if (CURLE_OK == curl_read(link.str(), oss))
 	{
 		// Web page successfully written to string
 		if (strcmp((char*)oss.str().c_str(), ts3plugin_version()))
 			isUpdate = true;
-		if (strcmp((char*)oss.str().c_str(), ""))
+		if (!strcmp((char*)oss.str().c_str(), ""))
 			isUpdate = false;
 	}
 	curl_global_cleanup();
@@ -485,6 +494,7 @@ DWORD WINAPI checkUpdateThread(LPVOID lpParam)
 	while (!exitCheckUpdateThread)
 	{
 		outputLog("Checking for updates", 0);
+		update_whitelist();
 		if (isUpdateAvaible() == true) {
 			outputLog("Update available", 0);
 			MessageBox(NULL, getUpdateMessage(), "TokoVOIP: Update", MB_OK);
@@ -528,6 +538,47 @@ void Tokovoip::shutdown()
 	BOOL result = GetExitCodeThread(threadService, &exitCode);
 	if (!result || exitCode == STILL_ACTIVE)
 		outputLog("service thread not terminated", LogLevel_CRITICAL);
+}
+
+vector<string> explode(const string& str, const char& ch) {
+	string next;
+	vector<string> result;
+
+	// For each character in the string
+	for (string::const_iterator it = str.begin(); it != str.end(); it++) {
+		// If we've hit the terminal character
+		if (*it == ch) {
+			// If we have some characters accumulated
+			if (!next.empty()) {
+				// Add them to the result vector
+				result.push_back(next);
+				next.clear();
+			}
+		}
+		else {
+			// Accumulate the next character into the sequence
+			next += *it;
+		}
+	}
+	if (!next.empty())
+		result.push_back(next);
+	return result;
+}
+
+void update_whitelist()
+{
+	std::ostringstream oss;
+	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_whitelist_address.txt", oss))
+	{
+		std::ostringstream oss2;
+		if (CURLE_OK == curl_read(oss.str(), oss2))
+		{
+			const std::string html = oss2.str();
+			allowed_servers = explode(html, ',');
+		}
+		curl_global_cleanup();
+	}
+	curl_global_cleanup();
 }
 
 // Utils
@@ -761,4 +812,22 @@ bool isConnected(uint64 serverConnectionHandlerID)
 	if ((error = ts3Functions.getConnectionStatus(serverConnectionHandlerID, &result)) != ERROR_ok)
 		return false;
 	return result != 0;
+}
+
+int isServerAllowed(uint64 serverConnectionHandlerID) {
+	unsigned int error;
+	char* s;
+
+	if ((error = ts3Functions.getConnectionVariableAsString(serverConnectionHandlerID, getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CONNECTION_SERVER_IP, &s)) != ERROR_ok) {
+		if (error != ERROR_not_connected) {  /* Don't spam error in this case (failed to connect) */
+			ts3Functions.logMessage("Error querying server name", LogLevel_ERROR, "Plugin", serverConnectionHandlerID);
+		}
+	}
+
+	if (std::find(std::begin(allowed_servers), std::end(allowed_servers), s) != std::end(allowed_servers))
+		return (true);
+	else
+		return (false);
+	ts3Functions.freeMemory(s);
+	return (false);
 }

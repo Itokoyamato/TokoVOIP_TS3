@@ -1,3 +1,7 @@
+--------------------------------------------------------------------------------
+--	Utils: Data system functions
+--------------------------------------------------------------------------------
+
 local playersData = {};
 function setPlayerData(playerName, key, data, shared)
 	if (not key or data == nil) then return end
@@ -33,7 +37,7 @@ function doRefreshAllPlayerData(serverData)
 		for key, data in pairs(playerData) do
 			if (not serverData[playerName]) then
 				playersData[playerName] = nil;
-			elseif (not serverData[playerName][key]) then
+			elseif (serverData[playerName][key] == nil) then
 				playersData[playerName][key] = nil;
 			end
 		end
@@ -41,6 +45,7 @@ function doRefreshAllPlayerData(serverData)
 end
 RegisterNetEvent("Tokovoip:doRefreshAllPlayerData");
 AddEventHandler("Tokovoip:doRefreshAllPlayerData", doRefreshAllPlayerData);
+
 
 --------------------------------------------------------------------------------
 --	Utils: Drawing functions
@@ -76,6 +81,7 @@ function draw3dtext(text, posX, posY, posZ, r, g, b, a)
 		end
 	end
 end
+
 
 --------------------------------------------------------------------------------
 --	Utils: Table functions
@@ -121,12 +127,13 @@ function tablelength(T)
 	return count
 end
 
+
 --------------------------------------------------------------------------------
 --	Utils: Printing functions
 --------------------------------------------------------------------------------
 
-function Chat(t)
-	exports.GTALife:ShowNotification(t)
+function notification(str)
+	exports.GTALife:ShowNotification(str)
 end
 
 local functionSeen={}
@@ -150,6 +157,7 @@ end
 function printAllFunctions()
 	printFunctions(_G,"")
 end
+
 
 --------------------------------------------------------------------------------
 --	Utils: Random functions

@@ -23,10 +23,10 @@ function TokoVoip.loop(self)
 
 			self.lastNetworkUpdate = self.lastNetworkUpdate + self.refreshRate;
 			self.lastPlayerListUpdate = self.lastPlayerListUpdate + self.refreshRate;
-			if (self.lastNetworkUpdate >= self.networkRefreshRate) then		--	Update the ped's network data
+			if (self.lastNetworkUpdate >= self.networkRefreshRate) then -- Update the ped's network data, currently unused since switched out decors
 				-- setPlayerData(GetPlayerName(-1), "voip:mode", self.mode, true);
-				-- setPlayerData(GetPlayerName(-1), "radio:channel", self.data.radioChannel, true);
-				-- setPlayerData(GetPlayerName(-1), "radio:talking", self.data.radioTalking, true);
+				-- setPlayerData(GetPlayerName(-1), "radio:channel", self.plugin_data.radioChannel, true);
+				-- setPlayerData(GetPlayerName(-1), "radio:talking", self.plugin_data.radioTalking, true);
 				-- setPlayerData(GetPlayerName(-1), "voip:pluginStatus", self.pluginStatus, true);
 				-- setPlayerData(GetPlayerName(-1), "voip:pluginVersion", self.pluginVersion, true);
 				self.lastNetworkUpdate = 0;
@@ -44,7 +44,7 @@ function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websoc
 	SendNUIMessage(
 		{
 			type = "updateTokoVoip",
-			data = "data = "..table.tostring(self.data)
+			data = "plugin_data = "..table.tostring(self.plugin_data)
 		}
 	);
 end
@@ -59,14 +59,17 @@ function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 		info = "Shouting";
 	end
 
-	if (self.data.radioTalking) then
+	if (self.plugin_data.radioTalking) then
 		info = info .. " on radio ";
 	end
-	if (self.data.radioChannel ~= 0) then
-		if (string.match(self.channels[self.data.radioChannel].name, "Call")) then
-			info = info  .. "<br> [Phone] " .. self.channels[self.data.radioChannel].name;
+	if (self.talking == 1 or self.plugin_data.radioTalking) then
+		info = "<font class='talking'>" .. info .. "</font>";
+	end
+	if (self.plugin_data.radioChannel ~= 0) then
+		if (string.match(self.channels[self.plugin_data.radioChannel].name, "Call")) then
+			info = info  .. "<br> [Phone] " .. self.channels[self.plugin_data.radioChannel].name;
 		else
-			info = info  .. "<br> [Radio] " .. self.channels[self.data.radioChannel].name;
+			info = info  .. "<br> [Radio] " .. self.channels[self.plugin_data.radioChannel].name;
 		end
 	end
 	SendNUIMessage(
@@ -81,7 +84,10 @@ function TokoVoip.initialize(self)
 	SendNUIMessage(
 		{	
 			type = "initializeSocket",
-			channel = self.data.TSChannelWait
+			latestVersion = self.latestVersion,
+			TSServer = self.plugin_data.TSServer,
+			TSChannel = self.plugin_data.TSChannelWait,
+			TSChannelSupport = self.plugin_data.TSChannelSupport
 		}
 	);
 	Citizen.CreateThread(function()
@@ -95,7 +101,7 @@ function TokoVoip.initialize(self)
 					local currentChannelID = 0;
 
 					for channel, _ in pairs(self.myChannels) do
-						if (channel == self.data.radioChannel) then
+						if (channel == self.plugin_data.radioChannel) then
 							currentChannel = #myChannels + 1;
 							currentChannelID = channel;
 						end
@@ -106,7 +112,7 @@ function TokoVoip.initialize(self)
 					else
 						currentChannelID = myChannels[currentChannel + 1].channelID;
 					end
-					self.data.radioChannel = currentChannelID;
+					self.plugin_data.radioChannel = currentChannelID;
 					setPlayerData(GetPlayerName(PlayerId()), "radio:channel", currentChannelID, true);
 					self.updateTokoVoipInfo(self);
 				end
@@ -123,18 +129,18 @@ function TokoVoip.initialize(self)
 			end
 
 
-			if (IsControlPressed(0, Keys["CAPS"]) and self.data.radioChannel ~= 0) then -- Talk on radio
-				self.data.radioTalking = true;
-				self.data.localRadioClicks = true;
-				if (self.data.radioChannel > 100) then
-					self.data.localRadioClicks = false;
+			if (IsControlPressed(0, self.radioKey) and self.plugin_data.radioChannel ~= 0) then -- Talk on radio
+				self.plugin_data.radioTalking = true;
+				self.plugin_data.localRadioClicks = true;
+				if (self.plugin_data.radioChannel > 100) then
+					self.plugin_data.localRadioClicks = false;
 				end
 				if (not getPlayerData(GetPlayerName(PlayerId()), "radio:talking")) then
 					setPlayerData(GetPlayerName(PlayerId()), "radio:talking", true, true);
 				end
 				self.updateTokoVoipInfo(self);
 				if lastTalkState == false then
-					if (not string.match(self.channels[self.data.radioChannel].name, "Call") and not IsPedSittingInAnyVehicle(PlayerPedId())) then
+					if (not string.match(self.channels[self.plugin_data.radioChannel].name, "Call") and not IsPedSittingInAnyVehicle(PlayerPedId())) then
 						RequestAnimDict("random@arrests");
 						while not HasAnimDictLoaded("random@arrests") do
 							Wait(5);
@@ -145,7 +151,7 @@ function TokoVoip.initialize(self)
 					lastTalkState = true
 				end
 			else
-				self.data.radioTalking = false;
+				self.plugin_data.radioTalking = false;
 				if (getPlayerData(GetPlayerName(PlayerId()), "radio:talking")) then
 					setPlayerData(GetPlayerName(PlayerId()), "radio:talking", false, true);
 				end
