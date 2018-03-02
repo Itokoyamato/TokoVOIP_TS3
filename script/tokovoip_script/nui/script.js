@@ -21,7 +21,7 @@ var pluginLatestVersion = "";
 
 function init() {
 	console.log("TokoVOIP: attempt new connection");
-	websocket = new WebSocket("ws://127.0.0.1:1337/echo");
+	websocket = new WebSocket("ws://127.0.0.1:1337/tokovoip");
 
 	websocket.onopen = function()
 	{
@@ -121,6 +121,7 @@ function init() {
 		lastReconnect = getTickCount();
 		connected = false;
 		document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>not running</font>";
+		document.getElementById("pluginScreenVersion").innerHTML = "Plugin version: <font color='red'>" + pluginLatestVersion + "</font> is available, it is required to play";
 		updateTokovoipInfo("OFFLINE", 2, 1, 5000);
 		setPluginStatus(0);
 		init();

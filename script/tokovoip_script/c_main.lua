@@ -2,7 +2,7 @@
 --	Client: Voip data processed before sending it to TS3Plugin
 --------------------------------------------------------------------------------
 
-local isLoggedIn = false;
+local isLoggedIn = true;
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
@@ -24,7 +24,7 @@ function initializeVoip()
 					TSServer = "ts.rmog.us", -- TeamSpeak server address to be displayed on screen
 					TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC", -- TeamSpeak support channel name
 					TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak waiting channel name
-					TSChannel = "SERVER_2", -- TeamSpeak channel name
+					TSChannel = "SERVER_1", -- TeamSpeak channel name
 					TSPassword = "Revolution_pass", -- TeamSpeak channel password (can be empty)
 					localName = GetPlayerName(PlayerId()), -- The local username
 					radioTalking = false, -- Is the player talking on radio (used to force active mic on TS)
@@ -85,7 +85,7 @@ function initializeVoip()
 		end
 	end);
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.5)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.6)\n");
 
 	-- Not meant to be here, but well
 	-- Handles the channel joining for PD/EMS, supposed to be moved to said parts of the scripts but
@@ -142,12 +142,20 @@ function initializeVoip()
 			end
 
 			if (debugData) then
+				local pos_y;
+				local pos_x;
 				for i, player in ipairs(getPlayers()) do
 					if (i <= 12) then
-						drawTxt(0.60 + i/15, 1.3, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")), 255, 255, 255, 255);
-					elseif (i < 24) then
-						drawTxt(0.60 + (i-12)/15, 1.4, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")), 255, 255, 255, 255);
+						pos_y = 1.2;
+						pos_x = 0.60 + i/15;
+					elseif (i <= 24) then
+						pos_y = 1.3;
+						pos_x = 0.60 + (i-12)/15;
+					else
+						pos_y = 1.4;
+						pos_x = 0.60 + (i-24)/15;
 					end
+					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(GetPlayerName(player), "voip:talking")), 255, 255, 255, 255);
 				end
 				local i = 0;
 				for channelIndex, channel in pairs(voip.channels) do
@@ -245,6 +253,7 @@ function clientProcessing()
 						end
 					end
 					--
+					setPlayerTalkingState(player);
 				end
 		end
 		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
@@ -297,6 +306,23 @@ end
 RegisterNetEvent("TokoVoip:updateChannels");
 AddEventHandler("TokoVoip:updateChannels", updateChannels);
 
+function removeChannel(channel)
+	voip.channels[channel] = nil;
+	voip.myChannels[channel] = nil;
+	if (voip.plugin_data.radioChannel == channel) then
+		if (tablelength(voip.myChannels) > 0) then
+			for channelID, _ in pairs(voip.myChannels) do
+				voip.plugin_data.radioChannel = channelID;
+				break;
+			end
+		else
+			voip.plugin_data.radioChannel = 0;
+		end
+	end
+end
+RegisterNetEvent("TokoVoip:removeChannel");
+AddEventHandler("TokoVoip:removeChannel", removeChannel);
+
 function requestUpdateChannels()
 	TriggerServerEvent("TokoVoip:clientRequestUpdateChannels");
 end
@@ -328,7 +354,7 @@ function setPlayerTalking(data)
 		end
 		local localPos = GetEntityCoords(GetPlayerPed(-1));
 		local localHeading = GetEntityHeading(GetPlayerPed(-1));
-		PlayFacialAnim(PlayerPedId(), "mic_chatter", "mp_facial");
+		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 	else
 		setPlayerData(GetPlayerName(PlayerId()), "voip:talking", 0, true);
 		RequestAnimDict("facials@gen_male@base");
@@ -337,6 +363,28 @@ function setPlayerTalking(data)
 		end
 		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 	end
+end
+RegisterNUICallback("setPlayerTalking", setPlayerTalking);
+
+local animStates = {}
+function setPlayerTalkingState(player)
+	local talking = tonumber(getPlayerData(GetPlayerName(player), "voip:talking"));
+	if (animStates[GetPlayerName(player)] == 0 and talking == 1) then
+		RequestAnimDict("mp_facial");
+		while not HasAnimDictLoaded("mp_facial") do
+			Wait(5);
+		end
+		local localPos = GetEntityCoords(GetPlayerPed(-1));
+		local localHeading = GetEntityHeading(GetPlayerPed(-1));
+		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
+	elseif (animStates[GetPlayerName(player)] == 1 and talking == 0) then
+		RequestAnimDict("facials@gen_male@base");
+		while not HasAnimDictLoaded("facials@gen_male@base") do
+			Wait(5);
+		end
+		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
+	end
+	animStates[GetPlayerName(player)] = talking;
 end
 RegisterNUICallback("setPlayerTalking", setPlayerTalking);
 
