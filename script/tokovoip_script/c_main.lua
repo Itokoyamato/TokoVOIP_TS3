@@ -1,3 +1,21 @@
+------------------------------------------------------------
+------------------------------------------------------------
+---- Author: Dylan 'Itokoyamato' Thuillier              ----
+----                                                    ----
+---- Email: itokoyamato@hotmail.fr                      ----
+----                                                    ----
+---- Resource: tokovoip_script                          ----
+----                                                    ----
+---- File: c_main.lua                                   ----
+----                                                    ----
+---- Notice: please report any changes, bugs, fixes     ----
+----         or improvements to the author              ----
+----         This script and the methods used is not    ----
+----         to be shared without the author's          ----
+----         permission.                                ----
+------------------------------------------------------------
+------------------------------------------------------------
+
 --------------------------------------------------------------------------------
 --	Client: Voip data processed before sending it to TS3Plugin
 --------------------------------------------------------------------------------
