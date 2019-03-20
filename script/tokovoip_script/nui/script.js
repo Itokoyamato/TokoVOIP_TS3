@@ -35,6 +35,7 @@ var pluginVersion = 0;
 var TSServer = ""
 var TSChannel = "";
 var TSChannelSupport= "";
+var TSDownload= "";
 var pluginLatestVersion = "";
 
 function init() {
@@ -158,8 +159,10 @@ function receivedClientCall(event) {
 		pluginLatestVersion = event.data.latestVersion;
 		TSServer = event.data.TSServer;
 		TSChannel = event.data.TSChannel;
+		TSDownload = event.data.TSDownload;
 		TSChannelSupport = event.data.TSChannelSupport;
 		document.getElementById("TSServer").innerHTML = TSServer;
+		document.getElementById("TSDownload").innerHTML = TSDownload;
 		document.getElementById("TSChannelSupport").innerHTML = TSChannelSupport;
 		lastPing = getTickCount();
 		lastReconnect = getTickCount();

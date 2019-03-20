@@ -39,8 +39,8 @@ function getPlayerData(playerName, key)
 	return playersData[playerName][key].data;
 end
 
-function refreshAllPlayerData()
-	TriggerServerEvent("Tokovoip:refreshAllPlayerData");
+function refreshAllPlayerData(toEveryone)
+	TriggerServerEvent("Tokovoip:refreshAllPlayerData", toEveryone);
 end
 RegisterNetEvent("onClientPlayerReady");
 AddEventHandler("onClientPlayerReady", refreshAllPlayerData);
@@ -151,7 +151,7 @@ end
 --------------------------------------------------------------------------------
 
 function notification(str)
-	exports.GTALife:ShowNotification(str)
+	
 end
 
 local functionSeen={}

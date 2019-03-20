@@ -20,12 +20,7 @@
 --	Server: radio functions
 --------------------------------------------------------------------------------
 
-local channels = {};
-channels[1] = {name = "PD Radio", subscribers = {}};
-channels[2] = {name = "EMS Radio", subscribers = {}};
-channels[3] = {name = "PD/SO/EMS Shared Radio", subscribers = {}};
-channels[4] = {name = "SO Radio", subscribers = {}};
-channels[5] = {name = "PD/SO Shared Radio", subscribers = {}};
+local channels = TokoVoipConfig.channels;
 
 function addPlayerToRadio(channel, playerName)
 	if not channels[channel] then

@@ -1,9 +1,11 @@
-client_script "c_main.lua"
-client_script "c_TokoVoip.lua"
-client_script "c_utils.lua"
+client_script "src/c_utils.lua"
+client_script "c_config.lua"
+client_script "src/c_main.lua"
+client_script "src/c_TokoVoip.lua"
 
-server_script "s_main.lua"
-server_script "s_utils.lua"
+server_script "s_config.lua"
+server_script "src/s_main.lua"
+server_script "src/s_utils.lua"
 
 ui_page "nui/index.html"
 
@@ -15,3 +17,7 @@ files({
 export "setPlayerData"
 export "getPlayerData"
 export "refreshAllPlayerData"
+export "addPlayerToRadio"
+export "removePlayerFromRadio"
+export "clientRequestUpdateChannels"
+export "isPlayerInChannel"

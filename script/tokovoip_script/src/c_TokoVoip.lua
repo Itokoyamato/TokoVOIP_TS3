@@ -24,8 +24,8 @@ TokoVoip = {};
 TokoVoip.__index = TokoVoip;
 local lastTalkState = false
 
-function TokoVoip.init()
-	local self = setmetatable({}, TokoVoip);
+function TokoVoip.init(_, config)
+	local self = setmetatable(config, TokoVoip);
 	self.lastNetworkUpdate = 0;
 	self.lastPlayerListUpdate = 0;
 	self.playerList = {};
@@ -105,15 +105,16 @@ function TokoVoip.initialize(self)
 			latestVersion = self.latestVersion,
 			TSServer = self.plugin_data.TSServer,
 			TSChannel = self.plugin_data.TSChannelWait,
-			TSChannelSupport = self.plugin_data.TSChannelSupport
+			TSDownload = self.plugin_data.TSDownload,
+			TSChannelSupport = self.plugin_data.TSChannelSupport,
 		}
 	);
 	Citizen.CreateThread(function()
 		while (true) do
 			Citizen.Wait(5);
 
-			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then -- Switch radio channels (main / shared)
-				if (IsControlJustPressed(0, Keys["Z"]) and tablelength(self.myChannels) > 0) then
+			if ((self.keySwitchChannelsSecondary and IsControlPressed(0, self.keySwitchChannelsSecondary)) or not self.keySwitchChannelsSecondary) then -- Switch radio channels
+				if (IsControlJustPressed(0, self.keySwitchChannels) and tablelength(self.myChannels) > 0) then
 					local myChannels = {};
 					local currentChannel = 0;
 					local currentChannelID = 0;
@@ -134,7 +135,7 @@ function TokoVoip.initialize(self)
 					setPlayerData(GetPlayerName(PlayerId()), "radio:channel", currentChannelID, true);
 					self.updateTokoVoipInfo(self);
 				end
-			elseif (IsControlJustPressed(0, Keys["Z"])) then -- Switch proximity modes (normal / whisper / shout)
+			elseif (IsControlJustPressed(0, self.keyProximity)) then -- Switch proximity modes (normal / whisper / shout)
 				if (not self.mode) then
 					self.mode = 1;
 				end
@@ -165,7 +166,6 @@ function TokoVoip.initialize(self)
 						end
 						TaskPlayAnim(PlayerPedId(),"random@arrests","generic_radio_chatter", 8.0, 0.0, -1, 49, 0, 0, 0, 0);
 					end
-					--TriggerEvent("meCommand", " started talking on their radio/phone")
 					lastTalkState = true
 				end
 			else
@@ -176,7 +176,6 @@ function TokoVoip.initialize(self)
 				self.updateTokoVoipInfo(self);
 				
 				if lastTalkState == true then
-					--TriggerEvent("meCommand", " stopped talking on their radio/phone")
 					lastTalkState = false
 					StopAnimTask(PlayerPedId(), "random@arrests","generic_radio_chatter", -4.0);
 				end
