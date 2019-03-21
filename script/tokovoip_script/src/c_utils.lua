@@ -181,6 +181,10 @@ end
 --	Utils: Random functions
 --------------------------------------------------------------------------------
 
+function escape(str)
+	return str:gsub( "%W", "");
+end
+
 function getPlayers()
 	local players = {};
 

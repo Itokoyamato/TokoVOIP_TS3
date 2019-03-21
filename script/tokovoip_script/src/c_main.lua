@@ -78,7 +78,7 @@ function initializeVoip()
 		end
 	end);
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.7)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.8)\n");
 
 	-- Debug data stuff
 	local debugData = false;
@@ -172,7 +172,7 @@ function clientProcessing()
 
 					-- Set player's default data
 					usersdata[i] = {	
-								username = GetPlayerName(player),
+								username = escape(GetPlayerName(player)),
 								volume = -30,
 								muted = 1,
 								radioEffect = false
@@ -207,7 +207,7 @@ function clientProcessing()
 				end
 		end
 		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
-		voip.plugin_data.localName = GetPlayerName(PlayerId());		-- Update the localName
+		voip.plugin_data.localName = escape(GetPlayerName(PlayerId()));		-- Update the localName
 end
 
 --------------------------------------------------------------------------------
