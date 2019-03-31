@@ -62,7 +62,7 @@ function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websoc
 	SendNUIMessage(
 		{
 			type = "updateTokoVoip",
-			data = "plugin_data = "..table.tostring(self.plugin_data)
+			data = json.encode(self.plugin_data)
 		}
 	);
 end

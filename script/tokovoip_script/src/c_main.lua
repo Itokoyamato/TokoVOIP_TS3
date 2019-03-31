@@ -78,7 +78,7 @@ function initializeVoip()
 		end
 	end);
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.8)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.9)\n");
 
 	-- Debug data stuff
 	local debugData = false;

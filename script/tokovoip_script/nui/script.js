@@ -187,8 +187,14 @@ function receivedClientCall(event) {
 			setPluginStatus(0);
 			init();
 		}
-		if (connected)
+		if (connected) {
+			try {
+				JSON.parse(event.data.data);
+			} catch (e) {
+				console.log("TokoVOIP: error in data json", e);
+			}
 			sendData(event.data.data);
+		}
 	}
 	else if (event.data.type == "disconnect")
 	{

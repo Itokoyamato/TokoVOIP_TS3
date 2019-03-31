@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.6)
 
-project (RadioFx LANGUAGES CXX)
+project (TokoVoip LANGUAGES CXX)
+add_definitions(-DASIO_STANDALONE -DUSE_STANDALONE_ASIO)
 
 find_package(Qt5 COMPONENTS Gui Widgets REQUIRED)
 link_libraries(Qt5::Gui Qt5::Widgets)
@@ -11,6 +12,11 @@ set(CMAKE_AUTORCC ON)
 include_directories(
     "src"
     "deps/DSPFilters/shared/DSPFilters/include"
+    "deps/openssl/include"
+    "deps/asio/asio/include"
+    "deps/Simple-WebSocket-Server"
+    "deps/json/single_include/nlohmann"
+    "deps/curl/include/curl"
 )
 
 set (DSP_FILTERS
@@ -51,6 +57,8 @@ set (PLUGIN_SRC
     "src/plugin_qt.cpp"
     "src/settings_radio.h"
     "src/settings_radio.cpp"
+    "src/tokovoip.cpp"
+    "src/tokovoip.h"
 
     "radiofx.qrc"
 )
@@ -81,5 +89,21 @@ set(WITH_VOLUME_WIDGETS true)
 #add_subdirectory(../teamspeak-plugin-qt-common common_out)
 include(deps/teamspeak-plugin-qt-common/CMakeLists.txt)
 
-add_library(RadioFx SHARED
+if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
+    link_directories(deps/curl/x86/lib)
+ELSE()
+    link_directories(deps/curl/x64/lib)
+ENDIF()
+
+link_directories(deps/openssl/)
+
+add_library(TokoVoip SHARED
     ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
+
+if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
+    target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto32MD.lib)
+    set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win32")
+ELSE()
+    target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto64MD.lib)
+    set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win64")
+ENDIF()

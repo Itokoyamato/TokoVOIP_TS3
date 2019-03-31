@@ -17,16 +17,15 @@
 #include "mod_radio.h"
 
 #include "tokovoip.h"
-#include "client_ws.hpp"
 #include "server_ws.hpp"
-#include "sol.hpp"
+#include "json.hpp"
+using json = nlohmann::json;
 #define CURL_STATICLIB
 #include "curl.h"
 
 Tokovoip *tokovoip;
 using namespace std;
 typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
-typedef SimpleWeb::SocketClient<SimpleWeb::WS> WsClient;
 
 int isRunning = 0;
 
@@ -48,7 +47,6 @@ time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
 time_t lastChannelJoin = 0;
-std::vector<std::string> allowed_servers;
 
 WsServer server;
 shared_ptr<WsServer::Connection> ServerConnection;
@@ -59,7 +57,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 	server.config.port = 1337;
 	auto& echo = server.endpoint["^/tokovoip/?$"];
 
-	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::Message> message) {
+	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::InMessage> message) {
 
 		processingMessage = true;
 		lastPingTick = time(nullptr);
@@ -69,11 +67,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		auto message_str = message->string();
 		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
 
-		if (!isServerAllowed(ts3Functions.getCurrentServerConnectionHandlerID()))
-		{
-			processingMessage = false;
-			return (0);
-		}
 
 		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
 		{
@@ -97,32 +90,23 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		//--------------------------------------------------------
 
-		// Load the lua table //
-		sol::state lua;
-		auto error_handler = [](lua_State*, sol::protected_function_result result) {
-			// You can just pass it through to let the call-site handle it
-			return result;
-		};
-		auto luaResult = lua.script(message_str.c_str(), error_handler);
-		if (!luaResult.valid()) {
-			outputLog("Caught error while loading lua table.", 1);
-			return (0);
-		}
+		// Load the json //
+		json json_data = json::parse(message_str.c_str());
 
-		sol::table data = lua["plugin_data"]["Users"];
-		string channelName = lua["plugin_data"]["TSChannel"];
-		string channelPass = lua["plugin_data"]["TSPassword"];
-		string waitingChannelName = lua["plugin_data"]["TSChannelWait"];
+		json data = json_data["Users"];
+		string channelName = json_data["TSChannel"];
+		string channelPass = json_data["TSPassword"];
+		string waitingChannelName = json_data["TSChannelWait"];
 		mainChannel = channelName;
 		waitChannel = waitingChannelName;
 
-		string localName = lua["plugin_data"]["localName"];
-		bool radioTalking = lua["plugin_data"]["radioTalking"];
-		bool radioClicks = lua["plugin_data"]["localRadioClicks"];
-		bool local_click_on = lua["plugin_data"]["local_click_on"];
-		bool local_click_off = lua["plugin_data"]["local_click_off"];
-		bool remote_click_on = lua["plugin_data"]["remote_click_on"];
-		bool remote_click_off = lua["plugin_data"]["remote_click_off"];
+		string localName = json_data["localName"];
+		bool radioTalking = json_data["radioTalking"];
+		bool radioClicks = json_data["localRadioClicks"];
+		bool local_click_on = json_data["local_click_on"];
+		bool local_click_off = json_data["local_click_off"];
+		bool remote_click_on = json_data["remote_click_on"];
+		bool remote_click_off = json_data["remote_click_off"];
 
 		//--------------------------------------------------------
 
@@ -236,12 +220,13 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		}
 
 		// Handle positional audio
-		TS3_VECTOR myPosition;
-		myPosition.x = (float)lua["plugin_data"]["posX"];
-		myPosition.y = (float)lua["plugin_data"]["posY"];
-		myPosition.z = (float)lua["plugin_data"]["posZ"];
-		ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
-		//ts3Functions.systemset3DSettings(ts3Functions.getCurrentServerConnectionHandlerID(), (float)lua["data"]["distanceFactor"], (float)lua["data"]["rolloffScale"]);
+		if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+			TS3_VECTOR myPosition;
+			myPosition.x = (float)json_data["posX"];
+			myPosition.y = (float)json_data["posY"];
+			myPosition.z = (float)json_data["posZ"];
+			ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
+		}
 
 		// Process other clients
 		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
@@ -260,19 +245,11 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 				}
 				else
 				{
-					data.for_each([&](sol::object const& key, sol::table const& user) {
+					for (auto user : data) {
 						string gameName = user["username"];
 						int muted = user["muted"];
 						float volume = user["volume"];
 						bool isRadioEffect = user["radioEffect"];
-						std::ostringstream oss;
-						oss << gameName << ": " << isRadioEffect;
-						//outputLog((char *)oss.str().c_str(), 1);
-
-						TS3_VECTOR Vector;
-						Vector.x = (float)user["posX"];
-						Vector.y = (float)user["posY"];
-						Vector.z = (float)user["posZ"];
 
 						if (channelName == thisChannelName && TSName == gameName)
 						{
@@ -286,11 +263,17 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 							else
 							{
 								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
-								ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
 								ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
+								if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+									TS3_VECTOR Vector;
+									Vector.x = (float)user["posX"];
+									Vector.y = (float)user["posY"];
+									Vector.z = (float)user["posZ"];
+									ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
+								}
 							}
 						}
-					});
+					};
 					ts3Functions.freeMemory(TSName);
 					ts3Functions.freeMemory(UUID);
 				}
@@ -312,7 +295,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		oss << "Server: Closed connection " << (size_t)connection.get() << " with status code " << status;
 		//outputLog((char*)oss.str().c_str(), 1);
 	};
-	echo.on_error = [](shared_ptr<WsServer::Connection> connection, const boost::system::error_code& ec) {
+	echo.on_error = [](shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code& ec) {
 		std::ostringstream oss;
 		oss << "Server: Error in connection " << (size_t)connection.get() << ". " <<
 			"Error: " << ec << ", error message: " << ec.message();
@@ -494,7 +477,6 @@ DWORD WINAPI checkUpdateThread(LPVOID lpParam)
 	while (!exitCheckUpdateThread)
 	{
 		outputLog("Checking for updates", 0);
-		update_whitelist();
 		if (isUpdateAvaible() == true) {
 			outputLog("Update available", 0);
 			MessageBox(NULL, getUpdateMessage(), "TokoVOIP: Update", MB_OK);
@@ -565,22 +547,6 @@ vector<string> explode(const string& str, const char& ch) {
 	return result;
 }
 
-void update_whitelist()
-{
-	std::ostringstream oss;
-	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_whitelist_address.txt", oss))
-	{
-		std::ostringstream oss2;
-		if (CURLE_OK == curl_read(oss.str(), oss2))
-		{
-			const std::string html = oss2.str();
-			allowed_servers = explode(html, ',');
-		}
-		curl_global_cleanup();
-	}
-	curl_global_cleanup();
-}
-
 // Utils
 
 void playWavFile(const char* fileNameWithoutExtension)
@@ -649,10 +615,10 @@ void setClientTalking(bool status)
 void	sendCallback(string str)
 {
 	for (auto &a_connection : server.get_connections()) {
-		auto send_stream = make_shared<WsServer::SendStream>();
+		auto send_stream = make_shared<WsServer::OutMessage>();
 		*send_stream << str;
 
-		server.send(a_connection, send_stream, [](const boost::system::error_code& ec) {
+		a_connection->send(send_stream, [](const SimpleWeb::error_code& ec) {
 			if (ec) {
 				std::ostringstream oss;
 				oss << "Server: Error sending message. " << "Error: " << ec << ", error message: " << ec.message();
@@ -812,22 +778,4 @@ bool isConnected(uint64 serverConnectionHandlerID)
 	if ((error = ts3Functions.getConnectionStatus(serverConnectionHandlerID, &result)) != ERROR_ok)
 		return false;
 	return result != 0;
-}
-
-int isServerAllowed(uint64 serverConnectionHandlerID) {
-	unsigned int error;
-	char* s;
-
-	if ((error = ts3Functions.getConnectionVariableAsString(serverConnectionHandlerID, getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CONNECTION_SERVER_IP, &s)) != ERROR_ok) {
-		if (error != ERROR_not_connected) {  /* Don't spam error in this case (failed to connect) */
-			ts3Functions.logMessage("Error querying server name", LogLevel_ERROR, "Plugin", serverConnectionHandlerID);
-		}
-	}
-
-	if (std::find(std::begin(allowed_servers), std::end(allowed_servers), s) != std::end(allowed_servers))
-		return (true);
-	else
-		return (false);
-	ts3Functions.freeMemory(s);
-	return (false);
 }
