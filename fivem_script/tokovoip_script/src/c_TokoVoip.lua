@@ -6,13 +6,7 @@
 ----                                                    ----
 ---- Resource: tokovoip_script                          ----
 ----                                                    ----
----- File: c_TokoVoip.lua                               ----
-----                                                    ----
----- Notice: please report any changes, bugs, fixes     ----
-----         or improvements to the author              ----
-----         This script and the methods used is not    ----
-----         to be shared without the author's          ----
-----         permission.                                ----
+---- File: c_TokoVoip.lua                               ----\
 ------------------------------------------------------------
 ------------------------------------------------------------
 

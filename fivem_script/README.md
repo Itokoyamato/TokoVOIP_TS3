@@ -1,13 +1,5 @@
-# TokoVoip
-TokoVoip is TeamSpeak plugin used along a FiveM script to add a custom proximity chat and radio system to fiveM  
-as well as radio effects thanks to the integration of the [RadioFX](https://www.myteamspeak.com/addons/f2e04859-d0db-489b-a781-19c2fab29def) plugin
-
-The TS3 plugin does not require any extra setting up, you just have to install it
-
-The tokovoip_script must be running on the server with the right configuration
-
 # Setting up
-The script must be placed in a folder named `tokovoip_script`
+The script must be placed in a folder named `tokovoip_script` (NUI restriction)
 
 You can edit the voip configuration in `c_config.lua`
 
