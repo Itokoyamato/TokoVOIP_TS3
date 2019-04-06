@@ -91,7 +91,12 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		//--------------------------------------------------------
 
 		// Load the json //
-		json json_data = json::parse(message_str.c_str());
+		json json_data = json::parse(message_str.c_str(), nullptr, false);
+		if (json_data.is_discarded()) {
+			ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
+			processingMessage = false;
+			return (0);
+		}
 
 		json data = json_data["Users"];
 		string channelName = json_data["TSChannel"];
@@ -288,7 +293,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 	echo.on_open = [](shared_ptr<WsServer::Connection> connection) {
 		std::ostringstream oss;
 		oss << "Server: Opened connection " << (size_t)connection.get();
-		outputLog((char*)oss.str().c_str(), 1);
+		//outputLog((char*)oss.str().c_str(), 1);
 	};
 	echo.on_close = [](shared_ptr<WsServer::Connection> connection, int status, const string& /*reason*/) {
 		std::ostringstream oss;
@@ -377,7 +382,7 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 {
 	while (!exitSendDataThread)
 	{
-		if (pluginStatus != 0 && processingMessage == false) {
+		if (processingMessage == false) {
 			sendCallback(getPluginVersionAsString());
 			char *base_text = "TokoVOIP status:";
 			char full_text[24];
@@ -385,7 +390,6 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 			strcat(full_text, to_string(pluginStatus).c_str());
 			full_text[23] = '\0';
 			sendCallback(full_text);
-			//outputLog("Sent plugin data", 0);
 		}
 		if (processingMessage == false)
 			Sleep(1000);
