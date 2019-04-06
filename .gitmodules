@@ -1,18 +1,15 @@
-[submodule "project/deps/DSPFilters"]
-	path = project/deps/DSPFilters
+[submodule "ts3_plugin/deps/DSPFilters"]
+	path = ts3_plugin/deps/DSPFilters
 	url = https://github.com/vinniefalco/DSPFilters
-[submodule "project/deps/teamspeak-plugin-qt-common"]
-	path = project/deps/teamspeak-plugin-qt-common
+[submodule "ts3_plugin/deps/teamspeak-plugin-qt-common"]
+	path = ts3_plugin/deps/teamspeak-plugin-qt-common
 	url = https://github.com/thorwe/teamspeak-plugin-qt-common
-[submodule "project/deps/Simple-WebSocket-Server"]
-	path = project/deps/Simple-WebSocket-Server
+[submodule "ts3_plugin/deps/Simple-WebSocket-Server"]
+	path = ts3_plugin/deps/Simple-WebSocket-Server
 	url = https://gitlab.com/eidheim/Simple-WebSocket-Server
-[submodule "project/deps/asio"]
-	path = project/deps/asio
+[submodule "ts3_plugin/deps/asio"]
+	path = ts3_plugin/deps/asio
 	url = https://github.com/chriskohlhoff/asio.git
-[submodule "project/deps/json"]
-	path = project/deps/json
+[submodule "ts3_plugin/deps/json"]
+	path = ts3_plugin/deps/json
 	url = https://github.com/nlohmann/json.git
-[submodule "project/deps/curl"]
-	path = project/deps/curl
-	url = https://github.com/curl/curl.git
