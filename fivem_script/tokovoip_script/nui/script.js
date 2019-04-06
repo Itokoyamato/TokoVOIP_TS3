@@ -25,7 +25,7 @@ var connected = false;
 var lastPing = 0;
 var lastReconnect = 0;
 var pluginStatus = 0;
-var pluginVersion = 0;
+var pluginVersion = '0';
 var TSServer = ""
 var TSChannel = "";
 var TSChannelSupport= "";
@@ -56,8 +56,8 @@ function init() {
 			setPluginStatus(parseInt(pluginStatus));
 			switch (parseInt(pluginStatus)) {
 				case 0:
-					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>not running</font>";
-					updateTokovoipInfo("Wait what? how do you get that plugin status ?!", 2, 1, 2000);
+					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>Initializing</font>";
+					updateTokovoipInfo("Initializing", 2, 1, 2000);
 					break;
 				case 1:
 					document.getElementById("pluginScreenStatus").innerHTML = "Plugin status: <font color='red'>wrong TeamSpeak server</font><br>Join the server: <font color='yellow'>" + TSServer + "</font>";
@@ -182,10 +182,12 @@ function receivedClientCall(event) {
 			init();
 		}
 		if (connected) {
-			try {
-				JSON.parse(event.data.data);
-			} catch (e) {
-				console.log("TokoVOIP: error in data json", e);
+			if (parseInt(pluginVersion.replace(/\./g, '')) >= 120) {
+				try {
+					JSON.parse(event.data.data);
+				} catch (e) {
+					return console.log("TokoVOIP: error in JSON data", e);
+				}
 			}
 			sendData(event.data.data);
 		}

@@ -53,10 +53,16 @@ function TokoVoip.loop(self)
 end
 
 function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
+	local processedData;
+	if (tonumber(self.pluginVersion:gsub("%.", ""), 10) >= 120) then
+		processedData = json.encode(self.plugin_data);
+	else
+		processedData = "plugin_data = "..table.tostring(self.plugin_data);
+	end
 	SendNUIMessage(
 		{
 			type = "updateTokoVoip",
-			data = json.encode(self.plugin_data)
+			data = processedData
 		}
 	);
 end

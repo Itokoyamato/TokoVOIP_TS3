@@ -30,7 +30,7 @@ function initializeVoip()
 	voip.mode = 1;
 	voip.talking = false;
 	voip.pluginStatus = 0;
-	voip.pluginVersion = 0;
+	voip.pluginVersion = "0";
 
 	-- Radio channels
 	voip.channels = {};
@@ -72,7 +72,7 @@ function initializeVoip()
 		end
 	end);
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.9)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.10)\n");
 
 	-- Debug data stuff
 	local debugData = false;
