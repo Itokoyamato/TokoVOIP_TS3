@@ -13,7 +13,10 @@ Downloads are available [here](https://github.com/Itokoyamato/TokoVOIP_TS3/relea
 
 This system was originally developed for **Revolution RP** by https://rmog.us, check it out for some FiveM RP ;)
 
-If you like TokoVOIP, give it a star ! It'd be much appreciated <3
+If you like TokoVOIP, give it a star ! It'd be much appreciated <3  
+
+If you're feeling generous  
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=H2UXEZBF5KQBL&source=url)
 
 # Terms and conditions
 I require only the following to anyone that plan on using this system: to leave the copyrights included as is, and not alter the displays of the TokoVOIP name in any other way than changing their position on screen.
