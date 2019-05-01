@@ -72,7 +72,7 @@ function initializeVoip()
 		end
 	end);
 
-	Citizen.Trace("TokoVoip: Initialized script (1.2.10)\n");
+	Citizen.Trace("TokoVoip: Initialized script (1.2.11)\n");
 
 	-- Debug data stuff
 	local debugData = false;
@@ -138,15 +138,18 @@ AddEventHandler("onClientResourceStart", resourceStart);
 function clientProcessing()
 		local playerList = voip.playerList;
 		local usersdata = {};
+		local localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		local localPos;
+
+		if useLocalPed then
+			localPos = GetEntityCoords(GetPlayerPed(-1));
+		else
+			localPos = GetEntityCoords(targetPed);
+		end
 
 		for i = 1, #playerList do
 			local player = playerList[i];
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
-					if useLocalPed then
-						localPos = GetEntityCoords(GetPlayerPed(-1));
-					else
-						localPos = GetEntityCoords(targetPed);
-					end
 
 					local playerPos = GetEntityCoords(GetPlayerPed(player));
 					local dist = GetDistanceBetweenCoords(localPos, playerPos);
@@ -164,12 +167,17 @@ function clientProcessing()
 					end
 					--
 
+					local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
+
 					-- Set player's default data
 					usersdata[i] = {	
 								username = escape(GetPlayerName(player)),
 								volume = -30,
 								muted = 1,
-								radioEffect = false
+								radioEffect = false,
+								posX = math.cos(angleToTarget) * 1.0,
+								posY = math.sin(angleToTarget) * 1.0,
+								posZ = 0.0
 					};
 					--
 
@@ -201,6 +209,9 @@ function clientProcessing()
 				end
 		end
 		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
+		voip.plugin_data.posX = 0.0;
+		voip.plugin_data.posY = 0.0;
+		voip.plugin_data.posZ = 0.0;
 		voip.plugin_data.localName = escape(GetPlayerName(PlayerId()));		-- Update the localName
 end
 
