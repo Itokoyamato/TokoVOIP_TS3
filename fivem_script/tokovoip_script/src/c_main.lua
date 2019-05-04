@@ -202,6 +202,9 @@ function clientProcessing()
 							end
 							usersdata[i].volume = 0;
 							usersdata[i].muted = 0;
+							usersdata[i].posX = 0;
+							usersdata[i].posY = 0;
+							usersdata[i].posZ = 0;
 						end
 					end
 					--
