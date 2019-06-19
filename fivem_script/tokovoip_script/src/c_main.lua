@@ -141,20 +141,20 @@ function clientProcessing()
 		local usersdata = {};
 		local localHeading = math.rad(GetGameplayCamRot().z % 360);
 		local localPos;
-		local HeadBone = 0x796e
+		local HeadBone = 0x796e;
 
 		if useLocalPed then
-			localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone)
+			localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone);
 		else
-			localPos = GetPedBoneCoords(targetPed, HeadBone)
+			localPos = GetPedBoneCoords(targetPed, HeadBone);
 		end
 
 		for i = 1, #playerList do
 			local player = playerList[i];
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
-					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone)
-
-					local dist = #(localPos - playerPos)
+				
+					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
+					local dist = #(localPos - playerPos);
 
 					if (not getPlayerData(GetPlayerName(player), "voip:mode")) then
 						setPlayerData(GetPlayerName(player), "voip:mode", 1);
