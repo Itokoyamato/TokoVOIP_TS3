@@ -152,7 +152,7 @@ function clientProcessing()
 		for i = 1, #playerList do
 			local player = playerList[i];
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
-				
+
 					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 					local dist = #(localPos - playerPos);
 
