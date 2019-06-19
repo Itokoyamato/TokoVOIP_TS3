@@ -37,7 +37,7 @@ function initializeVoip()
 	voip.myChannels = {};
 
 	-- Player data shared on the network
-	playername = GetPlayerName(PlayerId())
+	playername = GetPlayerName(PlayerId());
 	setPlayerData(playername, "voip:mode", voip.mode, true);
 	setPlayerData(playername, "voip:talking", voip.talking, true);
 	setPlayerData(playername, "radio:channel", voip.plugin_data.radioChannel, true);
@@ -139,7 +139,7 @@ AddEventHandler("onClientResourceStart", resourceStart);
 function clientProcessing()
 		local playerList = voip.playerList;
 		local usersdata = {};
-		local localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		local localHeading = math.rad(GetGameplayCamRot().z % 360);
 		local localPos;
 
 		if useLocalPed then
