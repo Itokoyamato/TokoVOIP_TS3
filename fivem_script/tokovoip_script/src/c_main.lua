@@ -153,7 +153,7 @@ function clientProcessing()
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
 
 					local playerPos = GetEntityCoords(GetPlayerPed(player));
-					local dist = GetDistanceBetweenCoords(localPos, playerPos, true);
+					local dist = #(localPos - playerPos)
 
 					if (not getPlayerData(GetPlayerName(player), "voip:mode")) then
 						setPlayerData(GetPlayerName(player), "voip:mode", 1);
