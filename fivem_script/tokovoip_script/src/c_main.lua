@@ -37,12 +37,13 @@ function initializeVoip()
 	voip.myChannels = {};
 
 	-- Player data shared on the network
-	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:talking", voip.plugin_data.radioTalking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
+	playername = GetPlayerName(PlayerId())
+	setPlayerData(playername, "voip:mode", voip.mode, true);
+	setPlayerData(playername, "voip:talking", voip.talking, true);
+	setPlayerData(playername, "radio:channel", voip.plugin_data.radioChannel, true);
+	setPlayerData(playername, "radio:talking", voip.plugin_data.radioTalking, true);
+	setPlayerData(playername, "voip:pluginStatus", voip.pluginStatus, true);
+	setPlayerData(playername, "voip:pluginVersion", voip.pluginVersion, true);
 
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
