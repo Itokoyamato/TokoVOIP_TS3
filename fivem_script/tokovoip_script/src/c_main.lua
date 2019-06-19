@@ -139,7 +139,12 @@ AddEventHandler("onClientResourceStart", resourceStart);
 function clientProcessing()
 		local playerList = voip.playerList;
 		local usersdata = {};
-		local localHeading = math.rad(GetGameplayCamRot().z % 360);
+		local localHeading;
+		if (voip.headingType == 1) then
+			localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		else
+			localHeading = math.rad(GetGameplayCamRot().z % 360);
+		end
 		local localPos;
 		local HeadBone = 0x796e;
 
@@ -152,7 +157,7 @@ function clientProcessing()
 		for i = 1, #playerList do
 			local player = playerList[i];
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
-				
+
 					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 					local dist = #(localPos - playerPos);
 
