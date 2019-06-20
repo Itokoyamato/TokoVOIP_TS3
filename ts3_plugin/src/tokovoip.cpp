@@ -106,6 +106,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		waitChannel = waitingChannelName;
 
 		string localName = json_data["localName"];
+		bool change_ts_name = json_data["change_ts_name"]; // -- Added Boolean for changing TS name or not 
 		bool radioTalking = json_data["radioTalking"];
 		bool radioClicks = json_data["localRadioClicks"];
 		bool local_click_on = json_data["local_click_on"];
@@ -198,12 +199,19 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 
 		// Set client's name to ingame name
-		char * newName = new char[localName.size() + 1];
-		std::copy(localName.begin(), localName.end(), newName);
-		newName[localName.size()] = '\0';
-		if (strcmp(lastNameSet, newName) != 0)
-			setClientName(newName);
-		delete[] newName;
+		if (change_ts_name)
+		{
+			char * newName = new char[localName.size() + 1];
+			std::copy(localName.begin(), localName.end(), newName);
+			newName[localName.size()] = '\0';
+			if (strcmp(lastNameSet, newName) != 0)
+				setClientName(newName);
+			delete[] newName;
+		}
+		else
+		{
+			// Do Nothing no need for changing Name
+		}
 
 		// Activate input if talking on radio
 		if (radioTalking)

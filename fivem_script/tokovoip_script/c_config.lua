@@ -2,7 +2,7 @@ TokoVoipConfig = {
 	refreshRate = 100, -- Rate at which the data is sent to the TSPlugin
 	networkRefreshRate = 2000, -- Rate at which the network data is updated/reset on the local ped
 	playerListRefreshRate = 5000, -- Rate at which the playerList is updated
-	latestVersion = "1.2.2", -- Version of the TS plugin required to play on the server
+	latestVersion = "1.2.3", -- Version of the TS plugin required to play on the server
 	distance = {
 		15, -- Normal speech distance in gta distance units
 		5, -- Whisper speech distance in gta distance units
@@ -29,6 +29,7 @@ TokoVoipConfig = {
 		TSDownload = "http://forums.rmog.us", -- Download link displayed on blocking screen
 
 		-- The following is purely TS client settings, to match tastes
+		change_ts_name = true -- Toggle True or False to change name in TeamSpeak to Steam name or not
 		local_click_on = true, -- Is local click on sound active
 		local_click_off = true, -- Is local click off sound active
 		remote_click_on = false, -- Is remote click on sound active
