@@ -62,11 +62,11 @@ Then move to the `ts3_plugin` folder, and generate the Visual Studio solution: (
 ```
 mkdir build32
 cd build32
-cmake -G "Visual Studio 15 2017" -DCMAKE_PREFIX_PATH="<PATH_TO>/Qt/5.6/msvc2015" ..
+cmake -G "Visual Studio 15 2017" -DCMAKE_PREFIX_PATH="<PATH_TO>/Qt/5.12.2/msvc2017" ..
 cd ..
 mkdir build64
 cd build64
-cmake -G "Visual Studio 15 2017 Win64"  -DCMAKE_PREFIX_PATH="<PATH_TO>/Qt/5.6/msvc2015_64" ..
+cmake -G "Visual Studio 15 2017 Win64"  -DCMAKE_PREFIX_PATH="<PATH_TO>/Qt/5.12.2/msvc2017_64" ..
 ```
 
 The visual studio solutions are available in their platform specific folders.
