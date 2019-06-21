@@ -89,7 +89,6 @@ function initializeVoip()
 			if (debugData) then
 				local pos_y;
 				local pos_x;
-				for i, player in ipairs(getPlayers()) do
 				local players = getPlayers();
 
 				for i = 1, #players do
