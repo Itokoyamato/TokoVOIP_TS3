@@ -12,6 +12,7 @@ TokoVoipConfig = {
 	keySwitchChannels = Keys["Z"], -- Keybind used to switch the radio channels
 	keySwitchChannelsSecondary = Keys["LEFTSHIFT"], -- If set, both the keySwitchChannels and keySwitchChannelsSecondary keybinds must be pressed to switch the radio channels
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
+	showPlayerId = true, -- Toggle showing a players server id in their username
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
