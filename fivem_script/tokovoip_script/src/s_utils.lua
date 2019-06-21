@@ -16,20 +16,15 @@
 
 local playersData = {};
 
-function setPlayerData(playerName, key, data, shared)
+function setPlayerData(playerServerId, key, data, shared)
 	if (shared) then
-		if (not playersData[playerName]) then
-			playersData[playerName] = {};
+		if (not playersData[playerServerId]) then
+			playersData[playerServerId] = {};
 		end
-		playersData[playerName][key] = data;
-		TriggerClientEvent("Tokovoip:setPlayerData", -1, playerName, key, data);
+		playersData[playerServerId][key] = data;
+		TriggerClientEvent("Tokovoip:setPlayerData", -1, playerServerId, key, data);
 	else
-		for i = -1,256 do
-			if (GetPlayerName(i) == playerName) then
-				TriggerClientEvent("Tokovoip:setPlayerData", i, playerName, key, data);
-				break;
-			end
-		end
+		TriggerClientEvent("Tokovoip:setPlayerData", playerServerId, playerName, key, data);
 	end
 end
 RegisterNetEvent("Tokovoip:setPlayerData");
@@ -46,7 +41,6 @@ RegisterNetEvent("Tokovoip:refreshAllPlayerData");
 AddEventHandler("Tokovoip:refreshAllPlayerData", refreshAllPlayerData);
 
 AddEventHandler("playerDropped", function()
-	local playerName = GetPlayerName(source);
-	playersData[playerName] = nil;
+	playersData[source] = nil;
 	refreshAllPlayerData(true);
 end);

@@ -31,18 +31,19 @@ function initializeVoip()
 	voip.talking = false;
 	voip.pluginStatus = 0;
 	voip.pluginVersion = "0";
+	voip.serverId = GetPlayerServerId(PlayerId());
 
 	-- Radio channels
 	voip.channels = {};
 	voip.myChannels = {};
 
 	-- Player data shared on the network
-	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:talking", voip.plugin_data.radioTalking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
+	setPlayerData(voip.serverId, "voip:mode", voip.mode, true);
+	setPlayerData(voip.serverId, "voip:talking", voip.talking, true);
+	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
+	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
+	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
@@ -92,12 +93,13 @@ function initializeVoip()
 				local players = getPlayers();
 
 				for i = 1, #players do
-					local player = players[i]
+					local player = players[i];
+					local playerServerId = GetPlayerServerId(players[i]);
 
-					pos_y = 1.1 + (math.ceil(i/12) * 0.1)
-					pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15)
-					
-					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(GetPlayerName(player), "voip:talking")), 255, 255, 255, 255);
+					pos_y = 1.1 + (math.ceil(i/12) * 0.1);
+					pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15);
+
+					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
 				end
 				local i = 0;
 				for channelIndex, channel in pairs(voip.channels) do
@@ -146,17 +148,19 @@ function clientProcessing()
 
 		for i = 1, #playerList do
 			local player = playerList[i];
+			local playerServerId = GetPlayerServerId(player);
+
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
 
 					local playerPos = GetEntityCoords(GetPlayerPed(player));
 					local dist = GetDistanceBetweenCoords(localPos, playerPos, true);
 
-					if (not getPlayerData(GetPlayerName(player), "voip:mode")) then
-						setPlayerData(GetPlayerName(player), "voip:mode", 1);
+					if (not getPlayerData(playerServerId, "voip:mode")) then
+						setPlayerData(playerServerId, "voip:mode", 1);
 					end
 
 					--	Process the volume for proximity voip
-					local mode = tonumber(getPlayerData(GetPlayerName(player), "voip:mode"));
+					local mode = tonumber(getPlayerData(playerServerId, "voip:mode"));
 					if (not mode or (mode ~= 1 and mode ~= 2 and mode ~= 3)) then mode = 1 end;
 					local volume = -30 + (30 - dist / voip.distance[mode] * 30);
 					if (volume >= 0) then
@@ -188,12 +192,12 @@ function clientProcessing()
 					--
 
 					-- Process channels
-					local remotePlayerUsingRadio = getPlayerData(GetPlayerName(player), "radio:talking");
-					local remotePlayerChannel = getPlayerData(GetPlayerName(player), "radio:channel");
+					local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
+					local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
 
 					for j, data in pairs(voip.channels) do
 						local channel = voip.channels[j];
-						if (channel.subscribers[GetPlayerName(PlayerId())] and channel.subscribers[GetPlayerName(player)] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
+						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
 							if (remotePlayerChannel <= 100) then
 								usersdata[i].radioEffect = true;
 							end
@@ -205,7 +209,7 @@ function clientProcessing()
 						end
 					end
 					--
-					setPlayerTalkingState(player);
+					setPlayerTalkingState(player, playerServerId);
 				end
 		end
 		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
@@ -225,18 +229,18 @@ function addPlayerToRadio(channel)
 		voip.myChannels[channel] = true;
 	end
 
-	voip.channels[channel].subscribers[GetPlayerName(PlayerId())] = GetPlayerName(PlayerId());
+	voip.channels[channel].subscribers[voip.serverId] = voip.serverId;
 	voip.myChannels[channel] = true;
 	voip.plugin_data.radioChannel = channel;
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", channel, true);
+	setPlayerData(voip.serverId, "radio:channel", channel, true);
 	notification("Joined channel: " .. voip.channels[channel].name);
-	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, GetPlayerName(PlayerId()));
+	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
 function removePlayerFromRadio(channel)
-	voip.channels[channel].subscribers[GetPlayerName(PlayerId())] = nil;
+	voip.channels[channel].subscribers[voip.serverId] = nil;
 	voip.myChannels[channel] = nil;
 	if (voip.plugin_data.radioChannel == channel) then
 		if (tablelength(voip.myChannels) > 0) then
@@ -248,9 +252,9 @@ function removePlayerFromRadio(channel)
 			voip.plugin_data.radioChannel = 0;
 		end
 	end
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
+	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 	notification("Left channel: " .. voip.channels[channel].name);
-	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, GetPlayerName(PlayerId()));
+	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
@@ -297,13 +301,13 @@ end
 
 function setPluginStatus(data)
 	voip.pluginStatus = tonumber(data.msg);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
+	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 end
 RegisterNUICallback("setPluginStatus", setPluginStatus);
 
 function setPluginVersion(data)
 	voip.pluginVersion = data.msg;
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
+	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 end
 RegisterNUICallback("setPluginVersion", setPluginVersion);
 
@@ -312,7 +316,7 @@ function setPlayerTalking(data)
 	voip.talking = tonumber(data.state);
 
 	if (voip.talking == 1) then
-		setPlayerData(GetPlayerName(PlayerId()), "voip:talking", 1, true);
+		setPlayerData(voip.serverId, "voip:talking", 1, true);
 		RequestAnimDict("mp_facial");
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
@@ -321,7 +325,7 @@ function setPlayerTalking(data)
 		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 	else
-		setPlayerData(GetPlayerName(PlayerId()), "voip:talking", 0, true);
+		setPlayerData(voip.serverId, "voip:talking", 0, true);
 		RequestAnimDict("facials@gen_male@base");
 		while not HasAnimDictLoaded("facials@gen_male@base") do
 			Wait(5);
@@ -333,9 +337,9 @@ RegisterNUICallback("setPlayerTalking", setPlayerTalking);
 
 -- Handles the talking state of other players to apply talking animation to them
 local animStates = {}
-function setPlayerTalkingState(player)
-	local talking = tonumber(getPlayerData(GetPlayerName(player), "voip:talking"));
-	if (animStates[GetPlayerName(player)] == 0 and talking == 1) then
+function setPlayerTalkingState(player, playerServerId)
+	local talking = tonumber(getPlayerData(playerServerId, "voip:talking"));
+	if (animStates[playerServerId] == 0 and talking == 1) then
 		RequestAnimDict("mp_facial");
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
@@ -343,7 +347,7 @@ function setPlayerTalkingState(player)
 		local localPos = GetEntityCoords(GetPlayerPed(-1));
 		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
-	elseif (animStates[GetPlayerName(player)] == 1 and talking == 0) then
+	elseif (animStates[playerServerId] == 1 and talking == 0) then
 		RequestAnimDict("facials@gen_male@base");
 		while not HasAnimDictLoaded("facials@gen_male@base") do
 			Wait(5);

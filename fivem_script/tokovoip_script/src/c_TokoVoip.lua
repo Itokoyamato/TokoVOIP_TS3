@@ -132,7 +132,7 @@ function TokoVoip.initialize(self)
 						currentChannelID = myChannels[currentChannel + 1].channelID;
 					end
 					self.plugin_data.radioChannel = currentChannelID;
-					setPlayerData(GetPlayerName(PlayerId()), "radio:channel", currentChannelID, true);
+					setPlayerData(self.serverId, "radio:channel", currentChannelID, true);
 					self.updateTokoVoipInfo(self);
 				end
 			elseif (IsControlJustPressed(0, self.keyProximity)) then -- Switch proximity modes (normal / whisper / shout)
@@ -143,7 +143,7 @@ function TokoVoip.initialize(self)
 				if (self.mode > 3) then
 					self.mode = 1;
 				end
-				setPlayerData(GetPlayerName(PlayerId()), "voip:mode", self.mode, true);
+				setPlayerData(self.serverId, "voip:mode", self.mode, true);
 				self.updateTokoVoipInfo(self);
 			end
 
@@ -154,8 +154,8 @@ function TokoVoip.initialize(self)
 				if (self.plugin_data.radioChannel > 100) then
 					self.plugin_data.localRadioClicks = false;
 				end
-				if (not getPlayerData(GetPlayerName(PlayerId()), "radio:talking")) then
-					setPlayerData(GetPlayerName(PlayerId()), "radio:talking", true, true);
+				if (not getPlayerData(self.serverId, "radio:talking")) then
+					setPlayerData(self.serverId, "radio:talking", true, true);
 				end
 				self.updateTokoVoipInfo(self);
 				if lastTalkState == false then
@@ -170,8 +170,8 @@ function TokoVoip.initialize(self)
 				end
 			else
 				self.plugin_data.radioTalking = false;
-				if (getPlayerData(GetPlayerName(PlayerId()), "radio:talking")) then
-					setPlayerData(GetPlayerName(PlayerId()), "radio:talking", false, true);
+				if (getPlayerData(self.serverId, "radio:talking")) then
+					setPlayerData(self.serverId, "radio:talking", false, true);
 				end
 				self.updateTokoVoipInfo(self);
 				
