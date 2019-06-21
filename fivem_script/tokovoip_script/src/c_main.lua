@@ -173,6 +173,7 @@ function clientProcessing()
 					-- Set player's default data
 					usersdata[i] = {	
 								username = (TokoVoipConfig.showPlayerId and "[" .. voip.ServerId .. "] " or "") .. escape(GetPlayerName(player)),
+								id = playerServerId,
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
