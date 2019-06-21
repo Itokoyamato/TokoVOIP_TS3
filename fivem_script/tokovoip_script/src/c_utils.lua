@@ -182,9 +182,9 @@ end
 function getPlayers()
 	local players = {};
 
-	for i = -1,256 do
+	for i = 0, 256 do
 		if (NetworkIsPlayerActive(i)) then
-			players[#players + 1] = i;
+			table.insert(players, i);
 		end
 	end
 
