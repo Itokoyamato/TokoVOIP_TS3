@@ -90,6 +90,11 @@ function initializeVoip()
 				local pos_y;
 				local pos_x;
 				for i, player in ipairs(getPlayers()) do
+				local players = getPlayers();
+
+				for i = 1, #players do
+					local player = players[i]
+
 					if (i <= 12) then
 						pos_y = 1.2;
 						pos_x = 0.60 + i/15;
