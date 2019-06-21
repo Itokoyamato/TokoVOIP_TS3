@@ -95,16 +95,9 @@ function initializeVoip()
 				for i = 1, #players do
 					local player = players[i]
 
-					if (i <= 12) then
-						pos_y = 1.2;
-						pos_x = 0.60 + i/15;
-					elseif (i <= 24) then
-						pos_y = 1.3;
-						pos_x = 0.60 + (i-12)/15;
-					else
-						pos_y = 1.4;
-						pos_x = 0.60 + (i-24)/15;
-					end
+					pos_y = 1.1 + (math.ceil(i/12) * 0.1)
+					pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15)
+					
 					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(GetPlayerName(player), "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(GetPlayerName(player), "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(GetPlayerName(player), "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(GetPlayerName(player), "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(GetPlayerName(player), "voip:talking")), 255, 255, 255, 255);
 				end
 				local i = 0;
