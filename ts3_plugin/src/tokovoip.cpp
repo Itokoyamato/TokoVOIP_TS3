@@ -199,7 +199,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		// Set client's name to ingame name
 		char * newName = new char[localName.size() + 1];
-		std::copy(localName.begin(), localName.end(), newName);
+		copy(localName.begin(), localName.end(), newName);
 		newName[localName.size()] = '\0';
 		if (strcmp(lastNameSet, newName) != 0)
 			setClientName(newName);
@@ -237,51 +237,42 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
 		{
 			clientId = *clientIdIterator;
-			char* TSName;
 			char *UUID;
 			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
 			}
 			else
 			{
-				if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_NICKNAME, &TSName)) != ERROR_ok) {
-					outputLog("Error getting client nickname", error);
-					continue;
-				}
-				else
-				{
-					for (auto user : data) {
-						string gameName = user["username"];
-						int muted = user["muted"];
-						float volume = user["volume"];
-						bool isRadioEffect = user["radioEffect"];
+				for (auto user : data) {
+					string gameUUID = user["uuid"];
+					int muted = user["muted"];
+					float volume = user["volume"];
+					bool isRadioEffect = user["radioEffect"];
 
-						if (channelName == thisChannelName && TSName == gameName)
+					if (channelName == thisChannelName && UUID == gameUUID)
+					{
+						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
+							playWavFile("mic_click_on");
+						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(ts3Functions.getCurrentServerConnectionHandlerID()))
+							playWavFile("mic_click_off");
+						tokovoip->setRadioData(UUID, isRadioEffect);
+						if (muted)
+							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
+						else
 						{
-							if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
-								playWavFile("mic_click_on");
-							if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(ts3Functions.getCurrentServerConnectionHandlerID()))
-								playWavFile("mic_click_off");
-							tokovoip->setRadioData(UUID, isRadioEffect);
-							if (muted)
-								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
-							else
-							{
-								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
-								ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
-								if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
-									TS3_VECTOR Vector;
-									Vector.x = (float)user["posX"];
-									Vector.y = (float)user["posY"];
-									Vector.z = (float)user["posZ"];
-									ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
-								}
+							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
+							ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
+							if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+								TS3_VECTOR Vector;
+								Vector.x = (float)user["posX"];
+								Vector.y = (float)user["posY"];
+								Vector.z = (float)user["posZ"];
+								ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
 							}
 						}
-					};
-					ts3Functions.freeMemory(TSName);
-					ts3Functions.freeMemory(UUID);
-				}
+					}
+				};
+				ts3Functions.freeMemory(UUID);
 			}
 		}
 		pluginStatus = 3;
@@ -383,13 +374,16 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 	while (!exitSendDataThread)
 	{
 		if (processingMessage == false) {
-			sendCallback(getPluginVersionAsString());
-			char *base_text = "TokoVOIP status:";
-			char full_text[24];
-			strcpy(full_text, base_text);
-			strcat(full_text, to_string(pluginStatus).c_str());
-			full_text[23] = '\0';
-			sendCallback(full_text);
+			sendCallback("TokoVOIP version:" + (string)ts3plugin_version());
+			sendCallback("TokoVOIP status:" + to_string(pluginStatus));
+
+			uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+			if (isConnected(serverId)) {
+				char *UUID;
+				if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
+					sendCallback("TokoVOIP UUID:" + (string)UUID);
+				free(UUID);
+			}
 		}
 		if (processingMessage == false)
 			Sleep(1000);
@@ -624,9 +618,8 @@ void	sendCallback(string str)
 
 		a_connection->send(send_stream, [](const SimpleWeb::error_code& ec) {
 			if (ec) {
-				std::ostringstream oss;
-				oss << "Server: Error sending message. " << "Error: " << ec << ", error message: " << ec.message();
-				outputLog((char*)oss.str().c_str(), 1);
+				string errorMsg = "Server: Error sending message:" + ec.message();
+				outputLog((char*)errorMsg.c_str(), 1);
 			}
 		});
 	}
@@ -657,16 +650,6 @@ void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool 
 				outputLog("Can't unmute client", error);
 		}
 	}
-}
-
-char	*getPluginVersionAsString()
-{
-	char *version = "TokoVOIP version:";
-	char full_text[24];
-	strcpy(full_text, version);
-	strcat(full_text, ts3plugin_version());
-	full_text[23] = '\0';
-	return (full_text);
 }
 
 void outputLog(char* message, DWORD errorCode)

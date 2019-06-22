@@ -26,6 +26,7 @@ var lastPing = 0;
 var lastReconnect = 0;
 var pluginStatus = 0;
 var pluginVersion = '0';
+var pluginUUID = "";
 var TSServer = ""
 var TSChannel = "";
 var TSChannelSupport= "";
@@ -81,6 +82,12 @@ function init() {
 				document.getElementById("pluginScreenVersion").innerHTML = "Plugin version: <font color='green'>" + evt.data.split(":")[1] + "</font> (up-to-date)";
 			else
 				document.getElementById("pluginScreenVersion").innerHTML = "Plugin version: <font color='red'>" + evt.data.split(":")[1] + "</font> (" + pluginLatestVersion + " is available)";
+		}
+
+		// Handle plugin UUID
+		if (evt.data.includes("TokoVOIP UUID:"))
+		{
+			setPluginUUID(evt.data.split(":")[1]);
 		}
 
 		// Handle talking states
@@ -236,6 +243,14 @@ function setPluginVersion(data) {
 	{
 		$.post('http://tokovoip_script/setPluginVersion', JSON.stringify({msg: data}));
 		pluginVersion = data;
+	}
+}
+
+function setPluginUUID(data) {
+	if (pluginUUID != data)
+	{
+		$.post('http://tokovoip_script/setPluginUUID', JSON.stringify({msg: data}));
+		pluginUUID = data;
 	}
 }
 

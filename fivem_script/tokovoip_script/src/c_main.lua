@@ -180,6 +180,7 @@ function clientProcessing()
 					usersdata[i] = {	
 								username = (TokoVoipConfig.showPlayerId and "[" .. voip.serverId .. "] " or "") .. escape(GetPlayerName(player)),
 								id = playerServerId,
+								uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
@@ -317,6 +318,12 @@ function setPluginVersion(data)
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 end
 RegisterNUICallback("setPluginVersion", setPluginVersion);
+
+function setPluginUUID(data)
+	voip.pluginUUID = data.msg;
+	setPlayerData(voip.serverId, "voip:pluginUUID", voip.pluginUUID, true);
+end
+RegisterNUICallback("setPluginUUID", setPluginUUID);
 
 -- Receives data from the TS plugin on microphone toggle
 function setPlayerTalking(data)
