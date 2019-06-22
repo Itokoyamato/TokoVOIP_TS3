@@ -184,9 +184,9 @@ function clientProcessing()
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
-								posX = math.cos(angleToTarget) * 1.0,
-								posY = math.sin(angleToTarget) * 1.0,
-								posZ = 0.0
+								posX = math.cos(angleToTarget) * dist,
+								posY = math.sin(angleToTarget) * dist,
+								posZ = playerPos.z
 					};
 					--
 
@@ -213,7 +213,7 @@ function clientProcessing()
 							usersdata[i].muted = 0;
 							usersdata[i].posX = 0;
 							usersdata[i].posY = 0;
-							usersdata[i].posZ = 0;
+							usersdata[i].posZ = localPos.z;
 						end
 					end
 					--
@@ -223,7 +223,7 @@ function clientProcessing()
 		voip.plugin_data.Users = usersdata;	--	Update TokoVoip's data
 		voip.plugin_data.posX = 0.0;
 		voip.plugin_data.posY = 0.0;
-		voip.plugin_data.posZ = 0.0;
+		voip.plugin_data.posZ = localPos.z;
 		voip.plugin_data.localName = (TokoVoipConfig.showPlayerId and "[" .. voip.serverId .. "] " or "") .. escape(GetPlayerName(PlayerId()));		-- Update the localName
 end
 
