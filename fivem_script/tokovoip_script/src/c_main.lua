@@ -172,6 +172,7 @@ function clientProcessing()
 					-- Set player's default data
 					usersdata[i] = {	
 								username = escape(GetPlayerName(player)),
+								uuid = getPlayerData(GetPlayerName(player), "voip:pluginUUID"),
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
@@ -309,6 +310,12 @@ function setPluginVersion(data)
 	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
 end
 RegisterNUICallback("setPluginVersion", setPluginVersion);
+
+function setPluginUUID(data)
+	voip.pluginUUID = data.msg;
+	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginUUID", voip.pluginUUID, true);
+end
+RegisterNUICallback("setPluginUUID", setPluginUUID);
 
 -- Receives data from the TS plugin on microphone toggle
 function setPlayerTalking(data)
