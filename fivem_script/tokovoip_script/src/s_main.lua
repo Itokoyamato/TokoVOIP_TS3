@@ -16,21 +16,21 @@
 
 local channels = TokoVoipConfig.channels;
 
-function addPlayerToRadio(channel, playerName)
+function addPlayerToRadio(channel, playerServerId)
 	if not channels[channel] then
 		channels[channel] = {name = "Call with " .. channel, subscribers = {}};
 	end
 
-	channels[channel].subscribers[playerName] = playerName;
-	print("Added " .. playerName .. " to channel " .. channel);
+	channels[channel].subscribers[playerServerId] = playerServerId;
+	print("Added [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " to channel " .. channel);
 	TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
 end
 RegisterServerEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
-function removePlayerFromRadio(channel, playerName)
-	if (channels[channel] and channels[channel].subscribers[playerName]) then
-		channels[channel].subscribers[playerName] = nil;
+function removePlayerFromRadio(channel, playerServerId)
+	if (channels[channel] and channels[channel].subscribers[playerServerId]) then
+		channels[channel].subscribers[playerServerId] = nil;
 		if (channel > 100) then
 			if (#channels[channel].subscribers == 0) then
 				channels[channel] = nil;
@@ -38,7 +38,7 @@ function removePlayerFromRadio(channel, playerName)
 			end
 		end
 		TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
-		print("Removed " .. playerName .. " from channel " .. channel);
+		print("Removed [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " from channel " .. channel);
 	end
 end
 RegisterServerEvent("TokoVoip:removePlayerFromRadio");
@@ -54,7 +54,7 @@ function printChannels()
 	for i, channel in pairs(channels) do
 		RconPrint("Channel: " .. channel.name .. "\n");
 		for j, player in pairs(channel.subscribers) do
-			RconPrint("- " .. player .. "\n");
+			RconPrint("- [" .. player .. "] " .. GetPlayerName(player) .. "\n");
 		end
 	end
 end
