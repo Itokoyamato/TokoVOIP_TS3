@@ -42,7 +42,6 @@ char* originalName = "";
 time_t lastPingTick = 0;
 int pluginStatus = 0;
 bool processingMessage = false;
-char* lastNameSet = "";
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
@@ -105,7 +104,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		mainChannel = channelName;
 		waitChannel = waitingChannelName;
 
-		string localName = json_data["localName"];
 		bool radioTalking = json_data["radioTalking"];
 		bool radioClicks = json_data["localRadioClicks"];
 		bool local_click_on = json_data["local_click_on"];
@@ -198,12 +196,21 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 
 		// Set client's name to ingame name
-		char * newName = new char[localName.size() + 1];
-		copy(localName.begin(), localName.end(), newName);
-		newName[localName.size()] = '\0';
-		if (strcmp(lastNameSet, newName) != 0)
+		string newName = originalName;
+		
+		if (json_data.find("localName") != json_data.end()) {
+			string localName = json_data["localName"];
+			if (localName != "") newName = localName;
+		}
+
+		if (json_data.find("localNamePrefix") != json_data.end()) {
+			string localNamePrefix = json_data["localNamePrefix"];
+			if (localNamePrefix != "") newName = localNamePrefix + newName;
+		}
+
+		if (newName != "") {
 			setClientName(newName);
-		delete[] newName;
+		}
 
 		// Activate input if talking on radio
 		if (radioTalking)
@@ -560,33 +567,31 @@ void playWavFile(const char* fileNameWithoutExtension)
 	}
 }
 
-int	setClientName(char* name)
+void	setClientName(string name)
 {
 	DWORD error;
 	char* currentName;
 
-	error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
-	if (error != ERROR_ok && error != ERROR_ok_no_update)
+	// Cancel name change is anti-spam timer still active
+	if (time(nullptr) - lastNameSetTick < 2) return;
+
+	lastNameSetTick = time(nullptr);
+
+	if ((error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL)) != ERROR_ok && error != ERROR_ok_no_update)
+		return outputLog("Can't flush self updates.", error);
+
+	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok)
+		return outputLog("Error getting client nickname", error);
+
+	// Cancel name changing if name is already the same
+	if (name == (string)currentName) return;
+
+	// Set name
+	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name.c_str())) != ERROR_ok)
+		return outputLog("Error setting client nickname", error);
+		
+	if ((error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL)) != ERROR_ok && error != ERROR_ok_no_update)
 		outputLog("Can't flush self updates.", error);
-	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok) {
-		outputLog("Error getting client nickname", error);
-		return (0);
-	}
-	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0 || time(nullptr) - lastNameSetTick < 1)
-		return (1);
-	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
-		outputLog("Error setting client nickname", error);
-		return (0);
-	}
-	else
-	{
-		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
-		if (error != ERROR_ok && error != ERROR_ok_no_update)
-			outputLog("Can't flush self updates.", error);
-		lastNameSet = name;
-		lastNameSetTick = time(nullptr);
-		return (1);
-	}
 }
 
 void setClientTalking(bool status)

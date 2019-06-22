@@ -3,6 +3,7 @@ TokoVoipConfig = {
 	networkRefreshRate = 2000, -- Rate at which the network data is updated/reset on the local ped
 	playerListRefreshRate = 5000, -- Rate at which the playerList is updated
 	latestVersion = "1.2.2", -- Version of the TS plugin required to play on the server
+
 	distance = {
 		15, -- Normal speech distance in gta distance units
 		5, -- Whisper speech distance in gta distance units
@@ -13,7 +14,7 @@ TokoVoipConfig = {
 	keySwitchChannels = Keys["Z"], -- Keybind used to switch the radio channels
 	keySwitchChannelsSecondary = Keys["LEFTSHIFT"], -- If set, both the keySwitchChannels and keySwitchChannelsSecondary keybinds must be pressed to switch the radio channels
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
-	showPlayerId = true, -- Toggle showing a players server id in their username
+
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
@@ -34,6 +35,9 @@ TokoVoipConfig = {
 		local_click_on = true, -- Is local click on sound active
 		local_click_off = true, -- Is local click off sound active
 		remote_click_on = false, -- Is remote click on sound active
-		remote_click_off = true -- Is remote click off sound active
+		remote_click_off = true, -- Is remote click off sound active
+
+		localName = escape(GetPlayerName(PlayerId())), -- If set, this name will be used as the user's teamspeak display name
+		localNamePrefix = "[" .. GetPlayerServerId(PlayerId()) .. "] ", -- If set, this prefix will be added to the user's teamspeak display name
 	}
 };
