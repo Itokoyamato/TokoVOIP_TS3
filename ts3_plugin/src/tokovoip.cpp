@@ -18,13 +18,11 @@
 
 #include "tokovoip.h"
 #include "server_ws.hpp"
-#include "json.hpp"
-using json = nlohmann::json;
+
 #define CURL_STATICLIB
 #include "curl.h"
 
 Tokovoip *tokovoip;
-using namespace std;
 typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
 
 int isRunning = 0;
@@ -113,17 +111,18 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		//--------------------------------------------------------
 
-		// Check if connected to any channel
-		if (thisChannelName == "") {
+		if (isChannelWhitelisted(json_data, thisChannelName)) {
+			resetClientsAll();
+			pluginStatus = 3;
 			processingMessage = false;
 			return (0);
 		}
 
 		// Check if right channel
-		if (channelName != thisChannelName)
-		{
+		if (channelName != thisChannelName) {
 			if (originalName != "")
 				setClientName(originalName);
+
 			// Handle auto channel switch
 			if (thisChannelName == waitingChannelName)
 			{
@@ -180,7 +179,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 			else
 			{
-				unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+				resetClientsAll();
 				pluginStatus = 2;
 				processingMessage = false;
 				return (0);
@@ -366,8 +365,7 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 			pluginStatus = 0;
 			ServerConnection = NULL;
 			connected = false;
-			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			resetClientsAll();
 			if (originalName != "")
 				setClientName(originalName);
 		}
@@ -502,8 +500,7 @@ int Tokovoip::initialize(char *id)
 	if (isRunning != 0)
 		return (0);
 	outputLog("TokoVOIP initialized", 0);
-	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetClientsAll();
 	exitTimeoutThread = false;
 	exitSendDataThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
@@ -518,8 +515,7 @@ int Tokovoip::initialize(char *id)
 void Tokovoip::shutdown()
 {
 	server.stop();
-	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetClientsAll();
 
 	DWORD exitCode;
 	BOOL result = GetExitCodeThread(threadService, &exitCode);
@@ -553,6 +549,16 @@ vector<string> explode(const string& str, const char& ch) {
 }
 
 // Utils
+
+bool isChannelWhitelisted(json data, string channel) {
+	if (data == NULL) return false;
+	if (data.find("TSChannelWhitelist") == data.end()) return false;
+	for (json::iterator it = data["TSChannelWhitelist"].begin(); it != data["TSChannelWhitelist"].end(); ++it) {
+		string whitelistedChannel = it.value();
+		if (whitelistedChannel == channel) return true;
+	}
+	return false;
+}
 
 void playWavFile(const char* fileNameWithoutExtension)
 {
@@ -657,32 +663,32 @@ void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool 
 	}
 }
 
-void outputLog(char* message, DWORD errorCode)
+void outputLog(string message, DWORD errorCode)
 {
-	char* errorBuffer;
-	ts3Functions.getErrorMessage(errorCode, &errorBuffer);
-	std::string output = std::string(message) + std::string(" : ") + std::string(errorBuffer);
+	string output = message;
+	if (errorCode != NULL) {
+		char* errorBuffer;
+		ts3Functions.getErrorMessage(errorCode, &errorBuffer);
+		output = output + " : " + string(errorBuffer);
+		ts3Functions.freeMemory(errorBuffer);
+	}
+
 	ts3Functions.logMessage(output.c_str(), LogLevel_INFO, "TokoVOIP", 141);
-	ts3Functions.freeMemory(errorBuffer);
 }
 
 void resetVolumeAll(uint64 serverConnectionHandlerID)
 {
-	std::vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
+	vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
 	anyID myId = getMyId(serverConnectionHandlerID);
 	DWORD error;
 	char *UUID;
 
-	for (auto it = clientsIds.begin(); it != clientsIds.end(); it++)
-	{
-		if (!(*it == myId))
-		{
-			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*it), 0.0f);
-			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), *it, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+	for (auto clientId = clientsIds.begin(); clientId != clientsIds.end(); clientId++) {
+		if (*clientId != myId) {
+			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*clientId), 0.0f);
+			if ((error = ts3Functions.getClientVariableAsString(serverConnectionHandlerID, *clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
-			}
-			else
-			{
+			} else {
 				tokovoip->setRadioData(UUID, false);
 			}
 		}
@@ -707,19 +713,40 @@ void unmuteAll(uint64 serverConnectionHandlerID)
 	ts3Functions.freeMemory(ids);
 }
 
-std::vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId)
+void resetPositionAll(uint64 serverConnectionHandlerID)
 {
-	std::vector<anyID> result;
-	anyID* clients = NULL;
-	if (ts3Functions.getChannelClientList(serverConnectionHandlerID, channelId, &clients) == ERROR_ok)
+	vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
+	anyID myId = getMyId(serverConnectionHandlerID);
+
+	ts3Functions.systemset3DListenerAttributes(serverConnectionHandlerID, NULL, NULL, NULL);
+
+	for (auto clientId = clientsIds.begin(); clientId != clientsIds.end(); clientId++)
 	{
+		if (*clientId != myId) ts3Functions.channelset3DAttributes(serverConnectionHandlerID, *clientId, NULL);
+	}
+}
+
+void resetClientsAll() {
+	uint64 serverConnectionHandlerID = ts3Functions.getCurrentServerConnectionHandlerID();
+	resetPositionAll(serverConnectionHandlerID);
+	resetVolumeAll(serverConnectionHandlerID);
+	unmuteAll(serverConnectionHandlerID);
+}
+
+vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId)
+{
+	DWORD error;
+	vector<anyID> result;
+	anyID* clients = NULL;
+	if ((error = ts3Functions.getChannelClientList(serverConnectionHandlerID, channelId, &clients)) == ERROR_ok) {
 		int i = 0;
-		while (clients[i])
-		{
+		while (clients[i]) {
 			result.push_back(clients[i]);
 			i++;
 		}
 		ts3Functions.freeMemory(clients);
+	} else {
+		outputLog("Error getting all clients from the server", error);
 	}
 	return result;
 }
