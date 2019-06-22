@@ -37,12 +37,13 @@ function initializeVoip()
 	voip.myChannels = {};
 
 	-- Player data shared on the network
-	setPlayerData(GetPlayerName(PlayerId()), "voip:mode", voip.mode, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:talking", voip.talking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:channel", voip.plugin_data.radioChannel, true);
-	setPlayerData(GetPlayerName(PlayerId()), "radio:talking", voip.plugin_data.radioTalking, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginStatus", voip.pluginStatus, true);
-	setPlayerData(GetPlayerName(PlayerId()), "voip:pluginVersion", voip.pluginVersion, true);
+	playername = GetPlayerName(PlayerId());
+	setPlayerData(playername, "voip:mode", voip.mode, true);
+	setPlayerData(playername, "voip:talking", voip.talking, true);
+	setPlayerData(playername, "radio:channel", voip.plugin_data.radioChannel, true);
+	setPlayerData(playername, "radio:talking", voip.plugin_data.radioTalking, true);
+	setPlayerData(playername, "voip:pluginStatus", voip.pluginStatus, true);
+	setPlayerData(playername, "voip:pluginVersion", voip.pluginVersion, true);
 
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
@@ -138,21 +139,27 @@ AddEventHandler("onClientResourceStart", resourceStart);
 function clientProcessing()
 		local playerList = voip.playerList;
 		local usersdata = {};
-		local localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		local localHeading;
+		if (voip.headingType == 1) then
+			localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		else
+			localHeading = math.rad(GetGameplayCamRot().z % 360);
+		end
 		local localPos;
+		local HeadBone = 0x796e;
 
 		if useLocalPed then
-			localPos = GetEntityCoords(GetPlayerPed(-1));
+			localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone);
 		else
-			localPos = GetEntityCoords(targetPed);
+			localPos = GetPedBoneCoords(targetPed, HeadBone);
 		end
 
 		for i = 1, #playerList do
 			local player = playerList[i];
 				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
 
-					local playerPos = GetEntityCoords(GetPlayerPed(player));
-					local dist = GetDistanceBetweenCoords(localPos, playerPos, true);
+					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
+					local dist = #(localPos - playerPos);
 
 					if (not getPlayerData(GetPlayerName(player), "voip:mode")) then
 						setPlayerData(GetPlayerName(player), "voip:mode", 1);
