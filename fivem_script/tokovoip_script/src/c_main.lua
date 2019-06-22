@@ -182,9 +182,9 @@ function clientProcessing()
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
-								posX = math.cos(angleToTarget) * dist,
-								posY = math.sin(angleToTarget) * dist,
-								posZ = playerPos.z
+								posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
+								posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
+								posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
 					};
 					--
 
@@ -211,7 +211,7 @@ function clientProcessing()
 							usersdata[i].muted = 0;
 							usersdata[i].posX = 0;
 							usersdata[i].posY = 0;
-							usersdata[i].posZ = localPos.z;
+							usersdata[i].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 						end
 					end
 					--
@@ -219,9 +219,9 @@ function clientProcessing()
 				end
 		end
 		voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
-		voip.plugin_data.posX = 0.0;
-		voip.plugin_data.posY = 0.0;
-		voip.plugin_data.posZ = localPos.z;
+		voip.plugin_data.posX = 0;
+		voip.plugin_data.posY = 0;
+		voip.plugin_data.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 end
 
 --------------------------------------------------------------------------------
