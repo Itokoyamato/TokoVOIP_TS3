@@ -45,6 +45,7 @@ void resetClientsAll();
 void outputLog(string message, DWORD errorCode = NULL);
 bool isConnected(uint64 serverConnectionHandlerID);
 bool isChannelWhitelisted(json data, string channel);
+void checkUpdate();
 
 vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId);
 uint64 getCurrentChannel(uint64 serverConnectionHandlerID);

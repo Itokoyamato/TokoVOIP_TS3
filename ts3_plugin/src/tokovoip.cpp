@@ -249,6 +249,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 			else
 			{
+				if (clientId == getMyId(ts3Functions.getCurrentServerConnectionHandlerID())) continue;
 				for (auto user : data) {
 					string gameUUID = user["uuid"];
 					int muted = user["muted"];
@@ -412,87 +413,127 @@ static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp)
 	return 0;
 }
 
-/**
-* timeout is in seconds
-**/
-CURLcode curl_read(const std::string& url, std::ostream& os, long timeout = 30)
-{
-	CURLcode code(CURLE_FAILED_INIT);
-	CURL* curl = curl_easy_init();
+size_t curl_callback(const char* in, size_t size, size_t num, string* out) {
+	const size_t totalBytes(size * num);
+	out->append(in, totalBytes);
+	return totalBytes;
+}
 
-	if (curl)
-	{
-		if (CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &data_write))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FILE, &os))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str()))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FAILONERROR, true)))
-		{
-			code = curl_easy_perform(curl);
+json downloadJSON(string url) {
+    CURL* curl = curl_easy_init();
+
+    // Set remote URL.
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    // Don't bother trying IPv6, which would increase DNS resolution time.
+    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+
+    // Don't wait forever, time out after 10 seconds.
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+
+    // Follow HTTP redirects if necessary.
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+    // Response information.
+    int httpCode(0);
+    unique_ptr<string> httpData(new string());
+
+    // Hook up data handling function.
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_callback);
+
+    // Hook up data container (will be passed as the last parameter to the
+    // callback handling function).  Can be any pointer type, since it will
+    // internally be passed as a void pointer.
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
+
+    // Run our HTTP GET command, capture the HTTP response code, and clean up.
+    curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+    curl_easy_cleanup(curl);
+
+    if (httpCode == 200) {
+        // Response looks good - done using Curl now.  Try to parse the results
+        // and print them out.
+		json parsedJSON = json::parse(*httpData.get(), nullptr, false);
+		if (parsedJSON.is_discarded()) {
+			outputLog("Downloaded JSON is invalid");
+			return NULL;
 		}
-		curl_easy_cleanup(curl);
-	}
-	return code;
+		return parsedJSON;
+    } else {
+		outputLog("Couldn't retrieve JSON (Code: " + to_string(httpCode) + ")");
+        return NULL;
+    }
+
+    return NULL;
 }
 
-bool isUpdateAvaible()
-{
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	std::ostringstream oss;
-	bool isUpdate = false;
-	std::ostringstream link;
-	link << "http://itokoyamato.net/files/tokovoip/tokovoip_version.txt?version=" << ts3plugin_version();
-	if (CURLE_OK == curl_read(link.str(), oss))
-	{
-		// Web page successfully written to string
-		if (strcmp((char*)oss.str().c_str(), ts3plugin_version()))
-			isUpdate = true;
-		if (!strcmp((char*)oss.str().c_str(), ""))
-			isUpdate = false;
+void checkUpdate() {
+	json updateJSON = downloadJSON("http://itokoyamato.net/files/tokovoip/tokovoip_info.json");
+	if (updateJSON != NULL) {
+		outputLog("Got update json");
 	}
-	curl_global_cleanup();
-	if (isUpdate == true)
-		return (1);
-	return (0);
-}
 
-char *getUpdateMessage()
-{
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	std::ostringstream oss;
-	char *message = "N/A";
-	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_update_message.txt", oss))
-	{
-		// Web page successfully written to string
-		const std::string html = oss.str();
-		message = (char*)oss.str().c_str();
+	if (updateJSON == NULL || updateJSON.find("minVersion") == updateJSON.end() || updateJSON.find("currentVersion") == updateJSON.end()) {
+		outputLog("Invalid update JSON");
+		Sleep(600000); // Don't check for another 10mins
+		return;
 	}
-	curl_global_cleanup();
-	return (message);
-}
 
-DWORD WINAPI checkUpdateThread(LPVOID lpParam)
-{
-	while (!exitCheckUpdateThread)
-	{
-		outputLog("Checking for updates", 0);
-		if (isUpdateAvaible() == true) {
-			outputLog("Update available", 0);
-			MessageBox(NULL, getUpdateMessage(), "TokoVOIP: Update", MB_OK);
-			Sleep(3600000);
+	string minVersion = updateJSON["minVersion"];
+	string minVersionNum = updateJSON["minVersion"];
+	minVersionNum.erase(remove(minVersionNum.begin(), minVersionNum.end(), '.'), minVersionNum.end());
+	
+	string currentVersion = updateJSON["currentVersion"];
+	string currentVersionNum = updateJSON["currentVersion"];
+	currentVersionNum.erase(remove(currentVersionNum.begin(), currentVersionNum.end(), '.'), currentVersionNum.end());
+
+	string myVersion = ts3plugin_version();
+	myVersion.erase(remove(myVersion.begin(), myVersion.end(), '.'), myVersion.end());
+
+	string updateMessage;
+	if (updateJSON.find("versions") != updateJSON.end() &&
+		updateJSON["versions"].find(currentVersion) != updateJSON["versions"].end() &&
+		updateJSON["versions"][currentVersion].find("updateMessage") != updateJSON["versions"][currentVersion].end()) {
+
+		string str = updateJSON["versions"][currentVersion]["updateMessage"];
+		updateMessage = str;
+	} else {
+		string str = updateJSON["defaultUpdateMessage"];
+		updateMessage = str;
+	}
+
+	if (myVersion < currentVersionNum) {
+		string url = "";
+		if (updateJSON.find("versions") != updateJSON.end() &&
+			updateJSON["versions"].find(currentVersion) != updateJSON["versions"].end() &&
+			updateJSON["versions"][currentVersion].find("updateUrl") != updateJSON["versions"][currentVersion].end()) {
+
+			string tmp = updateJSON["versions"][currentVersion]["updateUrl"];
+			url = tmp;
 		}
-		else
-			Sleep(600000);
+
+		MessageBox(NULL, updateMessage.c_str(), "TokoVOIP: update", MB_OK);
+
+		if (myVersion < minVersionNum && updateJSON.find("minVersionWarningMessage") != updateJSON.end() && !updateJSON["minVersionWarningMessage"].is_null()) {
+			string minVersionWarningMessage = updateJSON["minVersionWarningMessage"];
+			MessageBox(NULL, minVersionWarningMessage.c_str(), "TokoVOIP: update", MB_OK);
+		}
+
+		Sleep(3600000); // Don't check for another hour
+	} else {
+		Sleep(600000); // Don't check for another 10mins
+	}
+}
+
+DWORD WINAPI checkUpdateThread(LPVOID lpParam) {
+	while (!exitCheckUpdateThread) {
+		checkUpdate();
 	}
 	return NULL;
 }
 
-int Tokovoip::initialize(char *id)
-{
+int Tokovoip::initialize(char *id) {
 	plugin_id = id;
 	const int sz = strlen(id) + 1;
 	plugin_id = (char*)malloc(sz * sizeof(char));
