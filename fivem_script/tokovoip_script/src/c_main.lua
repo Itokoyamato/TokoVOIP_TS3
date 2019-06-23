@@ -14,12 +14,15 @@
 --	Client: Voip data processed before sending it to TS3Plugin
 --------------------------------------------------------------------------------
 
-local isLoggedIn = true;
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
+local scriptVersion = "1.2.11";
 
 function initializeVoip()
+	if (isRunning) then return print("TokoVOIP is already running"); end
+	isRunning = true;
+
 	voip = TokoVoip:init(TokoVoipConfig); -- Initialize TokoVoip and set default settings
 
 	-- Variables used script-side
@@ -29,7 +32,7 @@ function initializeVoip()
 	voip.plugin_data.localRadioClicks = false;
 	voip.mode = 1;
 	voip.talking = false;
-	voip.pluginStatus = 0;
+	voip.pluginStatus = -1;
 	voip.pluginVersion = "0";
 	voip.serverId = GetPlayerServerId(PlayerId());
 
@@ -49,31 +52,11 @@ function initializeVoip()
 	targetPed = GetPlayerPed(-1);
 
 	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
-	voip.initialize(voip); -- Initialize the websocket and controls
-	voip:loop(voip); -- Start TokoVoip's loop
+	voip:initialize(); -- Initialize the websocket and controls
+	voip:loop(); -- Start TokoVoip's loop
 	requestUpdateChannels(); -- Retrieve the channels list
 
-	-- View block screen handling
-	Citizen.CreateThread(function()
-		local lastTSConnected = 0;
-		while not isLoggedIn do
-			Wait(50);
-		end
-		while true do
-			Wait(50);
-			lastTSConnected = lastTSConnected + 50;
-			if (voip.pluginStatus == 3 and voip.pluginVersion == voip.latestVersion) then
-				lastTSConnected = 0;
-				displayPluginScreen(false);
-			else
-				if (lastTSConnected > 5000) then
-					displayPluginScreen(true);
-				end
-			end
-		end
-	end);
-
-	Citizen.Trace("TokoVoip: Initialized script (1.2.11)\n");
+	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
 	-- Debug data stuff
 	local debugData = false;
@@ -120,19 +103,8 @@ function initializeVoip()
 		end
 	end);
 end
-
-function resourceStart(resource)
-	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
-		Citizen.CreateThread(function()
-			Wait(3000);
-			if (not isRunning) then
-				isRunning = true;
-				initializeVoip();
-			end
-		end);
-	end
-end
-AddEventHandler("onClientResourceStart", resourceStart);
+RegisterNetEvent("initializeVoip");
+AddEventHandler("initializeVoip", initializeVoip);
 
 function clientProcessing()
 		local playerList = voip.playerList;
@@ -373,14 +345,6 @@ RegisterNUICallback("setPlayerTalking", setPlayerTalking);
 --------------------------------------------------------------------------------
 --	Specific utils
 --------------------------------------------------------------------------------
-
-function playerLoggedIn(toggle)
-	if (toggle) then
-		isLoggedIn = true;
-	end
-end
-RegisterNetEvent("onPlayerLoggedIn");
-AddEventHandler("onPlayerLoggedIn", playerLoggedIn);
 
 -- Toggle the blocking screen with usage explanation
 local displayingPluginScreen = false;

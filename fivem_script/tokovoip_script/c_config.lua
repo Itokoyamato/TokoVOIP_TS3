@@ -46,3 +46,12 @@ TokoVoipConfig = {
 		localNamePrefix = "[" .. GetPlayerServerId(PlayerId()) .. "] ", -- If set, this prefix will be added to the user's teamspeak display name
 	}
 };
+
+function resourceStart(resource)
+	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
+		Citizen.CreateThread(function()
+			TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
+		end);
+	end
+end
+AddEventHandler("onClientResourceStart", resourceStart);

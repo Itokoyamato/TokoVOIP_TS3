@@ -53,20 +53,6 @@
 		<script src="script.js" type="text/javascript"></script>
 	</head>
 	<body>
-		<div class="copyrights">
-			TokoVoip by Itokoyamato (forums.rmog.us)
-		</div>
-		<div id="tokovoipInfo" class="tokovoipInfo">
-		</div>
-		<br>
-		<div id="lastSent" class="tokovoipInfo">
-		</div>
-		<br>
-		<div id="lastReceived" class="tokovoipInfo">
-		</div>
-		<br>
-		<div id="lastReceivedAny" class="tokovoipInfo">
-		</div>
 		<div id="pluginScreen" class="pluginScreen">
 			<div id="pluginScreenWindow" class="pluginScreenWindow">
 				<div style="font-size:25px;color:#f0eb01;text-align:center;margin-bottom:20px;">
@@ -90,20 +76,30 @@
 
 				<font color="#01b0f0">TokoVOIP</font> has to be <font color="red">installed</font> and <font color="red">running</font> to play on our servers.
 				<br><br>
-				Our Teamspeak server is <font color="#01b0f0" id="TSServer"></font>
-				<br><br>
 				If you cannot join the appropriate server channel, please join <font color="#01b0f0" id="TSChannelSupport"></font> channel in teamspeak, so that a support team member can help you.
 				<br><br>
 				You can find more <font color="#f0eb01">information</font> and <font color="#f0eb01">download</font> links at: <font color="#01b0f0" id="TSDownload">http://forums.rmog.us</font>
 				<br><br><br>
 
-				<div id="pluginScreenStatus">
+				<div id="TSServer">
+					TeamSpeak server:
+				</div>
+				<div id="TSChannel">
+					TeamSpeak channel:
+				</div>
+				<br>
+				<div id="pluginStatus">
 					Plugin status:
 				</div>
-				<div id="pluginScreenVersion">
+				<div id="pluginVersion">
 					Plugin version:
 				</div>
 			</div>
+		</div>
+		<div class="copyrights">
+			TokoVoip by Itokoyamato (forums.rmog.us)
+		</div>
+		<div id="tokovoipInfo" class="tokovoipInfo">
 		</div>
 	</body>
 </html>
