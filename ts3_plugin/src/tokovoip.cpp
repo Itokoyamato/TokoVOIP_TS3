@@ -240,24 +240,23 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		}
 
 		// Process other clients
-		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
-		{
+		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++) {
 			clientId = *clientIdIterator;
 			char *UUID;
 			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
-			}
-			else
-			{
+			} else {
 				if (clientId == getMyId(ts3Functions.getCurrentServerConnectionHandlerID())) continue;
 				for (auto user : data) {
+					if (!user.is_object()) continue;
+					if (!user["uuid"].is_string()) continue;
+
 					string gameUUID = user["uuid"];
 					int muted = user["muted"];
 					float volume = user["volume"];
 					bool isRadioEffect = user["radioEffect"];
 
-					if (channelName == thisChannelName && UUID == gameUUID)
-					{
+					if (channelName == thisChannelName && UUID == gameUUID) {
 						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
 							playWavFile("mic_click_on");
 						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(ts3Functions.getCurrentServerConnectionHandlerID()))
@@ -265,8 +264,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 						tokovoip->setRadioData(UUID, isRadioEffect);
 						if (muted)
 							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
-						else
-						{
+						else {
 							setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
 							ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
 							if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
