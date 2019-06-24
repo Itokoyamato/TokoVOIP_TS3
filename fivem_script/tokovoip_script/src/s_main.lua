@@ -16,49 +16,54 @@
 
 local channels = TokoVoipConfig.channels;
 
-function addPlayerToRadio(channel, playerServerId)
-	if not channels[channel] then
-		channels[channel] = {name = "Call with " .. channel, subscribers = {}};
+function addPlayerToRadio(channelId, playerServerId)
+	if (not channels[channelId]) then
+		channels[channelId] = {id = channelId, name = "Call with " .. channelId, subscribers = {}};
+	end
+	if (not channels[channelId].id) then
+		channels[channelId].id = channelId;
 	end
 
-	channels[channel].subscribers[playerServerId] = playerServerId;
-	print("Added [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " to channel " .. channel);
-	TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
+	channels[channelId].subscribers[playerServerId] = playerServerId;
+	print("Added [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " to channel " .. channelId);
+	updateChannelSubscribers(channelId);
 end
 RegisterServerEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
-function removePlayerFromRadio(channel, playerServerId)
-	if (channels[channel] and channels[channel].subscribers[playerServerId]) then
-		channels[channel].subscribers[playerServerId] = nil;
-		if (channel > 100) then
-			if (#channels[channel].subscribers == 0) then
-				channels[channel] = nil;
-				TriggerClientEvent("TokoVoip:removeChannel", -1, channel);
+function updateChannelSubscribers(channelId)
+	if (not channels[channelId]) then return; end
+	for _, playerServerId in pairs(channels[channelId].subscribers) do
+		TriggerClientEvent("TokoVoip:updateChannels", playerServerId, channelId, channels[channelId]);
+	end
+end
+
+function removePlayerFromRadio(channelId, playerServerId)
+	if (channels[channelId] and channels[channelId].subscribers[playerServerId]) then
+		channels[channelId].subscribers[playerServerId] = nil;
+		if (channelId > 100) then
+			if (#channels[channelId].subscribers == 0) then
+				channels[channelId] = nil;
 			end
 		end
-		TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
-		print("Removed [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " from channel " .. channel);
+		print("Removed [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " from channel " .. channelId);
+
+		updateChannelSubscribers(channelId);
+		TriggerClientEvent("TokoVoip:updateChannels", playerServerId, channelId, channels[channelId]); -- update channel info for removed player, will remove client references to this channel
 	end
 end
 RegisterServerEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
 function removePlayerFromAllRadio(playerServerId)
-	for channelID, channel in pairs(channels) do
+	for channelId, channel in pairs(channels) do
 		if (channel.subscribers[playerServerId]) then
-			removePlayerFromRadio(channelID, playerServerId);
+			removePlayerFromRadio(channelId, playerServerId);
 		end
 	end
 end
 RegisterServerEvent("TokoVoip:removePlayerFromAllRadio");
 AddEventHandler("TokoVoip:removePlayerFromAllRadio", removePlayerFromAllRadio);
-
-function clientRequestUpdateChannels()
-	TriggerClientEvent("TokoVoip:updateChannels", source, channels);
-end
-RegisterServerEvent("TokoVoip:clientRequestUpdateChannels");
-AddEventHandler("TokoVoip:clientRequestUpdateChannels", clientRequestUpdateChannels);
 
 AddEventHandler("playerDropped", function()
 	removePlayerFromAllRadio(source);

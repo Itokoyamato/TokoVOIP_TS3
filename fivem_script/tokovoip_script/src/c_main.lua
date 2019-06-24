@@ -28,7 +28,7 @@ function initializeVoip()
 	-- Variables used script-side
 	voip.plugin_data.Users = {};
 	voip.plugin_data.radioTalking = false;
-	voip.plugin_data.radioChannel = 0;
+	voip.plugin_data.radioChannel = -1;
 	voip.plugin_data.localRadioClicks = false;
 	voip.mode = 1;
 	voip.talking = false;
@@ -37,7 +37,6 @@ function initializeVoip()
 	voip.serverId = GetPlayerServerId(PlayerId());
 
 	-- Radio channels
-	voip.channels = {};
 	voip.myChannels = {};
 
 	-- Player data shared on the network
@@ -54,7 +53,6 @@ function initializeVoip()
 	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
 	voip:initialize(); -- Initialize the websocket and controls
 	voip:loop(); -- Start TokoVoip's loop
-	requestUpdateChannels(); -- Retrieve the channels list
 
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
@@ -85,7 +83,7 @@ function initializeVoip()
 					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
 				end
 				local i = 0;
-				for channelIndex, channel in pairs(voip.channels) do
+				for channelIndex, channel in pairs(voip.myChannels) do
 					i = i + 1;
 					drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
 					local j = 0;
@@ -93,11 +91,6 @@ function initializeVoip()
 						j = j + 1;
 						drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
 					end
-				end
-				i = 0;
-				for channelIndex, channel in pairs(voip.myChannels) do
-					i = i + 1;
-					drawTxt(0.5, 0.75 + i/60, 1.0, 1.0, 0.2, channelIndex .. ": true", 255, 255, 255, 255);
 				end
 			end
 		end
@@ -173,9 +166,8 @@ function clientProcessing()
 					local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
 					local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
 
-					for j, data in pairs(voip.channels) do
-						local channel = voip.channels[j];
-						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
+					for _, channel in pairs(voip.myChannels) do
+						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and remotePlayerUsingRadio) then
 							if (remotePlayerChannel <= 100) then
 								usersdata[i].radioEffect = true;
 							end
@@ -201,67 +193,45 @@ end
 --------------------------------------------------------------------------------
 
 function addPlayerToRadio(channel)
-	if voip.channels[channel] == nil then
-		voip.channels[channel] = {name = "Call with " .. tostring(channel), subscribers = {}}
-		voip.myChannels[channel] = true;
-	end
-
-	voip.channels[channel].subscribers[voip.serverId] = voip.serverId;
-	voip.myChannels[channel] = true;
-	voip.plugin_data.radioChannel = channel;
-	setPlayerData(voip.serverId, "radio:channel", channel, true);
-	notification("Joined channel: " .. voip.channels[channel].name);
 	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
 function removePlayerFromRadio(channel)
-	voip.channels[channel].subscribers[voip.serverId] = nil;
-	voip.myChannels[channel] = nil;
-	if (voip.plugin_data.radioChannel == channel) then
-		if (tablelength(voip.myChannels) > 0) then
-			for channelID, _ in pairs(voip.myChannels) do
-				voip.plugin_data.radioChannel = channelID;
-				break;
-			end
-		else
-			voip.plugin_data.radioChannel = 0;
-		end
-	end
-	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
-	notification("Left channel: " .. voip.channels[channel].name);
 	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
-function updateChannels(updatedChannels)
-	voip.channels = updatedChannels;
+function updateChannels(channelId, channel)
+	local currentChannel = voip.plugin_data.radioChannel;
+
+	if (channel and channel.subscribers[voip.serverId]) then
+		if (not voip.myChannels[channelId]) then -- Joined a new radio channel, set radio channel to newly joined channel
+			voip.plugin_data.radioChannel = channel.id;
+		end
+		voip.myChannels[channelId] = channel;
+	else
+		voip.myChannels[channelId] = nil;
+		if (voip.plugin_data.radioChannel == channelId) then -- If current radio channel is still removed channel, reset to first available channel or none
+			if (tablelength(voip.myChannels) > 0) then
+				for channelId, _ in pairs(voip.myChannels) do
+					voip.plugin_data.radioChannel = channelId;
+					break;
+				end
+			else
+				voip.plugin_data.radioChannel = -1; -- No radio channel available
+			end
+		end
+	end
+
+	if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+		setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+	end
 end
 RegisterNetEvent("TokoVoip:updateChannels");
 AddEventHandler("TokoVoip:updateChannels", updateChannels);
-
-function removeChannel(channel)
-	voip.channels[channel] = nil;
-	voip.myChannels[channel] = nil;
-	if (voip.plugin_data.radioChannel == channel) then
-		if (tablelength(voip.myChannels) > 0) then
-			for channelID, _ in pairs(voip.myChannels) do
-				voip.plugin_data.radioChannel = channelID;
-				break;
-			end
-		else
-			voip.plugin_data.radioChannel = 0;
-		end
-	end
-end
-RegisterNetEvent("TokoVoip:removeChannel");
-AddEventHandler("TokoVoip:removeChannel", removeChannel);
-
-function requestUpdateChannels()
-	TriggerServerEvent("TokoVoip:clientRequestUpdateChannels");
-end
 
 function isPlayerInChannel(channel)
 	if (voip.myChannels[channel]) then
