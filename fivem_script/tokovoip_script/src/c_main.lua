@@ -46,6 +46,7 @@ function initializeVoip()
 	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
 	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
+	refreshAllPlayerData();
 
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
@@ -121,7 +122,7 @@ function clientProcessing()
 			local player = playerList[i];
 			local playerServerId = GetPlayerServerId(player);
 
-				if (GetPlayerPed(-1) and GetPlayerPed(player)) then
+				if (GetPlayerPed(-1) and GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 
 					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 					local dist = #(localPos - playerPos);
@@ -167,7 +168,7 @@ function clientProcessing()
 					local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
 
 					for _, channel in pairs(voip.myChannels) do
-						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and remotePlayerUsingRadio) then
+						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
 							if (remotePlayerChannel <= 100) then
 								usersdata[i].radioEffect = true;
 							end
