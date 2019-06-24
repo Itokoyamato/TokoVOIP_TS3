@@ -44,11 +44,25 @@ end
 RegisterServerEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
+function removePlayerFromAllRadio(playerServerId)
+	for channelID, channel in pairs(channels) do
+		if (channel.subscribers[playerServerId]) then
+			removePlayerFromRadio(channelID, playerServerId);
+		end
+	end
+end
+RegisterServerEvent("TokoVoip:removePlayerFromAllRadio");
+AddEventHandler("TokoVoip:removePlayerFromAllRadio", removePlayerFromAllRadio);
+
 function clientRequestUpdateChannels()
 	TriggerClientEvent("TokoVoip:updateChannels", source, channels);
 end
 RegisterServerEvent("TokoVoip:clientRequestUpdateChannels");
 AddEventHandler("TokoVoip:clientRequestUpdateChannels", clientRequestUpdateChannels);
+
+AddEventHandler("playerDropped", function()
+	removePlayerFromAllRadio(source);
+end);
 
 function printChannels()
 	for i, channel in pairs(channels) do
@@ -61,7 +75,7 @@ end
 
 AddEventHandler('rconCommand', function(commandName, args)
 	if commandName == 'voipChannels' then
-		printChannels(true);
+		printChannels();
 		CancelEvent();
 	end
 end)
