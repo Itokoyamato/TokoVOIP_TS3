@@ -69,7 +69,7 @@ function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 	if (self.talking == 1 or self.plugin_data.radioTalking) then
 		info = "<font class='talking'>" .. info .. "</font>";
 	end
-	if (self.plugin_data.radioChannel ~= 0) then
+	if (self.plugin_data.radioChannel ~= 0 and self.channels[self.plugin_data.radioChannel]) then
 		if (string.match(self.channels[self.plugin_data.radioChannel].name, "Call")) then
 			info = info  .. "<br> [Phone] " .. self.channels[self.plugin_data.radioChannel].name;
 		else
@@ -145,7 +145,7 @@ function TokoVoip.initialize(self)
 					setPlayerData(self.serverId, "radio:talking", true, true);
 				end
 				self:updateTokoVoipInfo();
-				if lastTalkState == false then
+				if (lastTalkState == false and self.channels[self.plugin_data.radioChannel]) then
 					if (not string.match(self.channels[self.plugin_data.radioChannel].name, "Call") and not IsPedSittingInAnyVehicle(PlayerPedId())) then
 						RequestAnimDict("random@arrests");
 						while not HasAnimDictLoaded("random@arrests") do
