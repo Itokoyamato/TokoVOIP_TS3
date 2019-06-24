@@ -69,7 +69,7 @@ function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 	if (self.talking == 1 or self.plugin_data.radioTalking) then
 		info = "<font class='talking'>" .. info .. "</font>";
 	end
-	if (self.plugin_data.radioChannel ~= 0 and self.myChannels[self.plugin_data.radioChannel]) then
+	if (self.plugin_data.radioChannel ~= -1 and self.myChannels[self.plugin_data.radioChannel]) then
 		if (string.match(self.myChannels[self.plugin_data.radioChannel].name, "Call")) then
 			info = info  .. "<br> [Phone] " .. self.myChannels[self.plugin_data.radioChannel].name;
 		else
@@ -135,7 +135,7 @@ function TokoVoip.initialize(self)
 			end
 
 
-			if (IsControlPressed(0, self.radioKey) and self.plugin_data.radioChannel ~= 0) then -- Talk on radio
+			if (IsControlPressed(0, self.radioKey) and self.plugin_data.radioChannel ~= -1) then -- Talk on radio
 				self.plugin_data.radioTalking = true;
 				self.plugin_data.localRadioClicks = true;
 				if (self.plugin_data.radioChannel > 100) then
