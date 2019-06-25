@@ -285,12 +285,12 @@ bool Radio::onTalkStatusChanged(uint64 serverConnectionHandlerID, int status, bo
 
             QString settings_map_key(server_id + channel_path);
             //this->Log(settings_map_key);
-            if (error == ERROR_ok && (!channel_path.isEmpty()) && m_SettingsMap.contains(settings_map_key))
-            {
-                //this->Log("Applying custom setting");
-                settings = m_SettingsMap.value(settings_map_key);
-            }
-            else if (serverConnectionHandlerID == m_homeId)
+            // if (error == ERROR_ok && (!channel_path.isEmpty()) && m_SettingsMap.contains(settings_map_key))
+            // {
+            //     //this->Log("Applying custom setting");
+            //     settings = m_SettingsMap.value(settings_map_key);
+            // }
+            if (serverConnectionHandlerID == m_homeId)
                 settings = m_SettingsMap.value("Home");
             else
                 settings = m_SettingsMap.value("Other");
