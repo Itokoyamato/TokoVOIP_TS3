@@ -184,7 +184,7 @@ function getPlayers()
 
 	for i = 0, 256 do
 		if (NetworkIsPlayerActive(i)) then
-			table.insert(players, i);
+			players[#players + 1] = i;
 		end
 	end
 
