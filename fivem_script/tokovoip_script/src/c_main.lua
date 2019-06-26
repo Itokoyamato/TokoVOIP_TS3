@@ -48,6 +48,7 @@ function initializeVoip()
 	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
 	setPlayerData(voip.serverId, "call:channel", nil, true);
+	setPlayerData(voip.serverId, "call:loudSpeaker", false, true);
 	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 	refreshAllPlayerData();
@@ -122,6 +123,8 @@ function clientProcessing()
 			localPos = GetPedBoneCoords(targetPed, HeadBone);
 		end
 
+		local localPlayerCall = getPlayerData(voip.serverId, "call:channel");
+
 		for i = 1, #playerList do
 			local player = playerList[i];
 			local playerServerId = GetPlayerServerId(player);
@@ -167,6 +170,7 @@ function clientProcessing()
 
 						-- Process phone calls
 						local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
+						local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
 
 						if (remotePlayerCall) then
 							local callParticipants = voip.calls[remotePlayerCall];
@@ -175,14 +179,22 @@ function clientProcessing()
 								if (whisperVolume >= 0) then
 									whisperVolume = 0;
 								end
-								for j = 1, #callParticipants do
-									if (callParticipants[j] ~= playerServerId) then
-										callList[callParticipants[j]] = {
-											volume = whisperVolume,
-											posX = usersdata[i].posX,
-											posY = usersdata[i].posY,
-										};
+								if (remotePlayerLoudSpeaker) then
+									for j = 1, #callParticipants do
+										if (callParticipants[j] ~= playerServerId) then
+											callList[callParticipants[j]] = {
+												volume = whisperVolume,
+												posX = usersdata[i].posX,
+												posY = usersdata[i].posY,
+											};
+										end
 									end
+								elseif (localPlayerCall == remotePlayerCall) then
+									callList[playerServerId] = {
+										volume = whisperVolume,
+										posX = usersdata[i].posX,
+										posY = usersdata[i].posY,
+									};
 								end
 							end
 						end
