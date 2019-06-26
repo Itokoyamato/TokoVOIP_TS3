@@ -32,6 +32,7 @@ function initializeVoip()
 	voip.plugin_data.localRadioClicks = false;
 	voip.mode = 1;
 	voip.talking = false;
+	voip.loudSpeaker = false;
 	voip.pluginStatus = -1;
 	voip.pluginVersion = "0";
 	voip.serverId = GetPlayerServerId(PlayerId());
