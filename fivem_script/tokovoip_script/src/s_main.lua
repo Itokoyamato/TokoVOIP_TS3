@@ -92,7 +92,7 @@ end)
 
 function addPlayerToCall(number, playerServerId)
 	local number = tostring(number);
-	local playerCall = getPlayerData(playerServerId, "voip:call");
+	local playerCall = getPlayerData(playerServerId, "call:channel");
 
 	if (playerCall ~= number) then
 		removePlayerFromCall(playerServerId, playerCall);
@@ -110,7 +110,7 @@ RegisterServerEvent("TokoVoip:addPlayerToCall");
 AddEventHandler("TokoVoip:addPlayerToCall", addPlayerToCall);
 
 function removePlayerFromCall(playerServerId, number)
-	local playerCall = number or getPlayerData(playerServerId, "voip:call");
+	local playerCall = number or getPlayerData(playerServerId, "call:channel");
 
 	if (playerCall) then
 		if (calls[playerCall]) then

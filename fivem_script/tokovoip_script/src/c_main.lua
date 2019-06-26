@@ -47,6 +47,7 @@ function initializeVoip()
 	setPlayerData(voip.serverId, "voip:talking", voip.talking, true);
 	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
+	setPlayerData(voip.serverId, "call:channel", nil, true);
 	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 	refreshAllPlayerData();
@@ -165,7 +166,7 @@ function clientProcessing()
 						usersdata[i].muted = 0;
 
 						-- Process phone calls
-						local remotePlayerCall = getPlayerData(playerServerId, "voip:call");
+						local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
 
 						if (remotePlayerCall) then
 							local callParticipants = voip.calls[remotePlayerCall];

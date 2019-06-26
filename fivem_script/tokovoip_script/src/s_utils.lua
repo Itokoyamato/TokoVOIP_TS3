@@ -47,7 +47,7 @@ AddEventHandler("Tokovoip:refreshAllPlayerData", refreshAllPlayerData);
 
 AddEventHandler("playerDropped", function()
 	if (playersData[source]) then
-		if (playersData[source]["voip:call"]) then
+		if (playersData[source]["call:channel"]) then
 			removePlayerFromCall(playerServerId);
 		end
 		playersData[source] = nil;
