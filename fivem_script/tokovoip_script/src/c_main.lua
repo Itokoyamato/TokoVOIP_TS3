@@ -277,8 +277,6 @@ function setPlayerTalking(data)
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
 		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
@@ -300,8 +298,6 @@ function setPlayerTalkingState(player, playerServerId)
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
 		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
 	elseif (animStates[playerServerId] == 1 and talking == 0) then
 		RequestAnimDict("facials@gen_male@base");
