@@ -198,12 +198,14 @@ function addPlayerToRadio(channel)
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
+exports("addPlayerToRadio", addPlayerToRadio)
 
 function removePlayerFromRadio(channel)
 	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
+exports("removePlayerFromRadio", removePlayerFromRadio)
 
 function updateChannels(channelId, channel)
 	local currentChannel = voip.plugin_data.radioChannel;
@@ -241,7 +243,7 @@ function isPlayerInChannel(channel)
 		return false;
 	end
 end
-
+exports("isPlayerInChannel", isPlayerInChannel)
 
 --------------------------------------------------------------------------------
 --	Plugin functions
