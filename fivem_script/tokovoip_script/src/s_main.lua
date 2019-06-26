@@ -15,6 +15,7 @@
 --------------------------------------------------------------------------------
 
 local channels = TokoVoipConfig.channels;
+local calls = {};
 
 function addPlayerToRadio(channelId, playerServerId)
 	if (not channels[channelId]) then
@@ -84,3 +85,51 @@ AddEventHandler('rconCommand', function(commandName, args)
 		CancelEvent();
 	end
 end)
+
+--------------------------------------------------------------------------------
+--	Call functions
+--------------------------------------------------------------------------------
+
+function addPlayerToCall(number, playerServerId)
+	local number = tostring(number);
+	local playerCall = getPlayerData(playerServerId, "voip:call");
+
+	if (playerCall ~= number) then
+		removePlayerFromCall(playerServerId, playerCall);
+
+		if (not calls[number]) then
+			calls[number] = {};
+		end
+
+		calls[number][#calls[number] + 1] = playerServerId;
+
+		TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
+	end
+end
+RegisterServerEvent("TokoVoip:addPlayerToCall");
+AddEventHandler("TokoVoip:addPlayerToCall", addPlayerToCall);
+
+function removePlayerFromCall(playerServerId, number)
+	local playerCall = number or getPlayerData(playerServerId, "voip:call");
+
+	if (playerCall) then
+		if (calls[playerCall]) then
+			if (calls[playerCall]) then
+				for i = 1, #calls[playerCall] do
+					if (playerServerId == calls[playerCall][i]) then
+						calls[playerCall][i] = nil;
+						break;
+					end
+				end
+
+				if (#calls[playerCall] == 0) then
+					calls[playerCall] = nil;
+				end
+
+				TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
+			end	
+		end
+	end
+end
+RegisterServerEvent("TokoVoip:removePlayerFromCall");
+AddEventHandler("TokoVoip:removePlayerFromCall", removePlayerFromCall);

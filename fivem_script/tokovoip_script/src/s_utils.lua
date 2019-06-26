@@ -30,6 +30,11 @@ end
 RegisterNetEvent("Tokovoip:setPlayerData");
 AddEventHandler("Tokovoip:setPlayerData", setPlayerData);
 
+function getPlayerData(playerServerId, key)
+	if (not playersData[playerServerId] or playersData[playerServerId][key] == nil) then return false; end
+	return playersData[playerServerId][key].data;
+end
+
 function refreshAllPlayerData(toEveryone)
 	if (toEveryone) then
 		TriggerClientEvent("Tokovoip:doRefreshAllPlayerData", -1, playersData);
@@ -41,6 +46,11 @@ RegisterNetEvent("Tokovoip:refreshAllPlayerData");
 AddEventHandler("Tokovoip:refreshAllPlayerData", refreshAllPlayerData);
 
 AddEventHandler("playerDropped", function()
-	playersData[source] = nil;
-	refreshAllPlayerData(true);
+	if (playersData[source]) then
+		if (playersData[source]["voip:call"]) then
+			removePlayerFromCall(playerServerId);
+		end
+		playersData[source] = nil;
+		refreshAllPlayerData(true);
+	end
 end);

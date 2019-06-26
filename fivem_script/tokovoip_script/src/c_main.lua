@@ -39,6 +39,9 @@ function initializeVoip()
 	-- Radio channels
 	voip.myChannels = {};
 
+	-- Phone calls
+	voip.calls = {};
+
 	-- Player data shared on the network
 	setPlayerData(voip.serverId, "voip:mode", voip.mode, true);
 	setPlayerData(voip.serverId, "voip:talking", voip.talking, true);
@@ -160,6 +163,28 @@ function clientProcessing()
 					else
 						usersdata[i].volume = volume;
 						usersdata[i].muted = 0;
+
+						-- Process phone calls
+						local remotePlayerCall = getPlayerData(playerServerId, "voip:call");
+
+						if (remotePlayerCall) then
+							local callParticipants = voip.calls[remotePlayerCall];
+							if callParticipants then
+								local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
+								if (whisperVolume >= 0) then
+									whisperVolume = 0;
+								end
+								for j = 1, #callParticipants do
+									if (callParticipants[j] ~= playerServerId) then
+										callList[callParticipants[j]] = {
+											volume = whisperVolume,
+											posX = usersdata[i].posX,
+											posY = usersdata[i].posY,
+										};
+									end
+								end
+							end
+						end
 					end
 					--
 
@@ -182,6 +207,19 @@ function clientProcessing()
 					--
 					setPlayerTalkingState(player, playerServerId);
 				end
+		end
+
+		-- Process phone calls
+		for i = 1, #usersdata do
+			if usersdata[i].muted then
+				local callData = callList[usersdata[i].id];
+				if callData then
+					usersdata[i].muted = 0;
+					usersdata[i].volume = callData.volume;
+					usersdata[i].posX = callData.posX;
+					usersdata[i].posY = callData.posY;
+				end
+			end
 		end
 		voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
 		voip.plugin_data.posX = 0;
@@ -244,6 +282,28 @@ function isPlayerInChannel(channel)
 	end
 end
 exports("isPlayerInChannel", isPlayerInChannel)
+
+--------------------------------------------------------------------------------
+--	Call functions
+--------------------------------------------------------------------------------
+
+function addPlayerToCall(number)
+	local number = tostring(number);
+	TriggerServerEvent("TokoVoip:addPlayerToCall", number, voip.serverId);
+end
+exports("addPlayerToCall", addPlayerToCall)
+
+function removePlayerFromCall()
+	TriggerServerEvent("TokoVoip:removePlayerFromCall", voip.serverId);
+end
+exports("removePlayerFromCall", removePlayerFromCall)
+
+function updateCalls(updatedCalls)
+	print(json.encode(updatedCalls));
+	voip.calls = updatedCalls;
+end
+RegisterNetEvent("TokoVoip:updateCalls");
+AddEventHandler("TokoVoip:updateCalls", updateCalls);
 
 --------------------------------------------------------------------------------
 --	Plugin functions
