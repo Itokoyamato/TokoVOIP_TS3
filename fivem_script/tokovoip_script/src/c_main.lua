@@ -48,7 +48,7 @@ function initializeVoip()
 	setPlayerData(voip.serverId, "voip:talking", voip.talking, true);
 	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
-	setPlayerData(voip.serverId, "call:channel", nil, true);
+	setPlayerData(voip.serverId, "call:channel", false, true);
 	setPlayerData(voip.serverId, "call:loudSpeaker", false, true);
 	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
