@@ -32,7 +32,7 @@ AddEventHandler("Tokovoip:setPlayerData", setPlayerData);
 
 function getPlayerData(playerServerId, key)
 	if (not playersData[playerServerId] or playersData[playerServerId][key] == nil) then return false; end
-	return playersData[playerServerId][key].data;
+	return playersData[playerServerId][key];
 end
 
 function refreshAllPlayerData(toEveryone)
