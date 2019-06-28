@@ -308,7 +308,7 @@ function setPlayerTalkingState(player, playerServerId)
 		end
 		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
 	end
-	animStates[GetPlayerName(player)] = talking;
+	animStates[playerServerId] = talking;
 end
 RegisterNUICallback("setPlayerTalking", setPlayerTalking);
 
