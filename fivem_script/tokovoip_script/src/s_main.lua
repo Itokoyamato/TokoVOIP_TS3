@@ -103,6 +103,8 @@ function addPlayerToCall(number, playerServerId)
 
 		calls[number][#calls[number] + 1] = playerServerId;
 
+		setPlayerData(playerServerId, "call:channel", number, true);
+
 		TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
 	end
 end
@@ -126,6 +128,8 @@ function removePlayerFromCall(playerServerId, number)
 				calls[playerCall] = nil;
 			end
 
+			setPlayerData(playerServerId, "call:channel", false, true);
+			
 			TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
 		end
 	end
