@@ -114,20 +114,19 @@ function removePlayerFromCall(playerServerId, number)
 
 	if (playerCall) then
 		if (calls[playerCall]) then
-			if (calls[playerCall]) then
-				for i = 1, #calls[playerCall] do
-					if (playerServerId == calls[playerCall][i]) then
-						calls[playerCall][i] = nil;
-						break;
-					end
-				end
 
-				if (#calls[playerCall] == 0) then
-					calls[playerCall] = nil;
+			for i = 1, #calls[playerCall] do
+				if (playerServerId == calls[playerCall][i]) then
+					calls[playerCall][i] = nil;
+					break;
 				end
+			end
 
-				TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
-			end	
+			if (#calls[playerCall] == 0) then
+				calls[playerCall] = nil;
+			end
+
+			TriggerClientEvent("TokoVoip:updateCalls", -1, calls);
 		end
 	end
 end
