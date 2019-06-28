@@ -44,6 +44,10 @@ exports("refreshAllPlayerData", refreshAllPlayerData)
 
 function doRefreshAllPlayerData(serverData)
 	for playerServerId, playerData in pairs(serverData) do
+		if (not playersData[playerServerId]) then
+			playersData[playerServerId] = {};
+		end
+
 		for key, data in pairs(playerData) do
 			playersData[playerServerId][key] = {data = data, shared = true};
 		end
