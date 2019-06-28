@@ -232,14 +232,16 @@ function clientProcessing()
 		end
 
 		-- Process phone calls
-		for i = 1, #usersdata do
-			if usersdata[i].muted then
-				local callData = callList[usersdata[i].id];
-				if callData then
-					usersdata[i].muted = 0;
-					usersdata[i].volume = callData.volume;
-					usersdata[i].posX = callData.posX;
-					usersdata[i].posY = callData.posY;
+		if tablelength(callList) > 0 then
+			for i = 1, #usersdata do
+				if usersdata[i].muted then
+					local callData = callList[usersdata[i].id];
+					if callData then
+						usersdata[i].muted = 0;
+						usersdata[i].volume = callData.volume;
+						usersdata[i].posX = callData.posX;
+						usersdata[i].posY = callData.posY;
+					end
 				end
 			end
 		end
