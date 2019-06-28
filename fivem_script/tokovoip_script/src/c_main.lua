@@ -164,17 +164,27 @@ function clientProcessing()
 					};
 					--
 
+					local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
+					local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
+
 					-- Process proximity
 					if (dist >= voip.distance[mode]) then
 						usersdata[i].muted = 1;
+
+						if (remotePlayerCall) then
+							if (localPlayerCall == remotePlayerCall) then
+								callList[playerServerId] = {
+									volume = 0,
+									posX = 0,
+									posY = 0,
+								};
+							end
+						end
 					else
 						usersdata[i].volume = volume;
 						usersdata[i].muted = 0;
 
 						-- Process phone calls
-						local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
-						local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
-
 						if (remotePlayerCall) then
 							if (remotePlayerLoudSpeaker) then
 								local callParticipants = voip.calls[remotePlayerCall];
