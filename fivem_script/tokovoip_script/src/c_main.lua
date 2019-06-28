@@ -150,9 +150,10 @@ function clientProcessing()
 					--
 
 					local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
+					local userIndex = #usersdata + 1;
 
 					-- Set player's default data
-					usersdata[i] = {	
+					usersdata[userIndex] = {	
 								uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
 								id = playerServerId,
 								volume = -30,
@@ -169,7 +170,7 @@ function clientProcessing()
 
 					-- Process proximity
 					if (dist >= voip.distance[mode]) then
-						usersdata[i].muted = 1;
+						usersdata[userIndex].muted = 1;
 
 						if (remotePlayerCall) then
 							if (localPlayerCall == remotePlayerCall) then
@@ -181,8 +182,8 @@ function clientProcessing()
 							end
 						end
 					else
-						usersdata[i].volume = volume;
-						usersdata[i].muted = 0;
+						usersdata[userIndex].volume = volume;
+						usersdata[userIndex].muted = 0;
 
 						-- Process phone calls
 						if (remotePlayerCall) then
@@ -198,8 +199,8 @@ function clientProcessing()
 										if (callParticipants[j] ~= playerServerId) then
 											callList[callParticipants[j]] = {
 												volume = whisperVolume,
-												posX = usersdata[i].posX,
-												posY = usersdata[i].posY,
+												posX = usersdata[userIndex].posX,
+												posY = usersdata[userIndex].posY,
 											};
 										end
 									end
@@ -216,13 +217,13 @@ function clientProcessing()
 					for _, channel in pairs(voip.myChannels) do
 						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
 							if (remotePlayerChannel <= 100) then
-								usersdata[i].radioEffect = true;
+								usersdata[userIndex].radioEffect = true;
 							end
-							usersdata[i].volume = 0;
-							usersdata[i].muted = 0;
-							usersdata[i].posX = 0;
-							usersdata[i].posY = 0;
-							usersdata[i].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+							usersdata[userIndex].volume = 0;
+							usersdata[userIndex].muted = 0;
+							usersdata[userIndex].posX = 0;
+							usersdata[userIndex].posY = 0;
+							usersdata[userIndex].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 						end
 					end
 					--
