@@ -323,7 +323,6 @@ end
 exports("removePlayerFromCall", removePlayerFromCall)
 
 function updateCalls(updatedCalls)
-	print(json.encode(updatedCalls));
 	voip.calls = updatedCalls;
 end
 RegisterNetEvent("TokoVoip:updateCalls");
