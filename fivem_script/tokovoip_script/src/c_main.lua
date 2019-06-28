@@ -176,13 +176,14 @@ function clientProcessing()
 						local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
 
 						if (remotePlayerCall) then
-							local callParticipants = voip.calls[remotePlayerCall];
-							if callParticipants then
-								local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
-								if (whisperVolume >= 0) then
-									whisperVolume = 0;
-								end
-								if (remotePlayerLoudSpeaker) then
+							if (remotePlayerLoudSpeaker) then
+								local callParticipants = voip.calls[remotePlayerCall];
+								if callParticipants then
+									local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
+									if (whisperVolume >= 0) then
+										whisperVolume = 0;
+									end
+									
 									for j = 1, #callParticipants do
 										if (callParticipants[j] ~= playerServerId) then
 											callList[callParticipants[j]] = {
@@ -192,12 +193,6 @@ function clientProcessing()
 											};
 										end
 									end
-								elseif (localPlayerCall == remotePlayerCall) then
-									callList[playerServerId] = {
-										volume = whisperVolume,
-										posX = usersdata[i].posX,
-										posY = usersdata[i].posY,
-									};
 								end
 							end
 						end
