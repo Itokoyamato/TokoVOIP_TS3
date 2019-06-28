@@ -108,6 +108,7 @@ AddEventHandler("initializeVoip", initializeVoip);
 
 function clientProcessing()
 		local playerList = voip.playerList;
+		local callList = {};
 		local usersdata = {};
 		local localHeading;
 		if (voip.headingType == 1) then
