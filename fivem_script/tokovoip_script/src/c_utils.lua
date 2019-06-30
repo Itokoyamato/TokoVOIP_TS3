@@ -15,22 +15,22 @@
 --------------------------------------------------------------------------------
 
 local playersData = {};
-function setPlayerData(playerName, key, data, shared)
+function setPlayerData(playerServerId, key, data, shared)
 	if (not key or data == nil) then return end
-	if (not playersData[playerName]) then
-		playersData[playerName] = {};
+	if (not playersData[playerServerId]) then
+		playersData[playerServerId] = {};
 	end
-	playersData[playerName][key] = {data = data, shared = shared};
+	playersData[playerServerId][key] = {data = data, shared = shared};
 	if (shared) then
-		TriggerServerEvent("Tokovoip:setPlayerData", playerName, key, data, shared);
+		TriggerServerEvent("Tokovoip:setPlayerData", playerServerId, key, data, shared);
 	end
 end
 RegisterNetEvent("Tokovoip:setPlayerData");
 AddEventHandler("Tokovoip:setPlayerData", setPlayerData);
 
-function getPlayerData(playerName, key)
-	if (not playersData[playerName] or playersData[playerName][key] == nil) then return false; end
-	return playersData[playerName][key].data;
+function getPlayerData(playerServerId, key)
+	if (not playersData[playerServerId] or playersData[playerServerId][key] == nil) then return false; end
+	return playersData[playerServerId][key].data;
 end
 
 function refreshAllPlayerData(toEveryone)
@@ -40,17 +40,17 @@ RegisterNetEvent("onClientPlayerReady");
 AddEventHandler("onClientPlayerReady", refreshAllPlayerData);
 
 function doRefreshAllPlayerData(serverData)
-	for playerName, playerData in pairs(serverData) do
+	for playerServerId, playerData in pairs(serverData) do
 		for key, data in pairs(playerData) do
-			playersData[playerName][key] = {data = data, shared = true};
+			playersData[playerServerId][key] = {data = data, shared = true};
 		end
 	end
-	for playerName, playerData in pairs(playersData) do
+	for playerServerId, playerData in pairs(playersData) do
 		for key, data in pairs(playerData) do
-			if (not serverData[playerName]) then
-				playersData[playerName] = nil;
-			elseif (serverData[playerName][key] == nil) then
-				playersData[playerName][key] = nil;
+			if (not serverData[playerServerId]) then
+				playersData[playerServerId] = nil;
+			elseif (serverData[playerServerId][key] == nil) then
+				playersData[playerServerId][key] = nil;
 			end
 		end
 	end
@@ -182,7 +182,7 @@ end
 function getPlayers()
 	local players = {};
 
-	for i = -1,256 do
+	for i = 0, 256 do
 		if (NetworkIsPlayerActive(i)) then
 			players[#players + 1] = i;
 		end
