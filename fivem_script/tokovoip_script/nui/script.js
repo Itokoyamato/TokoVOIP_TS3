@@ -36,7 +36,7 @@ const INCORRECT_VERSION = 5;
 
 function init() {
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://127.0.0.1:1337/tokovoip');
+	websocket = new WebSocket('ws://127.0.0.1:38204/tokovoip');
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');

@@ -50,7 +50,7 @@ time_t noiseWait = 0;
 
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
-	server.config.port = 1337;
+	server.config.port = 38204;
 	auto& echo = server.endpoint["^/tokovoip/?$"];
 
 	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::InMessage> message) {
