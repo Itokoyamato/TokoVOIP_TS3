@@ -205,15 +205,9 @@ end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
-function updateChannels(channelId, channel)
-	local currentChannel = voip.plugin_data.radioChannel;
-
-	if (channel and channel.subscribers[voip.serverId]) then
-		if (not voip.myChannels[channelId]) then -- Joined a new radio channel, set radio channel to newly joined channel
-			voip.plugin_data.radioChannel = channel.id;
-		end
-		voip.myChannels[channelId] = channel;
-	else
+function onPlayerLeaveChannel(channelId, playerServerId)
+	-- Local player left channel
+	if (playerServerId == voip.serverId and voip.myChannels[channelId]) then
 		voip.myChannels[channelId] = nil;
 		if (voip.plugin_data.radioChannel == channelId) then -- If current radio channel is still removed channel, reset to first available channel or none
 			if (tablelength(voip.myChannels) > 0) then
@@ -225,14 +219,38 @@ function updateChannels(channelId, channel)
 				voip.plugin_data.radioChannel = -1; -- No radio channel available
 			end
 		end
-	end
 
-	if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
-		setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+		end
+
+	-- Remote player left channel we are subscribed to
+	elseif (voip.myChannels[channelId]) then
+		voip.myChannels[channelId].subscribers[playerServerId] = nil;
 	end
 end
-RegisterNetEvent("TokoVoip:updateChannels");
-AddEventHandler("TokoVoip:updateChannels", updateChannels);
+RegisterNetEvent("TokoVoip:onPlayerLeaveChannel");
+AddEventHandler("TokoVoip:onPlayerLeaveChannel", onPlayerLeaveChannel);
+
+function onPlayerJoinChannel(channelId, playerServerId, channelData)
+	-- Local player joined channel
+	if (playerServerId == voip.serverId and channelData) then
+		local currentChannel = voip.plugin_data.radioChannel;
+
+		voip.plugin_data.radioChannel = channelData.id;
+		voip.myChannels[channelData.id] = channelData;
+
+		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+		end
+
+	-- Remote player joined a channel we are subscribed to
+	elseif (voip.myChannels[channelId]) then
+		voip.myChannels[channelId].subscribers[playerServerId] = playerServerId;
+	end
+end
+RegisterNetEvent("TokoVoip:onPlayerJoinChannel");
+AddEventHandler("TokoVoip:onPlayerJoinChannel", onPlayerJoinChannel);
 
 function isPlayerInChannel(channel)
 	if (voip.myChannels[channel]) then

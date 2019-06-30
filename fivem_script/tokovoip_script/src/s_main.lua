@@ -25,18 +25,19 @@ function addPlayerToRadio(channelId, playerServerId)
 	end
 
 	channels[channelId].subscribers[playerServerId] = playerServerId;
-	print("Added [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " to channel " .. channelId);
-	updateChannelSubscribers(channelId);
+	print("Added [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " to channel " .. channelId);
+
+	for _, subscriberServerId in pairs(channels[channelId].subscribers) do
+		if (subscriberServerId ~= playerServerId) then
+			TriggerClientEvent("TokoVoip:onPlayerJoinChannel", subscriberServerId, channelId, playerServerId);
+		else
+			-- Send whole channel data to new subscriber
+			TriggerClientEvent("TokoVoip:onPlayerJoinChannel", subscriberServerId, channelId, playerServerId, channels[channelId]);
+		end
+	end
 end
 RegisterServerEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
-
-function updateChannelSubscribers(channelId)
-	if (not channels[channelId]) then return; end
-	for _, playerServerId in pairs(channels[channelId].subscribers) do
-		TriggerClientEvent("TokoVoip:updateChannels", playerServerId, channelId, channels[channelId]);
-	end
-end
 
 function removePlayerFromRadio(channelId, playerServerId)
 	if (channels[channelId] and channels[channelId].subscribers[playerServerId]) then
@@ -46,10 +47,14 @@ function removePlayerFromRadio(channelId, playerServerId)
 				channels[channelId] = nil;
 			end
 		end
-		print("Removed [" .. playerServerId .. "] " .. GetPlayerName(playerServerId) .. " from channel " .. channelId);
+		print("Removed [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " from channel " .. channelId);
 
-		updateChannelSubscribers(channelId);
-		TriggerClientEvent("TokoVoip:updateChannels", playerServerId, channelId, channels[channelId]); -- update channel info for removed player, will remove client references to this channel
+		for _, subscriberServerId in pairs(channels[channelId].subscribers) do
+			TriggerClientEvent("TokoVoip:onPlayerLeaveChannel", subscriberServerId, channelId, playerServerId);
+		end
+
+		-- Tell unsubscribed player he's left the channel as well
+		TriggerClientEvent("TokoVoip:onPlayerLeaveChannel", playerServerId, channelId, playerServerId);
 	end
 end
 RegisterServerEvent("TokoVoip:removePlayerFromRadio");
