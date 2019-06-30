@@ -33,7 +33,6 @@ HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
 volatile bool exitTimeoutThread = FALSE;
 volatile bool exitSendDataThread = FALSE;
-volatile bool exitCheckUpdateThread = FALSE;
 
 bool isTalking = false;
 char* originalName = "";
@@ -521,18 +520,7 @@ void checkUpdate() {
 			string minVersionWarningMessage = updateJSON["minVersionWarningMessage"];
 			MessageBox(NULL, minVersionWarningMessage.c_str(), "TokoVOIP: update", MB_OK);
 		}
-
-		Sleep(3600000); // Don't check for another hour
-	} else {
-		Sleep(600000); // Don't check for another 10mins
 	}
-}
-
-DWORD WINAPI checkUpdateThread(LPVOID lpParam) {
-	while (!exitCheckUpdateThread) {
-		checkUpdate();
-	}
-	return NULL;
 }
 
 int Tokovoip::initialize(char *id) {
@@ -549,7 +537,7 @@ int Tokovoip::initialize(char *id) {
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
 	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
-	threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
+	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
 	return (1);
