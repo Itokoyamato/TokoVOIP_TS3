@@ -49,6 +49,9 @@ function removePlayerFromRadio(channelId, playerServerId)
 		end
 		print("Removed [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " from channel " .. channelId);
 
+		-- Channel does not exist, no need to update anything
+		if (not channels[channelId]) then return end
+
 		for _, subscriberServerId in pairs(channels[channelId].subscribers) do
 			TriggerClientEvent("TokoVoip:onPlayerLeaveChannel", subscriberServerId, channelId, playerServerId);
 		end
