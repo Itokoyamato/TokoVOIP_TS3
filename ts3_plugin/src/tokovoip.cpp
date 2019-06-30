@@ -545,6 +545,8 @@ int Tokovoip::initialize(char *id) {
 
 void Tokovoip::shutdown()
 {
+	exitTimeoutThread = true;
+	exitSendDataThread = true;
 	server.stop();
 	resetClientsAll();
 
