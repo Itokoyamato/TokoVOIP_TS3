@@ -209,7 +209,7 @@ AddEventHandler("initializeVoip", function()
 			if (debugData) then
 				local pos_y;
 				local pos_x;
-				local players = getPlayers();
+				local players = GetActivePlayers();
 
 				for i = 1, #players do
 					local player = players[i];
