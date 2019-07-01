@@ -25,7 +25,7 @@ TokoVoipConfig = {
 		-- Optional: TeamSpeak waiting channel name, players wait in this channel and will be moved to the TSChannel automatically
 		-- If the TSChannel is public and people can join directly, you can leave this empty and not use the auto-move
 		TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC",
-		
+
 		-- Blocking screen informations
 		TSServer = "ts.rmog.us", -- TeamSpeak server address to be displayed on blocking screen
 		TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak support channel name displayed on blocking screen
@@ -47,12 +47,9 @@ TokoVoipConfig = {
 	}
 };
 
-function resourceStart(resource)
+AddEventHandler("onClientResourceStart", function(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
-		Citizen.CreateThread(function()
-			TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
-			TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
-		end);
+		TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+		TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 	end
-end
-AddEventHandler("onClientResourceStart", resourceStart);
+end)
