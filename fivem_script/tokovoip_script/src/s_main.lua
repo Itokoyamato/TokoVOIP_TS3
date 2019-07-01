@@ -44,7 +44,7 @@ function removePlayerFromRadio(channelId, playerServerId)
 		channels[channelId].subscribers[playerServerId] = nil;
 		if (channelId > 100) then
 			if (#channels[channelId].subscribers == 0) then
-				channels[channelId] = nil;
+				channels[channelId].id = nil;
 			end
 		end
 		print("Removed [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " from channel " .. channelId);
