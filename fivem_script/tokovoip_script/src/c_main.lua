@@ -266,6 +266,7 @@ AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServe
 			end
 		end
 
+		local currentChannel = voip.plugin_data.radioChannel;
 		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 		end
