@@ -97,7 +97,7 @@ local function clientProcessing()
 			local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
 
 			-- Set player's default data
-			usersdata[i] = {
+			local tbl = {
 				uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
 				volume = -30,
 				muted = 1,
@@ -110,10 +110,10 @@ local function clientProcessing()
 
 			-- Process proximity
 			if (dist >= voip.distance[mode]) then
-				usersdata[i].muted = 1;
+				tbl.muted = 1;
 			else
-				usersdata[i].volume = volume;
-				usersdata[i].muted = 0;
+				tbl.volume = volume;
+				tbl.muted = 0;
 			end
 			--
 			-- Process channels
@@ -123,16 +123,17 @@ local function clientProcessing()
 			for _, channel in pairs(voip.myChannels) do
 				if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
 					if (remotePlayerChannel <= 100) then
-						usersdata[i].radioEffect = true;
+						tbl.radioEffect = true;
 					end
-					usersdata[i].volume = 0;
-					usersdata[i].muted = 0;
-					usersdata[i].posX = 0;
-					usersdata[i].posY = 0;
-					usersdata[i].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+					tbl.volume = 0;
+					tbl.muted = 0;
+					tbl.posX = 0;
+					tbl.posY = 0;
+					tbl.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 				end
 			end
 			--
+			usersdata[#usersdata + 1] = tbl
 			setPlayerTalkingState(player, playerServerId);
 		end
 	end
