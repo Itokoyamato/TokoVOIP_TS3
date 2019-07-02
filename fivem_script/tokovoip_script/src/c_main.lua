@@ -142,7 +142,6 @@ local function clientProcessing()
 	voip.plugin_data.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 end
 
-
 RegisterNetEvent("initializeVoip");
 AddEventHandler("initializeVoip", function()
 	if (isRunning) then return Citizen.Trace("TokoVOIP is already running\n"); end
