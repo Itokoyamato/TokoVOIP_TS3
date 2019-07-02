@@ -17,7 +17,7 @@
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
-local scriptVersion = "1.3.1";
+local scriptVersion = "1.3.2";
 local animStates = {}
 local displayingPluginScreen = false;
 local HeadBone = 0x796e;
@@ -37,20 +37,12 @@ local function setPlayerTalkingState(player, playerServerId)
 	animStates[playerServerId] = talking;
 end
 
-RegisterNUICallback("setPluginStatus", function(data)
-	voip.pluginStatus = tonumber(data.msg);
-	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
-end)
-
-RegisterNUICallback("setPluginVersion", function(data)
-	voip.pluginVersion = data.msg;
-	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
-end)
-
-RegisterNUICallback("setPluginUUID", function(data)
-	voip.pluginUUID = data.msg;
-	setPlayerData(voip.serverId, "voip:pluginUUID", voip.pluginUUID, true);
-end)
+RegisterNUICallback("updatePluginData", function(data)
+	local payload = data.payload;
+	if (voip[payload.key] == payload.data) then return end
+	voip[payload.key] = payload.data;
+	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
+end);
 
 -- Receives data from the TS plugin on microphone toggle
 RegisterNUICallback("setPlayerTalking", function(data)
