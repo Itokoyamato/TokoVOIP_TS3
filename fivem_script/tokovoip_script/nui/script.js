@@ -51,17 +51,17 @@ function init() {
 			lastPing = getTickCount();
 			forcedInfo = false;
 			const pluginStatus = evt.data.split(':')[1].replace(/\./g, '');
-			callScript('setPluginStatus', parseInt(pluginStatus));
+			updatePluginData('pluginStatus', parseInt(pluginStatus));
 		}
 
 		// Handle plugin version
 		if (evt.data.includes('TokoVOIP version:')) {
-			callScript('setPluginVersion', evt.data.split(':')[1]);
+			updatePluginData('pluginVersion', evt.data.split(':')[1]);
 		}
 
 		// Handle plugin UUID
 		if (evt.data.includes('TokoVOIP UUID:')) {
-			callScript('setPluginUUID', evt.data.split(':')[1]);
+			updatePluginData('pluginUUID', evt.data.split(':')[1]);
 		}
 
 		// Handle talking states
@@ -113,7 +113,7 @@ function init() {
 		console.log('TokoVOIP: closed connection - ' + reason);
 		lastReconnect = getTickCount();
 		connected = false;
-		callScript('setPluginStatus', -1);
+		updatePluginData('pluginStatus', -1);
 		init();
 	};
 }
@@ -151,7 +151,7 @@ function receivedClientCall(event) {
 			console.log('TokoVOIP: timed out - ' + (timeout) + ' - ' + (lastRetry));
 			lastReconnect = getTickCount();
 			connected = false;
-			callScript('setPluginStatus', -1);
+			updatePluginData('pluginStatus', -1);
 			init();
 		} else if (connected) {
 			try {
@@ -257,8 +257,14 @@ function updateTokovoipInfo(msg) {
 	document.getElementById('pluginStatus').innerHTML = `Plugin status: <font color="${color}">${screenMessage || msg}</font>`;
 }
 
-function callScript(event, data) {
-	$.post(`http://tokovoip_script/${event}`, JSON.stringify({msg: data}));
+function updatePluginData(key, data) {
+	if (voip[key] === data) return;
+	$.post(`http://tokovoip_script/updatePluginData`, JSON.stringify({
+		payload: {
+			key,
+			data,
+		}
+	}));
 }
 
 window.addEventListener('message', receivedClientCall, false);

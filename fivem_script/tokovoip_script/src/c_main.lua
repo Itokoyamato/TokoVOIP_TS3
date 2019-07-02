@@ -265,23 +265,13 @@ end
 --	Plugin functions
 --------------------------------------------------------------------------------
 
-function setPluginStatus(data)
-	voip.pluginStatus = tonumber(data.msg);
-	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
+function updatePluginData(data)
+	local payload = data.payload;
+	if (voip[payload.key] == payload.data) then return end
+	voip[payload.key] = payload.data;
+	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
 end
-RegisterNUICallback("setPluginStatus", setPluginStatus);
-
-function setPluginVersion(data)
-	voip.pluginVersion = data.msg;
-	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
-end
-RegisterNUICallback("setPluginVersion", setPluginVersion);
-
-function setPluginUUID(data)
-	voip.pluginUUID = data.msg;
-	setPlayerData(voip.serverId, "voip:pluginUUID", voip.pluginUUID, true);
-end
-RegisterNUICallback("setPluginUUID", setPluginUUID);
+RegisterNUICallback("updatePluginData", updatePluginData);
 
 -- Receives data from the TS plugin on microphone toggle
 function setPlayerTalking(data)
