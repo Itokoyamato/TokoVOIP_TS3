@@ -82,10 +82,8 @@ local function clientProcessing()
 		localPos = GetPedBoneCoords(targetPed, HeadBone);
 	end
 
-	for i = 1, #playerList do
-		local player = playerList[i];
-		local playerServerId = GetPlayerServerId(player);
-
+	for playerServerId in ipairs(playerList) do
+		local player = GetPlayerFromServerId(playerServerId);
 		if (GetPlayerPed(-1) and GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
