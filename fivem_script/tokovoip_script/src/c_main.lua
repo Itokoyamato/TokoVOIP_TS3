@@ -20,6 +20,7 @@ local isRunning = false;
 local scriptVersion = "1.3.0";
 local animStates = {}
 local displayingPluginScreen = false;
+local HeadBone = 0x796e;
 
 --------------------------------------------------------------------------------
 --	Plugin functions
@@ -68,23 +69,24 @@ local function clientProcessing()
 	local playerList = voip.playerList;
 	local usersdata = {};
 	local localHeading;
+	local ped = PlayerPedId()
+
 	if (voip.headingType == 1) then
-		localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+		localHeading = math.rad(GetEntityHeading(ped));
 	else
 		localHeading = math.rad(GetGameplayCamRot().z % 360);
 	end
 	local localPos;
-	local HeadBone = 0x796e;
 
 	if useLocalPed then
-		localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone);
+		localPos = GetPedBoneCoords(ped, HeadBone);
 	else
 		localPos = GetPedBoneCoords(targetPed, HeadBone);
 	end
 
 	for playerServerId in ipairs(playerList) do
 		local player = GetPlayerFromServerId(playerServerId);
-		if (GetPlayerPed(-1) and GetPlayerPed(player) and voip.serverId ~= playerServerId) then
+		if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
 
