@@ -17,7 +17,7 @@
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
-local scriptVersion = "1.3.1";
+local scriptVersion = "1.3.2";
 
 function initializeVoip()
 	if (isRunning) then return print("TokoVOIP is already running"); end
