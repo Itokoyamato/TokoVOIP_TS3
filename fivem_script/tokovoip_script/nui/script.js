@@ -26,7 +26,6 @@ var lastPing = 0;
 var lastReconnect = 0;
 
 let voip = {};
-let updatePluginInterval;
 
 const OK = 0;
 const NOT_CONNECTED = 1;
@@ -145,9 +144,8 @@ function receivedClientCall(event) {
 			if (connected)
 				updateTokovoipInfo(payload, 1);
 	
-		} else if (eventName == 'updatePlayerData') {
-	
 		} else if (eventName == 'updateTokoVoip') {
+			voip.plugin_data = payload;
 			updatePlugin();
 	
 		} else if (eventName == 'disconnect') {
@@ -248,10 +246,6 @@ function updateTokovoipInfo(msg) {
 }
 
 function updateConfig(payload) {
-	if (voip.refreshRate !== payload.refreshRate) {
-		if (updatePluginInterval) clearInterval(updatePluginInterval);
-		updatePluginInterval = setInterval(() => updatePlugin(), payload.refreshRate);
-	}
 	voip = payload;
 	document.getElementById('TSServer').innerHTML = `TeamSpeak server: <font color="#01b0f0">${voip.plugin_data.TSServer}</font>`;
 	document.getElementById('TSChannel').innerHTML = `TeamSpeak channel: <font color="#01b0f0">${(voip.plugin_data.TSChannelWait) ? voip.plugin_data.TSChannelWait : voip.plugin_data.TSChannel}</font>`;

@@ -49,8 +49,7 @@ function TokoVoip.loop(self)
 end
 
 function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
-	-- processedData = json.encode(self.plugin_data);
-	-- self:updatePlugin("updateTokoVoip", processedData);
+	self:updatePlugin("updateTokoVoip", self.plugin_data);
 end
 
 function TokoVoip.updateTokoVoipInfo(self, forceUpdate) -- Update the top-left info
@@ -82,12 +81,7 @@ function TokoVoip.updateTokoVoipInfo(self, forceUpdate) -- Update the top-left i
 end
 
 function TokoVoip.updatePlugin(self, event, payload)
-	SendNUIMessage(
-		{	
-			type = event,
-			payload = payload or ""
-		}
-	);
+	exports.tokovoip_script:doSendNuiMessage(event, payload);
 end
 
 function TokoVoip.updateConfig(self)
