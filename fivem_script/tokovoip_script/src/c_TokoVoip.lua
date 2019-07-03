@@ -41,7 +41,7 @@ function TokoVoip.loop(self)
 				self:updateTokoVoipInfo();
 			end
 			if (self.lastPlayerListUpdate >= self.playerListRefreshRate) then
-				self.playerList = getPlayers();
+				self.playerList = GetActivePlayers();
 				self.lastPlayerListUpdate = 0;
 			end
 		end
