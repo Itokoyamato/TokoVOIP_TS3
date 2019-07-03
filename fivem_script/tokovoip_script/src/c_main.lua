@@ -259,14 +259,14 @@ end
 --------------------------------------------------------------------------------
 
 function addPlayerToRadio(channel)
-	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId);
+	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel);
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 exports("addPlayerToRadio", addPlayerToRadio)
 
 function removePlayerFromRadio(channel)
-	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, voip.serverId);
+	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel);
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
@@ -337,13 +337,13 @@ exports("isPlayerInChannel", isPlayerInChannel)
 function addPlayerToCall(number)
 	local number = tostring(number);
 	voip.callChannel = number;
-	TriggerServerEvent("TokoVoip:addPlayerToCall", number, voip.serverId);
+	TriggerServerEvent("TokoVoip:addPlayerToCall", number);
 end
 exports("addPlayerToCall", addPlayerToCall)
 
 function removePlayerFromCall()
 	voip.callChannel = false;
-	TriggerServerEvent("TokoVoip:removePlayerFromCall", voip.serverId);
+	TriggerServerEvent("TokoVoip:removePlayerFromCall");
 end
 exports("removePlayerFromCall", removePlayerFromCall)
 

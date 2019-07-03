@@ -17,7 +17,9 @@
 local channels = TokoVoipConfig.channels;
 local calls = {};
 
-function addPlayerToRadio(channelId, playerServerId)
+function addPlayerToRadio(channelId)
+	local playerServerId = source
+
 	if (not channels[channelId]) then
 		channels[channelId] = {id = channelId, name = "Call with " .. channelId, subscribers = {}};
 	end
@@ -40,7 +42,9 @@ end
 RegisterServerEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
-function removePlayerFromRadio(channelId, playerServerId)
+function removePlayerFromRadio(channelId)
+	local playerServerId = source
+
 	if (channels[channelId] and channels[channelId].subscribers[playerServerId]) then
 		channels[channelId].subscribers[playerServerId] = nil;
 		if (channelId > 100) then
@@ -98,7 +102,8 @@ end)
 --	Call functions
 --------------------------------------------------------------------------------
 
-function addPlayerToCall(number, playerServerId)
+function addPlayerToCall(number)
+	local playerServerId = source
 	local number = tostring(number);
 	local playerCall = getPlayerData(playerServerId, "call:channel");
 
@@ -120,6 +125,7 @@ RegisterServerEvent("TokoVoip:addPlayerToCall");
 AddEventHandler("TokoVoip:addPlayerToCall", addPlayerToCall);
 
 function removePlayerFromCall(playerServerId, number)
+	local playerServerId = playerServerId or source
 	local playerCall = number or getPlayerData(playerServerId, "call:channel");
 
 	if (playerCall) then
