@@ -42,6 +42,8 @@ RegisterNUICallback("updatePluginData", function(data)
 	if (voip[payload.key] == payload.data) then return end
 	voip[payload.key] = payload.data;
 	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
+	voip:updateConfig();
+	voip:updateTokoVoipInfo(true);
 end);
 
 -- Receives data from the TS plugin on microphone toggle

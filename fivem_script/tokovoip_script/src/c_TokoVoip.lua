@@ -49,11 +49,11 @@ function TokoVoip.loop(self)
 end
 
 function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
-	processedData = json.encode(self.plugin_data);
-	self:updatePlugin("updateTokoVoip", processedData);
+	-- processedData = json.encode(self.plugin_data);
+	-- self:updatePlugin("updateTokoVoip", processedData);
 end
 
-function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
+function TokoVoip.updateTokoVoipInfo(self, forceUpdate) -- Update the top-left info
 	local info = "";
 	if (self.mode == 1) then
 		info = "Normal";
@@ -76,25 +76,31 @@ function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 			info = info  .. "<br> [Radio] " .. self.myChannels[self.plugin_data.radioChannel].name;
 		end
 	end
+	if (info == self.screenInfo and not forceUpdate) then return end
+	self.screenInfo = info;
 	self:updatePlugin("updateTokovoipInfo", "" .. info);
 end
 
 function TokoVoip.updatePlugin(self, event, payload)
+	SendNUIMessage(
+		{	
+			type = event,
+			payload = payload or ""
+		}
+	);
+end
+
+function TokoVoip.updateConfig(self)
 	local data = self.config;
 	data.plugin_data = self.plugin_data;
 	data.pluginVersion = self.pluginVersion;
 	data.pluginStatus = self.pluginStatus;
 	data.pluginUUID = self.pluginUUID;
-	SendNUIMessage(
-		{	
-			type = event,
-			voipData = data,
-			data = payload or ""
-		}
-	);
+	self:updatePlugin("updateConfig", data);
 end
 
 function TokoVoip.initialize(self)
+	self:updateConfig();
 	self:updatePlugin("initializeSocket", nil);
 	Citizen.CreateThread(function()
 		while (true) do
