@@ -42,7 +42,7 @@ TokoVoipConfig = {
 		local_click_off = true, -- Is local click off sound active
 		remote_click_on = false, -- Is remote click on sound active
 		remote_click_off = true, -- Is remote click off sound active
-		enableStereoAudio = true, -- If set to true, positional audio will be stereo (you can hear people more on the left or the right around you)
+		enableStereoAudio = false, -- If set to true, positional audio will be stereo (you can hear people more on the left or the right around you)
 
 		localName = "", -- If set, this name will be used as the user's teamspeak display name
 		localNamePrefix = "[" .. GetPlayerServerId(PlayerId()) .. "] ", -- If set, this prefix will be added to the user's teamspeak display name
@@ -52,6 +52,8 @@ TokoVoipConfig = {
 function resourceStart(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
 		Citizen.CreateThread(function()
+			NetworkSetVoiceChannel(GetPlayerServerId(PlayerId()))
+			NetworkSetVoiceActive(false)
 			TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
 			TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 		end);
