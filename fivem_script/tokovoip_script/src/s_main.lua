@@ -43,7 +43,7 @@ function removePlayerFromRadio(channelId, playerServerId)
 	if (channels[channelId] and channels[channelId].subscribers[playerServerId]) then
 		channels[channelId].subscribers[playerServerId] = nil;
 		if (channelId > 100) then
-			if (#channels[channelId].subscribers == 0) then
+			if (tablelength(channels[channelId].subscribers) == 0) then
 				channels[channelId] = nil;
 			end
 		end
