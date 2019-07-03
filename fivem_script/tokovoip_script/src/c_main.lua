@@ -271,6 +271,8 @@ exports("removePlayerFromRadio", removePlayerFromRadio)
 
 function onPlayerLeaveChannel(channelId, playerServerId)
 	-- Local player left channel
+	local currentChannel = voip.plugin_data.radioChannel;
+
 	if (playerServerId == voip.serverId and voip.myChannels[channelId]) then
 		voip.myChannels[channelId] = nil;
 		if (voip.plugin_data.radioChannel == channelId) then -- If current radio channel is still removed channel, reset to first available channel or none
