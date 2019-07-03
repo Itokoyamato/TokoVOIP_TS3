@@ -22,7 +22,7 @@ function TokoVoip.init(self, config)
 	local self = setmetatable(config, TokoVoip);
 	self.config = json.decode(json.encode(config));
 	self.lastNetworkUpdate = 0;
-	self.lastPlayerListUpdate = 0;
+	self.lastPlayerListUpdate = self.playerListRefreshRate;
 	self.playerList = {};
 	return (self);
 end
