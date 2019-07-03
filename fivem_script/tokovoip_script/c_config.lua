@@ -21,8 +21,8 @@ TokoVoipConfig = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
 		-- to the TSChannel once everything is running
-		TSChannel = "Game",
 		TSPassword = "", -- TeamSpeak channel password (can be empty)
+		TSChannel = "Game - Push To Talk Only!",
 
 		-- Optional: TeamSpeak waiting channel name, players wait in this channel and will be moved to the TSChannel automatically
 		-- If the TSChannel is public and people can join directly, you can leave this empty and not use the auto-move
@@ -41,10 +41,10 @@ TokoVoipConfig = {
 		local_click_on = true, -- Is local click on sound active
 		local_click_off = true, -- Is local click off sound active
 		remote_click_on = false, -- Is remote click on sound active
-		remote_click_off = true, -- Is remote click off sound active
+		remote_click_off = false, -- Is remote click off sound active
 		enableStereoAudio = false, -- If set to true, positional audio will be stereo (you can hear people more on the left or the right around you)
 
-		localName = "", -- If set, this name will be used as the user's teamspeak display name
+		localName = "Frazzle.", -- If set, this name will be used as the user's teamspeak display name
 		localNamePrefix = "[" .. GetPlayerServerId(PlayerId()) .. "] ", -- If set, this prefix will be added to the user's teamspeak display name
 	}
 };
@@ -54,7 +54,9 @@ function resourceStart(resource)
 		Citizen.CreateThread(function()
 			NetworkSetVoiceChannel(GetPlayerServerId(PlayerId()))
 			NetworkSetVoiceActive(false)
-			TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			if TokoVoipConfig.plugin_data.localName == "" then
+				TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			end
 			TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 		end);
 	end
