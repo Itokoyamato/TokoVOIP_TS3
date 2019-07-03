@@ -470,7 +470,7 @@ json downloadJSON(string url) {
 }
 
 void checkUpdate() {
-	json updateJSON = downloadJSON("http://itokoyamato.net/files/tokovoip/tokovoip_info.json");
+	json updateJSON = downloadJSON("http://rivalryrp.com/tokovoip/tokovoip_info.json");
 	if (updateJSON != NULL) {
 		outputLog("Got update json");
 	}
