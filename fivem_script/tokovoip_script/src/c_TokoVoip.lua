@@ -167,6 +167,13 @@ function TokoVoip.initialize(self)
 					StopAnimTask(PlayerPedId(), "random@arrests","generic_radio_chatter", -4.0);
 				end
 			end
+
+			if ((self.keyToggleLoudSpeakerSecondary and IsControlPressed(0, self.keyToggleLoudSpeakerSecondary)) or not self.keyToggleLoudSpeakerSecondary) then -- Toggle loud speaker
+				if (IsControlJustPressed(0, self.keyToggleLoudSpeaker) and getPlayerData(self.serverId, "call:channel") ~= nil) then
+					self.loudSpeaker = not self.loudSpeaker;
+					setPlayerData(self.serverId, "call:loudSpeaker", self.loudSpeaker, true);
+				end
+			end
 		end
 	end);
 end

@@ -32,6 +32,7 @@ function initializeVoip()
 	voip.plugin_data.localRadioClicks = false;
 	voip.mode = 1;
 	voip.talking = false;
+	voip.loudSpeaker = false;
 	voip.pluginStatus = -1;
 	voip.pluginVersion = "0";
 	voip.serverId = GetPlayerServerId(PlayerId());
@@ -39,11 +40,16 @@ function initializeVoip()
 	-- Radio channels
 	voip.myChannels = {};
 
+	-- Phone calls
+	voip.calls = {};
+
 	-- Player data shared on the network
 	setPlayerData(voip.serverId, "voip:mode", voip.mode, true);
 	setPlayerData(voip.serverId, "voip:talking", voip.talking, true);
 	setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 	setPlayerData(voip.serverId, "radio:talking", voip.plugin_data.radioTalking, true);
+	setPlayerData(voip.serverId, "call:channel", false, true);
+	setPlayerData(voip.serverId, "call:loudSpeaker", false, true);
 	setPlayerData(voip.serverId, "voip:pluginStatus", voip.pluginStatus, true);
 	setPlayerData(voip.serverId, "voip:pluginVersion", voip.pluginVersion, true);
 	refreshAllPlayerData();
@@ -102,6 +108,7 @@ AddEventHandler("initializeVoip", initializeVoip);
 
 function clientProcessing()
 		local playerList = voip.playerList;
+		local callList = {};
 		local usersdata = {};
 		local localHeading;
 		if (voip.headingType == 1) then
@@ -117,6 +124,8 @@ function clientProcessing()
 		else
 			localPos = GetPedBoneCoords(targetPed, HeadBone);
 		end
+
+		local localPlayerCall = getPlayerData(voip.serverId, "call:channel");
 
 		for i = 1, #playerList do
 			local player = playerList[i];
@@ -141,10 +150,12 @@ function clientProcessing()
 					--
 
 					local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
+					local userIndex = #usersdata + 1;
 
 					-- Set player's default data
-					usersdata[i] = {	
+					usersdata[userIndex] = {	
 								uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
+								id = playerServerId,
 								volume = -30,
 								muted = 1,
 								radioEffect = false,
@@ -154,12 +165,48 @@ function clientProcessing()
 					};
 					--
 
+					local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
+					local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
+
 					-- Process proximity
 					if (dist >= voip.distance[mode]) then
-						usersdata[i].muted = 1;
+						usersdata[userIndex].muted = 1;
+
+						if (remotePlayerCall) then
+							if (localPlayerCall == remotePlayerCall) then
+								callList[playerServerId] = {
+									volume = 0,
+									posX = 0,
+									posY = 0,
+								};
+							end
+						end
 					else
-						usersdata[i].volume = volume;
-						usersdata[i].muted = 0;
+						usersdata[userIndex].volume = volume;
+						usersdata[userIndex].muted = 0;
+
+						-- Process phone calls
+						if (remotePlayerCall) then
+							if (remotePlayerLoudSpeaker) then
+								local callParticipants = voip.calls[remotePlayerCall];
+								if callParticipants then
+									local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
+									if (whisperVolume >= 0) then
+										whisperVolume = 0;
+									end
+									
+									for j = 1, #callParticipants do
+										if (callParticipants[j] ~= playerServerId) then
+											callList[callParticipants[j]] = {
+												volume = whisperVolume,
+												posX = usersdata[userIndex].posX,
+												posY = usersdata[userIndex].posY,
+											};
+										end
+									end
+								end
+							end
+						end
 					end
 					--
 
@@ -170,18 +217,33 @@ function clientProcessing()
 					for _, channel in pairs(voip.myChannels) do
 						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
 							if (remotePlayerChannel <= 100) then
-								usersdata[i].radioEffect = true;
+								usersdata[userIndex].radioEffect = true;
 							end
-							usersdata[i].volume = 0;
-							usersdata[i].muted = 0;
-							usersdata[i].posX = 0;
-							usersdata[i].posY = 0;
-							usersdata[i].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+							usersdata[userIndex].volume = 0;
+							usersdata[userIndex].muted = 0;
+							usersdata[userIndex].posX = 0;
+							usersdata[userIndex].posY = 0;
+							usersdata[userIndex].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 						end
 					end
 					--
 					setPlayerTalkingState(player, playerServerId);
 				end
+		end
+
+		-- Process phone calls
+		if tablelength(callList) > 0 then
+			for i = 1, #usersdata do
+				if usersdata[i].muted then
+					local callData = callList[usersdata[i].id];
+					if callData then
+						usersdata[i].muted = 0;
+						usersdata[i].volume = callData.volume;
+						usersdata[i].posX = callData.posX;
+						usersdata[i].posY = callData.posY;
+					end
+				end
+			end
 		end
 		voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
 		voip.plugin_data.posX = 0;
@@ -198,12 +260,14 @@ function addPlayerToRadio(channel)
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
+exports("addPlayerToRadio", addPlayerToRadio)
 
 function removePlayerFromRadio(channel)
 	TriggerServerEvent("TokoVoip:removePlayerFromRadio", channel, voip.serverId);
 end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
+exports("removePlayerFromRadio", removePlayerFromRadio)
 
 function onPlayerLeaveChannel(channelId, playerServerId)
 	-- Local player left channel
@@ -259,7 +323,28 @@ function isPlayerInChannel(channel)
 		return false;
 	end
 end
+exports("isPlayerInChannel", isPlayerInChannel)
 
+--------------------------------------------------------------------------------
+--	Call functions
+--------------------------------------------------------------------------------
+
+function addPlayerToCall(number)
+	local number = tostring(number);
+	TriggerServerEvent("TokoVoip:addPlayerToCall", number, voip.serverId);
+end
+exports("addPlayerToCall", addPlayerToCall)
+
+function removePlayerFromCall()
+	TriggerServerEvent("TokoVoip:removePlayerFromCall", voip.serverId);
+end
+exports("removePlayerFromCall", removePlayerFromCall)
+
+function updateCalls(updatedCalls)
+	voip.calls = updatedCalls;
+end
+RegisterNetEvent("TokoVoip:updateCalls");
+AddEventHandler("TokoVoip:updateCalls", updateCalls);
 
 --------------------------------------------------------------------------------
 --	Plugin functions
@@ -283,8 +368,6 @@ function setPlayerTalking(data)
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
 		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
@@ -306,8 +389,6 @@ function setPlayerTalkingState(player, playerServerId)
 		while not HasAnimDictLoaded("mp_facial") do
 			Wait(5);
 		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
 		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
 	elseif (animStates[playerServerId] == 1 and talking == 0) then
 		RequestAnimDict("facials@gen_male@base");

@@ -27,20 +27,27 @@ function setPlayerData(playerServerId, key, data, shared)
 end
 RegisterNetEvent("Tokovoip:setPlayerData");
 AddEventHandler("Tokovoip:setPlayerData", setPlayerData);
+exports("setPlayerData", setPlayerData)
 
 function getPlayerData(playerServerId, key)
 	if (not playersData[playerServerId] or playersData[playerServerId][key] == nil) then return false; end
 	return playersData[playerServerId][key].data;
 end
+exports("getPlayerData", getPlayerData)
 
 function refreshAllPlayerData(toEveryone)
 	TriggerServerEvent("Tokovoip:refreshAllPlayerData", toEveryone);
 end
 RegisterNetEvent("onClientPlayerReady");
 AddEventHandler("onClientPlayerReady", refreshAllPlayerData);
+exports("refreshAllPlayerData", refreshAllPlayerData)
 
 function doRefreshAllPlayerData(serverData)
 	for playerServerId, playerData in pairs(serverData) do
+		if (not playersData[playerServerId]) then
+			playersData[playerServerId] = {};
+		end
+
 		for key, data in pairs(playerData) do
 			playersData[playerServerId][key] = {data = data, shared = true};
 		end

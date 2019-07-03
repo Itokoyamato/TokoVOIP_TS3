@@ -13,6 +13,8 @@ TokoVoipConfig = {
 	radioKey = Keys["CAPS"], -- Keybind used to talk on the radio
 	keySwitchChannels = Keys["Z"], -- Keybind used to switch the radio channels
 	keySwitchChannelsSecondary = Keys["LEFTSHIFT"], -- If set, both the keySwitchChannels and keySwitchChannelsSecondary keybinds must be pressed to switch the radio channels
+	keyToggleLoudSpeaker = Keys["Z"], -- Keybind used to toggle loud speaker when in a phone call
+	keyToggleLoudSpeakerSecondary = Keys["LEFTSHIFT"], -- If set, both the keyToggleLoudSpeaker and keyToggleLoudSpeakerSecondary keybinds must be pressed to toggle loud speaker when in a phone call
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
 
 	plugin_data = {
