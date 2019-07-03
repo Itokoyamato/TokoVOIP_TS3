@@ -133,104 +133,104 @@ function clientProcessing()
 			local player = playerList[i];
 			local playerServerId = GetPlayerServerId(player);
 
-				if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
+			if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 
-					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
-					local dist = #(localPos - playerPos);
+				local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
+				local dist = #(localPos - playerPos);
 
-					if (not getPlayerData(playerServerId, "voip:mode")) then
-						setPlayerData(playerServerId, "voip:mode", 1);
-					end
+				if (not getPlayerData(playerServerId, "voip:mode")) then
+					setPlayerData(playerServerId, "voip:mode", 1);
+				end
 
-					--	Process the volume for proximity voip
-					local mode = tonumber(getPlayerData(playerServerId, "voip:mode"));
-					if (not mode or (mode ~= 1 and mode ~= 2 and mode ~= 3)) then mode = 1 end;
-					local volume = -30 + (30 - dist / voip.distance[mode] * 30);
-					if (volume >= 0) then
-						volume = 0;
-					end
-					--
+				--	Process the volume for proximity voip
+				local mode = tonumber(getPlayerData(playerServerId, "voip:mode"));
+				if (not mode or (mode ~= 1 and mode ~= 2 and mode ~= 3)) then mode = 1 end;
+				local volume = -30 + (30 - dist / voip.distance[mode] * 30);
+				if (volume >= 0) then
+					volume = 0;
+				end
+				--
 
-					local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
-					local userIndex = #usersdata + 1;
+				local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
+				local userIndex = #usersdata + 1;
 
-					-- Set player's default data
-					usersdata[userIndex] = {	
-								uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
-								id = playerServerId,
-								volume = -30,
-								muted = 1,
-								radioEffect = false,
-								posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
-								posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
-								posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
-					};
-					--
+				-- Set player's default data
+				usersdata[userIndex] = {	
+					uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
+					id = playerServerId,
+					volume = -30,
+					muted = 1,
+					radioEffect = false,
+					posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
+					posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
+					posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
+				};
+				--
 
-					local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
-					local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
+				local remotePlayerCall = getPlayerData(playerServerId, "call:channel");
+				local remotePlayerLoudSpeaker = getPlayerData(playerServerId, "call:loudSpeaker");
 
-					-- Process proximity
-					if (dist >= voip.distance[mode]) then
-						usersdata[userIndex].muted = 1;
+				-- Process proximity
+				if (dist >= voip.distance[mode]) then
+					usersdata[userIndex].muted = 1;
 
-						if (remotePlayerCall) then
-							if (localPlayerCall == remotePlayerCall) then
-								callList[playerServerId] = {
-									volume = 0,
-									posX = 0,
-									posY = 0,
-								};
-							end
+					if (remotePlayerCall) then
+						if (localPlayerCall == remotePlayerCall) then
+							callList[playerServerId] = {
+								volume = 0,
+								posX = 0,
+								posY = 0,
+							};
 						end
-					else
-						usersdata[userIndex].volume = volume;
-						usersdata[userIndex].muted = 0;
+					end
+				else
+					usersdata[userIndex].volume = volume;
+					usersdata[userIndex].muted = 0;
 
-						-- Process phone calls
-						if (remotePlayerCall) then
-							if (remotePlayerLoudSpeaker) then
-								local callParticipants = voip.calls[remotePlayerCall];
-								if callParticipants then
-									local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
-									if (whisperVolume >= 0) then
-										whisperVolume = 0;
-									end
-									
-									for j = 1, #callParticipants do
-										if (callParticipants[j] ~= playerServerId) then
-											callList[callParticipants[j]] = {
-												volume = whisperVolume,
-												posX = usersdata[userIndex].posX,
-												posY = usersdata[userIndex].posY,
-											};
-										end
+					-- Process phone calls
+					if (remotePlayerCall) then
+						if (remotePlayerLoudSpeaker) then
+							local callParticipants = voip.calls[remotePlayerCall];
+							if callParticipants then
+								local whisperVolume = -30 + (30 - dist / voip.distance[2] * 30);
+								if (whisperVolume >= 0) then
+									whisperVolume = 0;
+								end
+								
+								for j = 1, #callParticipants do
+									if (callParticipants[j] ~= playerServerId) then
+										callList[callParticipants[j]] = {
+											volume = whisperVolume,
+											posX = usersdata[userIndex].posX,
+											posY = usersdata[userIndex].posY,
+										};
 									end
 								end
 							end
 						end
 					end
-					--
-
-					-- Process channels
-					local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
-					local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
-
-					for _, channel in pairs(voip.myChannels) do
-						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
-							if (remotePlayerChannel <= 100) then
-								usersdata[userIndex].radioEffect = true;
-							end
-							usersdata[userIndex].volume = 0;
-							usersdata[userIndex].muted = 0;
-							usersdata[userIndex].posX = 0;
-							usersdata[userIndex].posY = 0;
-							usersdata[userIndex].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-						end
-					end
-					--
-					setPlayerTalkingState(player, playerServerId);
 				end
+				--
+
+				-- Process channels
+				local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
+				local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
+
+				for _, channel in pairs(voip.myChannels) do
+					if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
+						if (remotePlayerChannel <= 100) then
+							usersdata[userIndex].radioEffect = true;
+						end
+						usersdata[userIndex].volume = 0;
+						usersdata[userIndex].muted = 0;
+						usersdata[userIndex].posX = 0;
+						usersdata[userIndex].posY = 0;
+						usersdata[userIndex].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+					end
+				end
+				--
+				setPlayerTalkingState(player, playerServerId);
+			end
 		end
 
 		-- Process phone calls
