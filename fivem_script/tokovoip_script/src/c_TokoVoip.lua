@@ -70,12 +70,17 @@ function TokoVoip.updateTokoVoipInfo(self) -- Update the top-left info
 		info = "<font class='talking'>" .. info .. "</font>";
 	end
 	if (self.plugin_data.radioChannel ~= -1 and self.myChannels[self.plugin_data.radioChannel]) then
-		if (string.match(self.myChannels[self.plugin_data.radioChannel].name, "Call")) then
-			info = info  .. "<br> [Phone] " .. self.myChannels[self.plugin_data.radioChannel].name;
+		info = info  .. "<br> [Radio] " .. self.myChannels[self.plugin_data.radioChannel].name;
+	end
+
+	if (self.callChannel) then
+		if voip.loudSpeaker then
+			info = info .. "<br> [Phone] [🔊]" .. self.callChannel
 		else
-			info = info  .. "<br> [Radio] " .. self.myChannels[self.plugin_data.radioChannel].name;
+			info = info .. "<br> [Phone] [🔈] " .. self.callChannel
 		end
 	end
+
 	self:updatePlugin("updateTokovoipInfo", "" .. info);
 end
 
@@ -172,6 +177,7 @@ function TokoVoip.initialize(self)
 				if (IsControlJustPressed(0, self.keyToggleLoudSpeaker) and getPlayerData(self.serverId, "call:channel") ~= nil) then
 					self.loudSpeaker = not self.loudSpeaker;
 					setPlayerData(self.serverId, "call:loudSpeaker", self.loudSpeaker, true);
+					self:updateTokoVoipInfo();
 				end
 			end
 		end

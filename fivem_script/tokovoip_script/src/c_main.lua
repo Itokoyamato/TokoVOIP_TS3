@@ -33,6 +33,7 @@ function initializeVoip()
 	voip.mode = 1;
 	voip.talking = false;
 	voip.loudSpeaker = false;
+	voip.callChannel = false;
 	voip.pluginStatus = -1;
 	voip.pluginVersion = "0";
 	voip.serverId = GetPlayerServerId(PlayerId());
@@ -335,11 +336,13 @@ exports("isPlayerInChannel", isPlayerInChannel)
 
 function addPlayerToCall(number)
 	local number = tostring(number);
+	voip.callChannel = number;
 	TriggerServerEvent("TokoVoip:addPlayerToCall", number, voip.serverId);
 end
 exports("addPlayerToCall", addPlayerToCall)
 
 function removePlayerFromCall()
+	voip.callChannel = false;
 	TriggerServerEvent("TokoVoip:removePlayerFromCall", voip.serverId);
 end
 exports("removePlayerFromCall", removePlayerFromCall)
