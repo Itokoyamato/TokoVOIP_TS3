@@ -18,13 +18,11 @@
 
 #include "tokovoip.h"
 #include "server_ws.hpp"
-#include "json.hpp"
-using json = nlohmann::json;
+
 #define CURL_STATICLIB
 #include "curl.h"
 
 Tokovoip *tokovoip;
-using namespace std;
 typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
 
 int isRunning = 0;
@@ -35,14 +33,12 @@ HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
 volatile bool exitTimeoutThread = FALSE;
 volatile bool exitSendDataThread = FALSE;
-volatile bool exitCheckUpdateThread = FALSE;
 
 bool isTalking = false;
 char* originalName = "";
 time_t lastPingTick = 0;
 int pluginStatus = 0;
 bool processingMessage = false;
-char* lastNameSet = "";
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
@@ -54,7 +50,7 @@ time_t noiseWait = 0;
 
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
-	server.config.port = 1337;
+	server.config.port = 38204;
 	auto& echo = server.endpoint["^/tokovoip/?$"];
 
 	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::InMessage> message) {
@@ -76,8 +72,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		DWORD error;
 		anyID clientId;
-		std::vector<anyID> clients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), getCurrentChannel(ts3Functions.getCurrentServerConnectionHandlerID()));
-		string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
+		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+		std::vector<anyID> clients = getChannelClients(serverId, getCurrentChannel(serverId));
+		string thisChannelName = getChannelName(serverId, getMyId(serverId));
 
 		//--------------------------------------------------------
 
@@ -105,7 +102,6 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		mainChannel = channelName;
 		waitChannel = waitingChannelName;
 
-		string localName = json_data["localName"];
 		bool radioTalking = json_data["radioTalking"];
 		bool radioClicks = json_data["localRadioClicks"];
 		bool local_click_on = json_data["local_click_on"];
@@ -115,24 +111,25 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		//--------------------------------------------------------
 
-		// Check if connected to any channel
-		if (thisChannelName == "") {
+		if (isChannelWhitelisted(json_data, thisChannelName)) {
+			resetClientsAll();
+			pluginStatus = 3;
 			processingMessage = false;
 			return (0);
 		}
 
 		// Check if right channel
-		if (channelName != thisChannelName)
-		{
+		if (channelName != thisChannelName) {
 			if (originalName != "")
 				setClientName(originalName);
+
 			// Handle auto channel switch
 			if (thisChannelName == waitingChannelName)
 			{
 				if (noiseWait == 0 || (time(nullptr) - noiseWait) > 1)
 					noiseWait = time(nullptr);
 				uint64* result;
-				if ((error = ts3Functions.getChannelList(ts3Functions.getCurrentServerConnectionHandlerID(), &result)) != ERROR_ok)
+				if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
 				{
 					outputLog("Can't get channel list", error);
 				}
@@ -145,7 +142,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 						uint64 channelId = *iter;
 						iter++;
 						char* cName;
-						if ((error = ts3Functions.getChannelVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+						if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
 							outputLog("Can't get channel name", error);
 						}
 						else
@@ -154,16 +151,16 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 							{
 								if (time(nullptr) - noiseWait < 1)
 								{
-									std::vector<anyID> channelClients = getChannelClients(ts3Functions.getCurrentServerConnectionHandlerID(), channelId);
+									std::vector<anyID> channelClients = getChannelClients(serverId, channelId);
 									for (auto clientIdIterator = channelClients.begin(); clientIdIterator != channelClients.end(); clientIdIterator++)
 									{
-										setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), *clientIdIterator, true);
+										setClientMuteStatus(serverId, *clientIdIterator, true);
 									}
 									processingMessage = false;
 									return (0);
 								}
 								lastChannelJoin = time(nullptr);
-								if ((error = ts3Functions.requestClientMove(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
+								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
 									outputLog("Can't join channel", error);
 									pluginStatus = 2;
 									processingMessage = false;
@@ -182,28 +179,39 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 			else
 			{
-				unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+				resetClientsAll();
 				pluginStatus = 2;
 				processingMessage = false;
 				return (0);
 			}
 		}
 
+		serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+
 		// Save client's original name
 		if (originalName == "")
-			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
+			if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
 				outputLog("Error getting client nickname", error);
 				processingMessage = false;
 				return (0);
 			}
 
 		// Set client's name to ingame name
-		char * newName = new char[localName.size() + 1];
-		std::copy(localName.begin(), localName.end(), newName);
-		newName[localName.size()] = '\0';
-		if (strcmp(lastNameSet, newName) != 0)
+		string newName = originalName;
+		
+		if (json_data.find("localName") != json_data.end()) {
+			string localName = json_data["localName"];
+			if (localName != "") newName = localName;
+		}
+
+		if (json_data.find("localNamePrefix") != json_data.end()) {
+			string localNamePrefix = json_data["localNamePrefix"];
+			if (localNamePrefix != "") newName = localNamePrefix + newName;
+		}
+
+		if (newName != "") {
 			setClientName(newName);
-		delete[] newName;
+		}
 
 		// Activate input if talking on radio
 		if (radioTalking)
@@ -230,58 +238,48 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			myPosition.x = (float)json_data["posX"];
 			myPosition.y = (float)json_data["posY"];
 			myPosition.z = (float)json_data["posZ"];
-			ts3Functions.systemset3DListenerAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), &myPosition, NULL, NULL);
+			ts3Functions.systemset3DListenerAttributes(serverId, &myPosition, NULL, NULL);
 		}
 
 		// Process other clients
-		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++)
-		{
+		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++) {
 			clientId = *clientIdIterator;
-			char* TSName;
 			char *UUID;
-			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+			if ((error = ts3Functions.getClientVariableAsString(serverId, clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
-			}
-			else
-			{
-				if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, CLIENT_NICKNAME, &TSName)) != ERROR_ok) {
-					outputLog("Error getting client nickname", error);
-					continue;
-				}
-				else
-				{
-					for (auto user : data) {
-						string gameName = user["username"];
-						int muted = user["muted"];
-						float volume = user["volume"];
-						bool isRadioEffect = user["radioEffect"];
+			} else {
+				if (clientId == getMyId(serverId)) continue;
+				for (auto user : data) {
+					if (!user.is_object()) continue;
+					if (!user["uuid"].is_string()) continue;
 
-						if (channelName == thisChannelName && TSName == gameName)
-						{
-							if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
-								playWavFile("mic_click_on");
-							if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(ts3Functions.getCurrentServerConnectionHandlerID()))
-								playWavFile("mic_click_off");
-							tokovoip->setRadioData(UUID, isRadioEffect);
-							if (muted)
-								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, true);
-							else
-							{
-								setClientMuteStatus(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, false);
-								ts3Functions.setClientVolumeModifier(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, volume);
-								if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
-									TS3_VECTOR Vector;
-									Vector.x = (float)user["posX"];
-									Vector.y = (float)user["posY"];
-									Vector.z = (float)user["posZ"];
-									ts3Functions.channelset3DAttributes(ts3Functions.getCurrentServerConnectionHandlerID(), clientId, &Vector);
-								}
+					string gameUUID = user["uuid"];
+					int muted = user["muted"];
+					float volume = user["volume"];
+					bool isRadioEffect = user["radioEffect"];
+
+					if (channelName == thisChannelName && UUID == gameUUID) {
+						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
+							playWavFile("mic_click_on");
+						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(serverId))
+							playWavFile("mic_click_off");
+						tokovoip->setRadioData(UUID, isRadioEffect);
+						if (muted)
+							setClientMuteStatus(serverId, clientId, true);
+						else {
+							setClientMuteStatus(serverId, clientId, false);
+							ts3Functions.setClientVolumeModifier(serverId, clientId, volume);
+							if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+								TS3_VECTOR Vector;
+								Vector.x = (float)user["posX"];
+								Vector.y = (float)user["posY"];
+								Vector.z = (float)user["posZ"];
+								ts3Functions.channelset3DAttributes(serverId, clientId, &Vector);
 							}
 						}
-					};
-					ts3Functions.freeMemory(TSName);
-					ts3Functions.freeMemory(UUID);
-				}
+					}
+				};
+				ts3Functions.freeMemory(UUID);
 			}
 		}
 		pluginStatus = 3;
@@ -316,17 +314,18 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 	while (!exitTimeoutThread)
 	{
 		time_t currentTick = time(nullptr);
+		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 
 		if (currentTick - lastPingTick < 10)
 			connected = true;
 		if (lastPingTick > 0 && currentTick - lastPingTick > 10 && connected == true)
 		{
-			string thisChannelName = getChannelName(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()));
+			string thisChannelName = getChannelName(serverId, getMyId(serverId));
 			if (mainChannel == thisChannelName)
 			{
 				uint64* result;
 				DWORD error;
-				if ((error = ts3Functions.getChannelList(ts3Functions.getCurrentServerConnectionHandlerID(), &result)) != ERROR_ok)
+				if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
 				{
 					outputLog("Can't get channel list", error);
 				}
@@ -339,14 +338,14 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 						uint64 channelId = *iter;
 						iter++;
 						char* cName;
-						if ((error = ts3Functions.getChannelVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+						if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
 							outputLog("Can't get channel name", error);
 						}
 						else
 						{
 							if (!strcmp(waitChannel.c_str(), cName))
 							{
-								if ((error = ts3Functions.requestClientMove(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), channelId, "", NULL)) != ERROR_ok) {
+								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
 									outputLog("Can't join channel", error);
 									pluginStatus = 2;
 									processingMessage = false;
@@ -368,8 +367,7 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 			pluginStatus = 0;
 			ServerConnection = NULL;
 			connected = false;
-			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-			resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+			resetClientsAll();
 			if (originalName != "")
 				setClientName(originalName);
 		}
@@ -383,13 +381,16 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 	while (!exitSendDataThread)
 	{
 		if (processingMessage == false) {
-			sendCallback(getPluginVersionAsString());
-			char *base_text = "TokoVOIP status:";
-			char full_text[24];
-			strcpy(full_text, base_text);
-			strcat(full_text, to_string(pluginStatus).c_str());
-			full_text[23] = '\0';
-			sendCallback(full_text);
+			sendCallback("TokoVOIP version:" + (string)ts3plugin_version());
+			sendCallback("TokoVOIP status:" + to_string(pluginStatus));
+
+			uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+			if (isConnected(serverId)) {
+				char *UUID;
+				if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
+					sendCallback("TokoVOIP UUID:" + (string)UUID);
+				free(UUID);
+			}
 		}
 		if (processingMessage == false)
 			Sleep(1000);
@@ -413,87 +414,116 @@ static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp)
 	return 0;
 }
 
-/**
-* timeout is in seconds
-**/
-CURLcode curl_read(const std::string& url, std::ostream& os, long timeout = 30)
-{
-	CURLcode code(CURLE_FAILED_INIT);
-	CURL* curl = curl_easy_init();
+size_t curl_callback(const char* in, size_t size, size_t num, string* out) {
+	const size_t totalBytes(size * num);
+	out->append(in, totalBytes);
+	return totalBytes;
+}
 
-	if (curl)
-	{
-		if (CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &data_write))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FILE, &os))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_URL, url.c_str()))
-			&& CURLE_OK == (code = curl_easy_setopt(curl, CURLOPT_FAILONERROR, true)))
-		{
-			code = curl_easy_perform(curl);
+json downloadJSON(string url) {
+    CURL* curl = curl_easy_init();
+
+    // Set remote URL.
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    // Don't bother trying IPv6, which would increase DNS resolution time.
+    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+
+    // Don't wait forever, time out after 10 seconds.
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+
+    // Follow HTTP redirects if necessary.
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+    // Response information.
+    int httpCode(0);
+    unique_ptr<string> httpData(new string());
+
+    // Hook up data handling function.
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_callback);
+
+    // Hook up data container (will be passed as the last parameter to the
+    // callback handling function).  Can be any pointer type, since it will
+    // internally be passed as a void pointer.
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
+
+    // Run our HTTP GET command, capture the HTTP response code, and clean up.
+    curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+    curl_easy_cleanup(curl);
+
+    if (httpCode == 200) {
+        // Response looks good - done using Curl now.  Try to parse the results
+        // and print them out.
+		json parsedJSON = json::parse(*httpData.get(), nullptr, false);
+		if (parsedJSON.is_discarded()) {
+			outputLog("Downloaded JSON is invalid");
+			return NULL;
 		}
-		curl_easy_cleanup(curl);
-	}
-	return code;
+		return parsedJSON;
+    } else {
+		outputLog("Couldn't retrieve JSON (Code: " + to_string(httpCode) + ")");
+        return NULL;
+    }
+
+    return NULL;
 }
 
-bool isUpdateAvaible()
-{
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	std::ostringstream oss;
-	bool isUpdate = false;
-	std::ostringstream link;
-	link << "http://itokoyamato.net/files/tokovoip/tokovoip_version.txt?version=" << ts3plugin_version();
-	if (CURLE_OK == curl_read(link.str(), oss))
-	{
-		// Web page successfully written to string
-		if (strcmp((char*)oss.str().c_str(), ts3plugin_version()))
-			isUpdate = true;
-		if (!strcmp((char*)oss.str().c_str(), ""))
-			isUpdate = false;
+void checkUpdate() {
+	json updateJSON = downloadJSON("http://itokoyamato.net/files/tokovoip/tokovoip_info.json");
+	if (updateJSON != NULL) {
+		outputLog("Got update json");
 	}
-	curl_global_cleanup();
-	if (isUpdate == true)
-		return (1);
-	return (0);
-}
 
-char *getUpdateMessage()
-{
-	curl_global_init(CURL_GLOBAL_ALL);
-
-	std::ostringstream oss;
-	char *message = "N/A";
-	if (CURLE_OK == curl_read("http://itokoyamato.net/files/tokovoip/tokovoip_update_message.txt", oss))
-	{
-		// Web page successfully written to string
-		const std::string html = oss.str();
-		message = (char*)oss.str().c_str();
+	if (updateJSON == NULL || updateJSON.find("minVersion") == updateJSON.end() || updateJSON.find("currentVersion") == updateJSON.end()) {
+		outputLog("Invalid update JSON");
+		Sleep(600000); // Don't check for another 10mins
+		return;
 	}
-	curl_global_cleanup();
-	return (message);
-}
 
-DWORD WINAPI checkUpdateThread(LPVOID lpParam)
-{
-	while (!exitCheckUpdateThread)
-	{
-		outputLog("Checking for updates", 0);
-		if (isUpdateAvaible() == true) {
-			outputLog("Update available", 0);
-			MessageBox(NULL, getUpdateMessage(), "TokoVOIP: Update", MB_OK);
-			Sleep(3600000);
+	string minVersion = updateJSON["minVersion"];
+	string minVersionNum = updateJSON["minVersion"];
+	minVersionNum.erase(remove(minVersionNum.begin(), minVersionNum.end(), '.'), minVersionNum.end());
+	
+	string currentVersion = updateJSON["currentVersion"];
+	string currentVersionNum = updateJSON["currentVersion"];
+	currentVersionNum.erase(remove(currentVersionNum.begin(), currentVersionNum.end(), '.'), currentVersionNum.end());
+
+	string myVersion = ts3plugin_version();
+	myVersion.erase(remove(myVersion.begin(), myVersion.end(), '.'), myVersion.end());
+
+	string updateMessage;
+	if (updateJSON.find("versions") != updateJSON.end() &&
+		updateJSON["versions"].find(currentVersion) != updateJSON["versions"].end() &&
+		updateJSON["versions"][currentVersion].find("updateMessage") != updateJSON["versions"][currentVersion].end()) {
+
+		string str = updateJSON["versions"][currentVersion]["updateMessage"];
+		updateMessage = str;
+	} else {
+		string str = updateJSON["defaultUpdateMessage"];
+		updateMessage = str;
+	}
+
+	if (myVersion < currentVersionNum) {
+		string url = "";
+		if (updateJSON.find("versions") != updateJSON.end() &&
+			updateJSON["versions"].find(currentVersion) != updateJSON["versions"].end() &&
+			updateJSON["versions"][currentVersion].find("updateUrl") != updateJSON["versions"][currentVersion].end()) {
+
+			string tmp = updateJSON["versions"][currentVersion]["updateUrl"];
+			url = tmp;
 		}
-		else
-			Sleep(600000);
+
+		MessageBox(NULL, updateMessage.c_str(), "TokoVOIP: update", MB_OK);
+
+		if (myVersion < minVersionNum && updateJSON.find("minVersionWarningMessage") != updateJSON.end() && !updateJSON["minVersionWarningMessage"].is_null()) {
+			string minVersionWarningMessage = updateJSON["minVersionWarningMessage"];
+			MessageBox(NULL, minVersionWarningMessage.c_str(), "TokoVOIP: update", MB_OK);
+		}
 	}
-	return NULL;
 }
 
-int Tokovoip::initialize(char *id)
-{
+int Tokovoip::initialize(char *id) {
 	plugin_id = id;
 	const int sz = strlen(id) + 1;
 	plugin_id = (char*)malloc(sz * sizeof(char));
@@ -501,14 +531,13 @@ int Tokovoip::initialize(char *id)
 	if (isRunning != 0)
 		return (0);
 	outputLog("TokoVOIP initialized", 0);
-	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetClientsAll();
 	exitTimeoutThread = false;
 	exitSendDataThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
 	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
-	threadCheckUpdate = CreateThread(NULL, 0, checkUpdateThread, NULL, 0, NULL);
+	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
 	return (1);
@@ -516,9 +545,10 @@ int Tokovoip::initialize(char *id)
 
 void Tokovoip::shutdown()
 {
+	exitTimeoutThread = true;
+	exitSendDataThread = true;
 	server.stop();
-	unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
-	resetVolumeAll(ts3Functions.getCurrentServerConnectionHandlerID());
+	resetClientsAll();
 
 	DWORD exitCode;
 	BOOL result = GetExitCodeThread(threadService, &exitCode);
@@ -553,6 +583,16 @@ vector<string> explode(const string& str, const char& ch) {
 
 // Utils
 
+bool isChannelWhitelisted(json data, string channel) {
+	if (data == NULL) return false;
+	if (data.find("TSChannelWhitelist") == data.end()) return false;
+	for (json::iterator it = data["TSChannelWhitelist"].begin(); it != data["TSChannelWhitelist"].end(); ++it) {
+		string whitelistedChannel = it.value();
+		if (whitelistedChannel == channel) return true;
+	}
+	return false;
+}
+
 void playWavFile(const char* fileNameWithoutExtension)
 {
 	char pluginPath[PATH_BUFSIZE];
@@ -566,51 +606,51 @@ void playWavFile(const char* fileNameWithoutExtension)
 	}
 }
 
-int	setClientName(char* name)
+void	setClientName(string name)
 {
 	DWORD error;
 	char* currentName;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 
-	error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
-	if (error != ERROR_ok && error != ERROR_ok_no_update)
+	// Cancel name change is anti-spam timer still active
+	if (time(nullptr) - lastNameSetTick < 2) return;
+
+	lastNameSetTick = time(nullptr);
+
+	if ((error = ts3Functions.flushClientSelfUpdates(serverId, NULL)) != ERROR_ok && error != ERROR_ok_no_update)
+		return outputLog("Can't flush self updates.", error);
+
+	if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &currentName)) != ERROR_ok)
+		return outputLog("Error getting client nickname", error);
+
+	// Cancel name changing if name is already the same
+	if (name == (string)currentName) return;
+
+	// Set name
+	if ((error = ts3Functions.setClientSelfVariableAsString(serverId, CLIENT_NICKNAME, name.c_str())) != ERROR_ok)
+		return outputLog("Error setting client nickname", error);
+		
+	if ((error = ts3Functions.flushClientSelfUpdates(serverId, NULL)) != ERROR_ok && error != ERROR_ok_no_update)
 		outputLog("Can't flush self updates.", error);
-	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CLIENT_NICKNAME, &currentName)) != ERROR_ok) {
-		outputLog("Error getting client nickname", error);
-		return (0);
-	}
-	if (strcmp(currentName, name) == 0 || strcmp(lastNameSet, name) == 0 || time(nullptr) - lastNameSetTick < 1)
-		return (1);
-	if ((error = ts3Functions.setClientSelfVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_NICKNAME, name)) != ERROR_ok) {
-		outputLog("Error setting client nickname", error);
-		return (0);
-	}
-	else
-	{
-		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
-		if (error != ERROR_ok && error != ERROR_ok_no_update)
-			outputLog("Can't flush self updates.", error);
-		lastNameSet = name;
-		lastNameSetTick = time(nullptr);
-		return (1);
-	}
 }
 
 void setClientTalking(bool status)
 {
 	DWORD error;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	if (status)
 	{
-		if ((error = ts3Functions.setClientSelfVariableAsInt(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
+		if ((error = ts3Functions.setClientSelfVariableAsInt(serverId, CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
 			outputLog("Can't active input.", error);
-		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		error = ts3Functions.flushClientSelfUpdates(serverId, NULL);
 		if (error != ERROR_ok && error != ERROR_ok_no_update)
 			outputLog("Can't flush self updates.", error);
 	}
 	else
 	{
-		if ((error = ts3Functions.setClientSelfVariableAsInt(ts3Functions.getCurrentServerConnectionHandlerID(), CLIENT_INPUT_DEACTIVATED, 1)) != ERROR_ok)
+		if ((error = ts3Functions.setClientSelfVariableAsInt(serverId, CLIENT_INPUT_DEACTIVATED, 1)) != ERROR_ok)
 			outputLog("Can't deactive input.", error);
-		error = ts3Functions.flushClientSelfUpdates(ts3Functions.getCurrentServerConnectionHandlerID(), NULL);
+		error = ts3Functions.flushClientSelfUpdates(serverId, NULL);
 		if (error != ERROR_ok && error != ERROR_ok_no_update)
 			outputLog("Can't flush self updates.", error);
 	}
@@ -624,9 +664,8 @@ void	sendCallback(string str)
 
 		a_connection->send(send_stream, [](const SimpleWeb::error_code& ec) {
 			if (ec) {
-				std::ostringstream oss;
-				oss << "Server: Error sending message. " << "Error: " << ec << ", error message: " << ec.message();
-				outputLog((char*)oss.str().c_str(), 1);
+				string errorMsg = "Server: Error sending message:" + ec.message();
+				outputLog((char*)errorMsg.c_str(), 1);
 			}
 		});
 	}
@@ -659,42 +698,32 @@ void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool 
 	}
 }
 
-char	*getPluginVersionAsString()
+void outputLog(string message, DWORD errorCode)
 {
-	char *version = "TokoVOIP version:";
-	char full_text[24];
-	strcpy(full_text, version);
-	strcat(full_text, ts3plugin_version());
-	full_text[23] = '\0';
-	return (full_text);
-}
+	string output = message;
+	if (errorCode != NULL) {
+		char* errorBuffer;
+		ts3Functions.getErrorMessage(errorCode, &errorBuffer);
+		output = output + " : " + string(errorBuffer);
+		ts3Functions.freeMemory(errorBuffer);
+	}
 
-void outputLog(char* message, DWORD errorCode)
-{
-	char* errorBuffer;
-	ts3Functions.getErrorMessage(errorCode, &errorBuffer);
-	std::string output = std::string(message) + std::string(" : ") + std::string(errorBuffer);
 	ts3Functions.logMessage(output.c_str(), LogLevel_INFO, "TokoVOIP", 141);
-	ts3Functions.freeMemory(errorBuffer);
 }
 
 void resetVolumeAll(uint64 serverConnectionHandlerID)
 {
-	std::vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
+	vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
 	anyID myId = getMyId(serverConnectionHandlerID);
 	DWORD error;
 	char *UUID;
 
-	for (auto it = clientsIds.begin(); it != clientsIds.end(); it++)
-	{
-		if (!(*it == myId))
-		{
-			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*it), 0.0f);
-			if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), *it, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+	for (auto clientId = clientsIds.begin(); clientId != clientsIds.end(); clientId++) {
+		if (*clientId != myId) {
+			ts3Functions.setClientVolumeModifier(serverConnectionHandlerID, (*clientId), 0.0f);
+			if ((error = ts3Functions.getClientVariableAsString(serverConnectionHandlerID, *clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
-			}
-			else
-			{
+			} else {
 				tokovoip->setRadioData(UUID, false);
 			}
 		}
@@ -719,19 +748,40 @@ void unmuteAll(uint64 serverConnectionHandlerID)
 	ts3Functions.freeMemory(ids);
 }
 
-std::vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId)
+void resetPositionAll(uint64 serverConnectionHandlerID)
 {
-	std::vector<anyID> result;
-	anyID* clients = NULL;
-	if (ts3Functions.getChannelClientList(serverConnectionHandlerID, channelId, &clients) == ERROR_ok)
+	vector<anyID> clientsIds = getChannelClients(serverConnectionHandlerID, getCurrentChannel(serverConnectionHandlerID));
+	anyID myId = getMyId(serverConnectionHandlerID);
+
+	ts3Functions.systemset3DListenerAttributes(serverConnectionHandlerID, NULL, NULL, NULL);
+
+	for (auto clientId = clientsIds.begin(); clientId != clientsIds.end(); clientId++)
 	{
+		if (*clientId != myId) ts3Functions.channelset3DAttributes(serverConnectionHandlerID, *clientId, NULL);
+	}
+}
+
+void resetClientsAll() {
+	uint64 serverConnectionHandlerID = ts3Functions.getCurrentServerConnectionHandlerID();
+	resetPositionAll(serverConnectionHandlerID);
+	resetVolumeAll(serverConnectionHandlerID);
+	unmuteAll(serverConnectionHandlerID);
+}
+
+vector<anyID> getChannelClients(uint64 serverConnectionHandlerID, uint64 channelId)
+{
+	DWORD error;
+	vector<anyID> result;
+	anyID* clients = NULL;
+	if ((error = ts3Functions.getChannelClientList(serverConnectionHandlerID, channelId, &clients)) == ERROR_ok) {
 		int i = 0;
-		while (clients[i])
-		{
+		while (clients[i]) {
 			result.push_back(clients[i]);
 			i++;
 		}
 		ts3Functions.freeMemory(clients);
+	} else {
+		outputLog("Error getting all clients from the server", error);
 	}
 	return result;
 }

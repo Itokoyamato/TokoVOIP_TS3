@@ -16,52 +16,79 @@
 
 local channels = TokoVoipConfig.channels;
 
-function addPlayerToRadio(channel, playerName)
-	if not channels[channel] then
-		channels[channel] = {name = "Call with " .. channel, subscribers = {}};
+function addPlayerToRadio(channelId, playerServerId)
+	if (not channels[channelId]) then
+		channels[channelId] = {id = channelId, name = "Call with " .. channelId, subscribers = {}};
+	end
+	if (not channels[channelId].id) then
+		channels[channelId].id = channelId;
 	end
 
-	channels[channel].subscribers[playerName] = playerName;
-	print("Added " .. playerName .. " to channel " .. channel);
-	TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
+	channels[channelId].subscribers[playerServerId] = playerServerId;
+	print("Added [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " to channel " .. channelId);
+
+	for _, subscriberServerId in pairs(channels[channelId].subscribers) do
+		if (subscriberServerId ~= playerServerId) then
+			TriggerClientEvent("TokoVoip:onPlayerJoinChannel", subscriberServerId, channelId, playerServerId);
+		else
+			-- Send whole channel data to new subscriber
+			TriggerClientEvent("TokoVoip:onPlayerJoinChannel", subscriberServerId, channelId, playerServerId, channels[channelId]);
+		end
+	end
 end
 RegisterServerEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
 
-function removePlayerFromRadio(channel, playerName)
-	if (channels[channel] and channels[channel].subscribers[playerName]) then
-		channels[channel].subscribers[playerName] = nil;
-		if (channel > 100) then
-			if (#channels[channel].subscribers == 0) then
-				channels[channel] = nil;
-				TriggerClientEvent("TokoVoip:removeChannel", -1, channel);
+function removePlayerFromRadio(channelId, playerServerId)
+	if (channels[channelId] and channels[channelId].subscribers[playerServerId]) then
+		channels[channelId].subscribers[playerServerId] = nil;
+		if (channelId > 100) then
+			if (#channels[channelId].subscribers == 0) then
+				channels[channelId] = nil;
 			end
 		end
-		TriggerClientEvent("TokoVoip:updateChannels", -1, channels);
-		print("Removed " .. playerName .. " from channel " .. channel);
+		print("Removed [" .. playerServerId .. "] " .. (GetPlayerName(playerServerId) or "") .. " from channel " .. channelId);
+
+		-- Tell unsubscribed player he's left the channel as well
+		TriggerClientEvent("TokoVoip:onPlayerLeaveChannel", playerServerId, channelId, playerServerId);
+
+		-- Channel does not exist, no need to update anyone else
+		if (not channels[channelId]) then return end
+
+		for _, subscriberServerId in pairs(channels[channelId].subscribers) do
+			TriggerClientEvent("TokoVoip:onPlayerLeaveChannel", subscriberServerId, channelId, playerServerId);
+		end
 	end
 end
 RegisterServerEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
-function clientRequestUpdateChannels()
-	TriggerClientEvent("TokoVoip:updateChannels", source, channels);
+function removePlayerFromAllRadio(playerServerId)
+	for channelId, channel in pairs(channels) do
+		if (channel.subscribers[playerServerId]) then
+			removePlayerFromRadio(channelId, playerServerId);
+		end
+	end
 end
-RegisterServerEvent("TokoVoip:clientRequestUpdateChannels");
-AddEventHandler("TokoVoip:clientRequestUpdateChannels", clientRequestUpdateChannels);
+RegisterServerEvent("TokoVoip:removePlayerFromAllRadio");
+AddEventHandler("TokoVoip:removePlayerFromAllRadio", removePlayerFromAllRadio);
+
+AddEventHandler("playerDropped", function()
+	removePlayerFromAllRadio(source);
+end);
 
 function printChannels()
 	for i, channel in pairs(channels) do
 		RconPrint("Channel: " .. channel.name .. "\n");
 		for j, player in pairs(channel.subscribers) do
-			RconPrint("- " .. player .. "\n");
+			RconPrint("- [" .. player .. "] " .. GetPlayerName(player) .. "\n");
 		end
 	end
 end
 
 AddEventHandler('rconCommand', function(commandName, args)
 	if commandName == 'voipChannels' then
-		printChannels(true);
+		printChannels();
 		CancelEvent();
 	end
 end)

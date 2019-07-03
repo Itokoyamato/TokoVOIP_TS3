@@ -27,7 +27,7 @@ void SettingsRadio::Init(Radio *radio)
 		auto& context_menu = plugin->context_menu();
 		m_ContextMenuUi = context_menu.Register(this, PLUGIN_MENU_TYPE_GLOBAL, "Radio FX", "walkie_talkie_16.png");
 		m_ContextMenuUnmute = context_menu.Register(this, PLUGIN_MENU_TYPE_GLOBAL, "Unmute All", "");
-		m_ContextMenuChannelUi = context_menu.Register(this,PLUGIN_MENU_TYPE_CHANNEL,"Radio FX (Channel)","walkie_talkie_16.png");
+		// m_ContextMenuChannelUi = context_menu.Register(this,PLUGIN_MENU_TYPE_CHANNEL,"Radio FX (Channel)","walkie_talkie_16.png");
         m_ContextMenuToggleClientBlacklisted = context_menu.Register(this,PLUGIN_MENU_TYPE_CLIENT, "Radio FX: Toggle Client Blacklisted [temp]", "walkie_talkie_16.png");
         connect(&context_menu, &TSContextMenu::MenusInitialized, this, [=]()
         {
@@ -37,8 +37,8 @@ void SettingsRadio::Init(Radio *radio)
 			if (m_ContextMenuUnmute == -1)
 				TSLogging::Error(QString("%1: Menu unmute wasn't registered.").arg(this->objectName()));
 
-            if (m_ContextMenuChannelUi == -1)
-                TSLogging::Error(QString("%1: Channel Menu wasn't registered.").arg(this->objectName()));
+            // if (m_ContextMenuChannelUi == -1)
+            //     TSLogging::Error(QString("%1: Channel Menu wasn't registered.").arg(this->objectName()));
 
             if (m_ContextMenuToggleClientBlacklisted == -1)
                 TSLogging::Error(QString("%1: Toggle Client Blacklisted menu item wasn't registered.").arg(this->objectName()));
