@@ -111,8 +111,10 @@ function clientProcessing()
 		local callList = {};
 		local usersdata = {};
 		local localHeading;
+		local playerPed = PlayerPedId();
+
 		if (voip.headingType == 1) then
-			localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
+			localHeading = math.rad(GetEntityHeading(playerPed));
 		else
 			localHeading = math.rad(GetGameplayCamRot().z % 360);
 		end
@@ -120,7 +122,7 @@ function clientProcessing()
 		local HeadBone = 0x796e;
 
 		if useLocalPed then
-			localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone);
+			localPos = GetPedBoneCoords(playerPed, HeadBone);
 		else
 			localPos = GetPedBoneCoords(targetPed, HeadBone);
 		end
@@ -131,7 +133,7 @@ function clientProcessing()
 			local player = playerList[i];
 			local playerServerId = GetPlayerServerId(player);
 
-				if (GetPlayerPed(-1) and GetPlayerPed(player) and voip.serverId ~= playerServerId) then
+				if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 
 					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 					local dist = #(localPos - playerPos);
