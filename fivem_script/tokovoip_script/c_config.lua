@@ -40,7 +40,7 @@ TokoVoipConfig = {
 		-- The following is purely TS client settings, to match tastes
 		local_click_on = true, -- Is local click on sound active
 		local_click_off = true, -- Is local click off sound active
-		remote_click_on = false, -- Is remote click on sound active
+		remote_click_on = true, -- Is remote click on sound active
 		remote_click_off = false, -- Is remote click off sound active
 		enableStereoAudio = false, -- If set to true, positional audio will be stereo (you can hear people more on the left or the right around you)
 
