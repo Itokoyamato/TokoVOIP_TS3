@@ -58,6 +58,13 @@ function resourceStart(resource)
 				TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
 			end
 			TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
+
+			while true do
+				NetworkSetVoiceChannel(GetPlayerServerId(PlayerId()))
+				NetworkSetVoiceActive(false)
+
+				Citizen.Wait(60000)
+			end
 		end);
 	end
 end
