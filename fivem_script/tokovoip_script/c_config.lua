@@ -52,8 +52,6 @@ TokoVoipConfig = {
 function resourceStart(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
 		Citizen.CreateThread(function()
-			NetworkSetVoiceChannel(GetPlayerServerId(PlayerId()))
-			NetworkSetVoiceActive(false)
 			if TokoVoipConfig.plugin_data.localName == "" then
 				TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
 			end
