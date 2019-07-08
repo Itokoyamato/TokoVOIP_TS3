@@ -15,15 +15,16 @@
 // --------------------------------------------------------------------------------
 
 function getTickCount() {
-	var date = new Date();
-	var tick = date.getTime();
+	let date = new Date();
+	let tick = date.getTime();
 	return (tick);
 }
 
-var websocket;
-var connected = false;
-var lastPing = 0;
-var lastReconnect = 0;
+let websocket;
+let connected = false;
+let lastPing = 0;
+let lastReconnect = 0;
+let lastOk = 0;
 
 let voip = {};
 
@@ -159,8 +160,12 @@ function receivedClientCall(event) {
 		checkPluginVersion();
 
 	if (voipStatus != OK) {
-		displayPluginScreen(true);
+		// If no Ok status for more than 5 seconds, display screen
+		if (getTickCount() - lastOk > 5000) {
+			displayPluginScreen(true);
+		}
 	} else {
+		lastOk = getTickCount();
 		displayPluginScreen(false);
 	}
 
