@@ -249,6 +249,7 @@ RegisterNetEvent("TokoVoip:onPlayerLeaveChannel");
 AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServerId)
 	-- Local player left channel
 	if (playerServerId == voip.serverId and voip.myChannels[channelId]) then
+		local previousChannel = voip.plugin_data.radioChannel;
 		voip.myChannels[channelId] = nil;
 		if (voip.plugin_data.radioChannel == channelId) then -- If current radio channel is still removed channel, reset to first available channel or none
 			if (tablelength(voip.myChannels) > 0) then
@@ -261,8 +262,7 @@ AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServe
 			end
 		end
 
-		local currentChannel = voip.plugin_data.radioChannel;
-		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 		end
 
@@ -276,12 +276,12 @@ RegisterNetEvent("TokoVoip:onPlayerJoinChannel");
 AddEventHandler("TokoVoip:onPlayerJoinChannel", function(channelId, playerServerId, channelData)
 	-- Local player joined channel
 	if (playerServerId == voip.serverId and channelData) then
-		local currentChannel = voip.plugin_data.radioChannel;
+		local previousChannel = voip.plugin_data.radioChannel;
 
 		voip.plugin_data.radioChannel = channelData.id;
 		voip.myChannels[channelData.id] = channelData;
 
-		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 		end
 
