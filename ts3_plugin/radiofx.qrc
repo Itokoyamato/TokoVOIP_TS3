@@ -1,8 +1,0 @@
-<RCC>
-    <qresource prefix="/locales">
-        <file alias="radiofx_de_DE">res/radiofx_de_DE.qm</file>
-    </qresource>
-    <qresource prefix="/icons">
-        <file alias="delete.png">res/16x16_delete.png</file>
-    </qresource>
-</RCC>

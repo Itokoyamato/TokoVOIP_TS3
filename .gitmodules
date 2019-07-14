@@ -1,9 +1,3 @@
-[submodule "ts3_plugin/deps/DSPFilters"]
-	path = ts3_plugin/deps/DSPFilters
-	url = https://github.com/vinniefalco/DSPFilters
-[submodule "ts3_plugin/deps/teamspeak-plugin-qt-common"]
-	path = ts3_plugin/deps/teamspeak-plugin-qt-common
-	url = https://github.com/thorwe/teamspeak-plugin-qt-common
 [submodule "ts3_plugin/deps/Simple-WebSocket-Server"]
 	path = ts3_plugin/deps/Simple-WebSocket-Server
 	url = https://gitlab.com/eidheim/Simple-WebSocket-Server
@@ -13,3 +7,6 @@
 [submodule "ts3_plugin/deps/json"]
 	path = ts3_plugin/deps/json
 	url = https://github.com/nlohmann/json.git
+[submodule "ts3_plugin/deps/teamspeak-plugin-radiofx"]
+	path = ts3_plugin/deps/teamspeak-plugin-radiofx
+	url = https://github.com/Itokoyamato/teamspeak-plugin-radiofx
