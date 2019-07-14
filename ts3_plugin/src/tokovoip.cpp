@@ -38,7 +38,6 @@ bool isTalking = false;
 char* originalName = "";
 time_t lastPingTick = 0;
 int pluginStatus = 0;
-bool processingMessage = false;
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
@@ -55,7 +54,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::InMessage> message) {
 
-		processingMessage = true;
+		tokovoip->setProcessingState(true);
 		lastPingTick = time(nullptr);
 		pluginStatus = 1;
 		ServerConnection = connection;
@@ -66,7 +65,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 
 		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
 		{
-			processingMessage = false;
+			tokovoip->setProcessingState(false);
 			return (0);
 		}
 
@@ -81,7 +80,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		// Check if connected to any channel
 		if (thisChannelName == "")
 		{
-			processingMessage = false;
+			tokovoip->setProcessingState(false);
 			return (0);
 		}
 
@@ -91,7 +90,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		json json_data = json::parse(message_str.c_str(), nullptr, false);
 		if (json_data.is_discarded()) {
 			ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
-			processingMessage = false;
+			tokovoip->setProcessingState(false);
 			return (0);
 		}
 
@@ -114,7 +113,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		if (isChannelWhitelisted(json_data, thisChannelName)) {
 			resetClientsAll();
 			pluginStatus = 3;
-			processingMessage = false;
+			tokovoip->setProcessingState(false);
 			return (0);
 		}
 
@@ -156,14 +155,14 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 									{
 										setClientMuteStatus(serverId, *clientIdIterator, true);
 									}
-									processingMessage = false;
+									tokovoip->setProcessingState(false);
 									return (0);
 								}
 								lastChannelJoin = time(nullptr);
 								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
 									outputLog("Can't join channel", error);
 									pluginStatus = 2;
-									processingMessage = false;
+									tokovoip->setProcessingState(false);
 									return (0);
 								}
 								else
@@ -181,7 +180,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			{
 				resetClientsAll();
 				pluginStatus = 2;
-				processingMessage = false;
+				tokovoip->setProcessingState(false);
 				return (0);
 			}
 		}
@@ -192,7 +191,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		if (originalName == "")
 			if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
 				outputLog("Error getting client nickname", error);
-				processingMessage = false;
+				tokovoip->setProcessingState(false);
 				return (0);
 			}
 
@@ -283,7 +282,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			}
 		}
 		pluginStatus = 3;
-		processingMessage = false;
+		tokovoip->setProcessingState(false);
 		//--------------------------------------------------------
 
 
@@ -348,7 +347,7 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
 									outputLog("Can't join channel", error);
 									pluginStatus = 2;
-									processingMessage = false;
+									tokovoip->setProcessingState(false);
 									return (0);
 								}
 								else
@@ -378,9 +377,8 @@ DWORD WINAPI TimeoutThread(LPVOID lpParam)
 
 DWORD WINAPI SendDataThread(LPVOID lpParam)
 {
-	while (!exitSendDataThread)
-	{
-		if (processingMessage == false) {
+	while (!exitSendDataThread) {
+		if (tokovoip->getProcessingState() == false) {
 			sendCallback("TokoVOIP version:" + (string)ts3plugin_version());
 			sendCallback("TokoVOIP status:" + to_string(pluginStatus));
 
@@ -392,7 +390,7 @@ DWORD WINAPI SendDataThread(LPVOID lpParam)
 				free(UUID);
 			}
 		}
-		if (processingMessage == false)
+		if (tokovoip->getProcessingState() == false)
 			Sleep(1000);
 		else
 			Sleep(50);
@@ -532,14 +530,14 @@ int Tokovoip::initialize(char *id) {
 		return (0);
 	outputLog("TokoVOIP initialized", 0);
 	resetClientsAll();
+	checkUpdate();
+	isRunning = false;
+	tokovoip = this;
 	exitTimeoutThread = false;
 	exitSendDataThread = false;
 	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
 	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
-	checkUpdate();
-	isRunning = false;
-	tokovoip = this;
 	return (1);
 }
 

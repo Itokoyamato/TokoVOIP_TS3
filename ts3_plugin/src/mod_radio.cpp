@@ -361,10 +361,8 @@ void Radio::onEditPlaybackVoiceDataEvent(uint64 serverConnectionHandlerID, anyID
 	char *UUID;
 	if ((error = ts3Functions.getClientVariableAsString(ts3Functions.getCurrentServerConnectionHandlerID(), clientID, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 		outputLog("Error getting client UUID", error);
-	}
-	else
-	{
-		if (tokovoip.getRadioData(UUID))
+	} else {
+		if (tokovoip.getSafeRadioData(UUID))
 			server_dsp_radios->value(clientID)->process(samples, sampleCount, channels);
 		ts3Functions.freeMemory(UUID);
 	}
