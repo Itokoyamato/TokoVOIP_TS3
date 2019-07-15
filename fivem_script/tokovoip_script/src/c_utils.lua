@@ -42,6 +42,9 @@ AddEventHandler("onClientPlayerReady", refreshAllPlayerData);
 function doRefreshAllPlayerData(serverData)
 	for playerServerId, playerData in pairs(serverData) do
 		for key, data in pairs(playerData) do
+			if (not playersData[playerServerId]) then
+				playerData[playerServerId] = {};
+			end
 			playersData[playerServerId][key] = {data = data, shared = true};
 		end
 	end
