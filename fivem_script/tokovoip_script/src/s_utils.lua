@@ -24,7 +24,7 @@ function setPlayerData(playerServerId, key, data, shared)
 		playersData[playerServerId][key] = data;
 		TriggerClientEvent("Tokovoip:setPlayerData", -1, playerServerId, key, data);
 	else
-		TriggerClientEvent("Tokovoip:setPlayerData", playerServerId, playerName, key, data);
+		TriggerClientEvent("Tokovoip:setPlayerData", playerServerId, playerServerId, key, data);
 	end
 end
 RegisterNetEvent("Tokovoip:setPlayerData");
