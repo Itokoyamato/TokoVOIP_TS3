@@ -15,15 +15,16 @@
 // --------------------------------------------------------------------------------
 
 function getTickCount() {
-	var date = new Date();
-	var tick = date.getTime();
+	let date = new Date();
+	let tick = date.getTime();
 	return (tick);
 }
 
-var websocket;
-var connected = false;
-var lastPing = 0;
-var lastReconnect = 0;
+let websocket;
+let connected = false;
+let lastPing = 0;
+let lastReconnect = 0;
+let lastOk = 0;
 
 let voip = {};
 
@@ -51,17 +52,17 @@ function init() {
 			lastPing = getTickCount();
 			forcedInfo = false;
 			const pluginStatus = evt.data.split(':')[1].replace(/\./g, '');
-			updatePluginData('pluginStatus', parseInt(pluginStatus));
+			updateScriptData('pluginStatus', parseInt(pluginStatus));
 		}
 
 		// Handle plugin version
 		if (evt.data.includes('TokoVOIP version:')) {
-			updatePluginData('pluginVersion', evt.data.split(':')[1]);
+			updateScriptData('pluginVersion', evt.data.split(':')[1]);
 		}
 
 		// Handle plugin UUID
 		if (evt.data.includes('TokoVOIP UUID:')) {
-			updatePluginData('pluginUUID', evt.data.split(':')[1]);
+			updateScriptData('pluginUUID', evt.data.split(':')[1]);
 		}
 
 		// Handle talking states
@@ -113,7 +114,7 @@ function init() {
 		console.log('TokoVOIP: closed connection - ' + reason);
 		lastReconnect = getTickCount();
 		connected = false;
-		updatePluginData('pluginStatus', -1);
+		updateScriptData('pluginStatus', -1);
 		init();
 	};
 }
@@ -125,45 +126,33 @@ function sendData(message) {
 }
 
 function receivedClientCall(event) {
+	const eventName = event.data.type;
+	const payload = event.data.payload;
+
 	// Start with a status OK by default, and change the status if issues are encountered
 	voipStatus = OK;
 
-	if (event.data.voipData) {
-		voip = event.data.voipData;
-	}
+	if (eventName == 'updateConfig') {
+		updateConfig(payload);
 
-	if (event.data.type == 'initializeSocket') {
-		
-		document.getElementById('TSServer').innerHTML = `TeamSpeak server: <font color="#01b0f0">${voip.plugin_data.TSServer}</font>`;
-		document.getElementById('TSChannel').innerHTML = `TeamSpeak channel: <font color="#01b0f0">${(voip.plugin_data.TSChannelWait) ? voip.plugin_data.TSChannelWait : voip.plugin_data.TSChannel}</font>`;
-		document.getElementById('TSDownload').innerHTML = voip.plugin_data.TSDownload;
-		document.getElementById('TSChannelSupport').innerHTML = voip.plugin_data.TSChannelSupport;
-		lastPing = getTickCount();
-		lastReconnect = getTickCount();
-		init();
-	} else if (event.data.type == "updateTokovoipInfo") {
-		if (connected)
-			updateTokovoipInfo(event.data.data, 1);
-	} else if (event.data.type == 'updateTokoVoip') {
-		const timeout = getTickCount() - lastPing;
-		const lastRetry = getTickCount() - lastReconnect;
-		if (timeout >= 10000 && lastRetry >= 5000) {
-			console.log('TokoVOIP: timed out - ' + (timeout) + ' - ' + (lastRetry));
+	} else if (voip) {
+		if (eventName == 'initializeSocket') {
+			lastPing = getTickCount();
 			lastReconnect = getTickCount();
-			connected = false;
-			updatePluginData('pluginStatus', -1);
 			init();
-		} else if (connected) {
-			try {
-				JSON.parse(event.data.data);
-			} catch (e) {
-				return console.log('TokoVOIP: error in JSON data', e);
-			}
-			sendData(event.data.data);
+	
+		} else if (eventName == 'updateTokovoipInfo') {
+			if (connected)
+				updateTokovoipInfo(payload, 1);
+	
+		} else if (eventName == 'updateTokoVoip') {
+			voip.plugin_data = payload;
+			updatePlugin();
+	
+		} else if (eventName == 'disconnect') {
+			sendData('disconnect');
+			voipStatus = NOT_CONNECTED;
 		}
-	} else if (event.data.type == 'disconnect') {
-		sendData('disconnect');
-		voipStatus = NOT_CONNECTED;
 	}
 
 	checkPluginStatus();
@@ -171,8 +160,12 @@ function receivedClientCall(event) {
 		checkPluginVersion();
 
 	if (voipStatus != OK) {
-		displayPluginScreen(true);
+		// If no Ok status for more than 5 seconds, display screen
+		if (getTickCount() - lastOk > 5000) {
+			displayPluginScreen(true);
+		}
 	} else {
+		lastOk = getTickCount();
 		displayPluginScreen(false);
 	}
 
@@ -257,7 +250,29 @@ function updateTokovoipInfo(msg) {
 	document.getElementById('pluginStatus').innerHTML = `Plugin status: <font color="${color}">${screenMessage || msg}</font>`;
 }
 
-function updatePluginData(key, data) {
+function updateConfig(payload) {
+	voip = payload;
+	document.getElementById('TSServer').innerHTML = `TeamSpeak server: <font color="#01b0f0">${voip.plugin_data.TSServer}</font>`;
+	document.getElementById('TSChannel').innerHTML = `TeamSpeak channel: <font color="#01b0f0">${(voip.plugin_data.TSChannelWait) ? voip.plugin_data.TSChannelWait : voip.plugin_data.TSChannel}</font>`;
+	document.getElementById('TSDownload').innerHTML = voip.plugin_data.TSDownload;
+	document.getElementById('TSChannelSupport').innerHTML = voip.plugin_data.TSChannelSupport;
+}
+
+function updatePlugin() {
+	const timeout = getTickCount() - lastPing;
+	const lastRetry = getTickCount() - lastReconnect;
+	if (timeout >= 10000 && lastRetry >= 5000) {
+		console.log('TokoVOIP: timed out - ' + (timeout) + ' - ' + (lastRetry));
+		lastReconnect = getTickCount();
+		connected = false;
+		updateScriptData('pluginStatus', -1);
+		init();
+	} else if (connected) {
+		sendData(JSON.stringify(voip.plugin_data));
+	}
+}
+
+function updateScriptData(key, data) {
 	if (voip[key] === data) return;
 	$.post(`http://tokovoip_script/updatePluginData`, JSON.stringify({
 		payload: {

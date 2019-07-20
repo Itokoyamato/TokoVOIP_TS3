@@ -42,6 +42,9 @@ AddEventHandler("onClientPlayerReady", refreshAllPlayerData);
 function doRefreshAllPlayerData(serverData)
 	for playerServerId, playerData in pairs(serverData) do
 		for key, data in pairs(playerData) do
+			if (not playersData[playerServerId]) then
+				playerData[playerServerId] = {};
+			end
 			playersData[playerServerId][key] = {data = data, shared = true};
 		end
 	end
@@ -177,18 +180,6 @@ end
 
 function escape(str)
 	return str:gsub( "%W", "");
-end
-
-function getPlayers()
-	local players = {};
-
-	for i = 0, 256 do
-		if (NetworkIsPlayerActive(i)) then
-			players[#players + 1] = i;
-		end
-	end
-
-	return (players);
 end
 
 Keys = {

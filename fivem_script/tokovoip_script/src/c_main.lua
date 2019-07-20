@@ -17,10 +17,138 @@
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
-local scriptVersion = "1.3.2";
+local scriptVersion = "1.3.3";
+local animStates = {}
+local displayingPluginScreen = false;
+local HeadBone = 0x796e;
 
-function initializeVoip()
-	if (isRunning) then return print("TokoVOIP is already running"); end
+--------------------------------------------------------------------------------
+--	Plugin functions
+--------------------------------------------------------------------------------
+
+-- Handles the talking state of other players to apply talking animation to them
+local function setPlayerTalkingState(player, playerServerId)
+	local talking = tonumber(getPlayerData(playerServerId, "voip:talking"));
+	if (animStates[playerServerId] == 0 and talking == 1) then
+		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
+	elseif (animStates[playerServerId] == 1 and talking == 0) then
+		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
+	end
+	animStates[playerServerId] = talking;
+end
+
+RegisterNUICallback("updatePluginData", function(data)
+	local payload = data.payload;
+	if (voip[payload.key] == payload.data) then return end
+	voip[payload.key] = payload.data;
+	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
+	voip:updateConfig();
+	voip:updateTokoVoipInfo(true);
+end);
+
+-- Receives data from the TS plugin on microphone toggle
+RegisterNUICallback("setPlayerTalking", function(data)
+	voip.talking = tonumber(data.state);
+
+	if (voip.talking == 1) then
+		setPlayerData(voip.serverId, "voip:talking", 1, true);
+		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
+	else
+		setPlayerData(voip.serverId, "voip:talking", 0, true);
+		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
+	end
+end)
+
+local function clientProcessing()
+	local playerList = voip.playerList;
+	local usersdata = {};
+	local localHeading;
+	local ped = PlayerPedId()
+
+	if (voip.headingType == 1) then
+		localHeading = math.rad(GetEntityHeading(ped));
+	else
+		localHeading = math.rad(GetGameplayCamRot().z % 360);
+	end
+	local localPos;
+
+	if useLocalPed then
+		localPos = GetPedBoneCoords(ped, HeadBone);
+	else
+		localPos = GetPedBoneCoords(targetPed, HeadBone);
+	end
+
+	for i=1, #playerList do
+		local player = playerList[i];
+		local playerServerId = GetPlayerServerId(player);
+		if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
+			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
+			local dist = #(localPos - playerPos);
+
+			if (not getPlayerData(playerServerId, "voip:mode")) then
+				setPlayerData(playerServerId, "voip:mode", 1);
+			end
+
+			--	Process the volume for proximity voip
+			local mode = tonumber(getPlayerData(playerServerId, "voip:mode"));
+			if (not mode or (mode ~= 1 and mode ~= 2 and mode ~= 3)) then mode = 1 end;
+			local volume = -30 + (30 - dist / voip.distance[mode] * 30);
+			if (volume >= 0) then
+				volume = 0;
+			end
+			--
+			local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
+
+			-- Set player's default data
+			local tbl = {
+				uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
+				volume = -30,
+				muted = 1,
+				radioEffect = false,
+				posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
+				posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
+				posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
+			};
+			--
+
+			-- Process proximity
+			if (dist >= voip.distance[mode]) then
+				tbl.muted = 1;
+			else
+				tbl.volume = volume;
+				tbl.muted = 0;
+			end
+			--
+			-- Process channels
+			local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
+			local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
+
+			for _, channel in pairs(voip.myChannels) do
+				if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
+					if (remotePlayerChannel <= 100) then
+						tbl.radioEffect = true;
+					end
+					tbl.volume = 0;
+					tbl.muted = 0;
+					tbl.posX = 0;
+					tbl.posY = 0;
+					tbl.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+				end
+			end
+			--
+			usersdata[#usersdata + 1] = tbl
+			setPlayerTalkingState(player, playerServerId);
+		end
+	end
+	voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
+	voip.plugin_data.posX = 0;
+	voip.plugin_data.posY = 0;
+	voip.plugin_data.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+end
+
+RegisterNetEvent("initializeVoip");
+AddEventHandler("initializeVoip", function()
+	if (isRunning) then return Citizen.Trace("TokoVOIP is already running\n"); end
 	isRunning = true;
 
 	voip = TokoVoip:init(TokoVoipConfig); -- Initialize TokoVoip and set default settings
@@ -57,6 +185,10 @@ function initializeVoip()
 
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
+	-- Request this stuff here only one time
+	RequestAnimDict("mp_facial");
+	RequestAnimDict("facials@gen_male@base");
+
 	-- Debug data stuff
 	local debugData = false;
 	Citizen.CreateThread(function()
@@ -72,7 +204,7 @@ function initializeVoip()
 			if (debugData) then
 				local pos_y;
 				local pos_x;
-				local players = getPlayers();
+				local players = GetActivePlayers();
 
 				for i = 1, #players do
 					local player = players[i];
@@ -96,99 +228,7 @@ function initializeVoip()
 			end
 		end
 	end);
-end
-RegisterNetEvent("initializeVoip");
-AddEventHandler("initializeVoip", initializeVoip);
-
-function clientProcessing()
-		local playerList = voip.playerList;
-		local usersdata = {};
-		local localHeading;
-		if (voip.headingType == 1) then
-			localHeading = math.rad(GetEntityHeading(GetPlayerPed(-1)));
-		else
-			localHeading = math.rad(GetGameplayCamRot().z % 360);
-		end
-		local localPos;
-		local HeadBone = 0x796e;
-
-		if useLocalPed then
-			localPos = GetPedBoneCoords(GetPlayerPed(-1), HeadBone);
-		else
-			localPos = GetPedBoneCoords(targetPed, HeadBone);
-		end
-
-		for i = 1, #playerList do
-			local player = playerList[i];
-			local playerServerId = GetPlayerServerId(player);
-
-				if (GetPlayerPed(-1) and GetPlayerPed(player) and voip.serverId ~= playerServerId) then
-
-					local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
-					local dist = #(localPos - playerPos);
-
-					if (not getPlayerData(playerServerId, "voip:mode")) then
-						setPlayerData(playerServerId, "voip:mode", 1);
-					end
-
-					--	Process the volume for proximity voip
-					local mode = tonumber(getPlayerData(playerServerId, "voip:mode"));
-					if (not mode or (mode ~= 1 and mode ~= 2 and mode ~= 3)) then mode = 1 end;
-					local volume = -30 + (30 - dist / voip.distance[mode] * 30);
-					if (volume >= 0) then
-						volume = 0;
-					end
-					--
-
-					local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
-
-					-- Set player's default data
-					usersdata[i] = {	
-								uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
-								volume = -30,
-								muted = 1,
-								radioEffect = false,
-								posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
-								posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
-								posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
-					};
-					--
-
-					-- Process proximity
-					if (dist >= voip.distance[mode]) then
-						usersdata[i].muted = 1;
-					else
-						usersdata[i].volume = volume;
-						usersdata[i].muted = 0;
-					end
-					--
-
-					-- Process channels
-					local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
-					local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
-
-					for _, channel in pairs(voip.myChannels) do
-						if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
-							if (remotePlayerChannel <= 100) then
-								usersdata[i].radioEffect = true;
-							end
-							usersdata[i].volume = 0;
-							usersdata[i].muted = 0;
-							usersdata[i].posX = 0;
-							usersdata[i].posY = 0;
-							usersdata[i].posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-						end
-					end
-					--
-					setPlayerTalkingState(player, playerServerId);
-				end
-		end
-		voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
-		voip.plugin_data.posX = 0;
-		voip.plugin_data.posY = 0;
-		voip.plugin_data.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-end
-
+end)
 --------------------------------------------------------------------------------
 --	Radio functions
 --------------------------------------------------------------------------------
@@ -205,9 +245,11 @@ end
 RegisterNetEvent("TokoVoip:removePlayerFromRadio");
 AddEventHandler("TokoVoip:removePlayerFromRadio", removePlayerFromRadio);
 
-function onPlayerLeaveChannel(channelId, playerServerId)
+RegisterNetEvent("TokoVoip:onPlayerLeaveChannel");
+AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServerId)
 	-- Local player left channel
 	if (playerServerId == voip.serverId and voip.myChannels[channelId]) then
+		local previousChannel = voip.plugin_data.radioChannel;
 		voip.myChannels[channelId] = nil;
 		if (voip.plugin_data.radioChannel == channelId) then -- If current radio channel is still removed channel, reset to first available channel or none
 			if (tablelength(voip.myChannels) > 0) then
@@ -220,7 +262,7 @@ function onPlayerLeaveChannel(channelId, playerServerId)
 			end
 		end
 
-		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 		end
 
@@ -228,19 +270,18 @@ function onPlayerLeaveChannel(channelId, playerServerId)
 	elseif (voip.myChannels[channelId]) then
 		voip.myChannels[channelId].subscribers[playerServerId] = nil;
 	end
-end
-RegisterNetEvent("TokoVoip:onPlayerLeaveChannel");
-AddEventHandler("TokoVoip:onPlayerLeaveChannel", onPlayerLeaveChannel);
+end)
 
-function onPlayerJoinChannel(channelId, playerServerId, channelData)
+RegisterNetEvent("TokoVoip:onPlayerJoinChannel");
+AddEventHandler("TokoVoip:onPlayerJoinChannel", function(channelId, playerServerId, channelData)
 	-- Local player joined channel
 	if (playerServerId == voip.serverId and channelData) then
-		local currentChannel = voip.plugin_data.radioChannel;
+		local previousChannel = voip.plugin_data.radioChannel;
 
 		voip.plugin_data.radioChannel = channelData.id;
 		voip.myChannels[channelData.id] = channelData;
 
-		if (currentChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
+		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
 		end
 
@@ -248,9 +289,7 @@ function onPlayerJoinChannel(channelId, playerServerId, channelData)
 	elseif (voip.myChannels[channelId]) then
 		voip.myChannels[channelId].subscribers[playerServerId] = playerServerId;
 	end
-end
-RegisterNetEvent("TokoVoip:onPlayerJoinChannel");
-AddEventHandler("TokoVoip:onPlayerJoinChannel", onPlayerJoinChannel);
+end)
 
 function isPlayerInChannel(channel)
 	if (voip.myChannels[channel]) then
@@ -260,73 +299,12 @@ function isPlayerInChannel(channel)
 	end
 end
 
-
---------------------------------------------------------------------------------
---	Plugin functions
---------------------------------------------------------------------------------
-
-function updatePluginData(data)
-	local payload = data.payload;
-	if (voip[payload.key] == payload.data) then return end
-	voip[payload.key] = payload.data;
-	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
-end
-RegisterNUICallback("updatePluginData", updatePluginData);
-
--- Receives data from the TS plugin on microphone toggle
-function setPlayerTalking(data)
-	voip.talking = tonumber(data.state);
-
-	if (voip.talking == 1) then
-		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		RequestAnimDict("mp_facial");
-		while not HasAnimDictLoaded("mp_facial") do
-			Wait(5);
-		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
-		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
-	else
-		setPlayerData(voip.serverId, "voip:talking", 0, true);
-		RequestAnimDict("facials@gen_male@base");
-		while not HasAnimDictLoaded("facials@gen_male@base") do
-			Wait(5);
-		end
-		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
-	end
-end
-RegisterNUICallback("setPlayerTalking", setPlayerTalking);
-
--- Handles the talking state of other players to apply talking animation to them
-local animStates = {}
-function setPlayerTalkingState(player, playerServerId)
-	local talking = tonumber(getPlayerData(playerServerId, "voip:talking"));
-	if (animStates[playerServerId] == 0 and talking == 1) then
-		RequestAnimDict("mp_facial");
-		while not HasAnimDictLoaded("mp_facial") do
-			Wait(5);
-		end
-		local localPos = GetEntityCoords(GetPlayerPed(-1));
-		local localHeading = GetEntityHeading(GetPlayerPed(-1));
-		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
-	elseif (animStates[playerServerId] == 1 and talking == 0) then
-		RequestAnimDict("facials@gen_male@base");
-		while not HasAnimDictLoaded("facials@gen_male@base") do
-			Wait(5);
-		end
-		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
-	end
-	animStates[playerServerId] = talking;
-end
-RegisterNUICallback("setPlayerTalking", setPlayerTalking);
-
-
 --------------------------------------------------------------------------------
 --	Specific utils
 --------------------------------------------------------------------------------
 
 -- Toggle the blocking screen with usage explanation
-local displayingPluginScreen = false;
+-- Not used
 function displayPluginScreen(toggle)
 	if (displayingPluginScreen ~= toggle) then
 		SendNUIMessage(
@@ -340,8 +318,7 @@ function displayPluginScreen(toggle)
 end
 
 -- Used for admin spectator feature
-function updateVoipTargetPed(newTargetPed, useLocal)
+AddEventHandler("updateVoipTargetPed", function(newTargetPed, useLocal)
 	targetPed = newTargetPed
 	useLocalPed = useLocal
-end
-AddEventHandler("updateVoipTargetPed", updateVoipTargetPed)
+end)

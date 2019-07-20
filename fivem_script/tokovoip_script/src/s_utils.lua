@@ -24,7 +24,7 @@ function setPlayerData(playerServerId, key, data, shared)
 		playersData[playerServerId][key] = data;
 		TriggerClientEvent("Tokovoip:setPlayerData", -1, playerServerId, key, data);
 	else
-		TriggerClientEvent("Tokovoip:setPlayerData", playerServerId, playerName, key, data);
+		TriggerClientEvent("Tokovoip:setPlayerData", playerServerId, playerServerId, key, data);
 	end
 end
 RegisterNetEvent("Tokovoip:setPlayerData");
@@ -44,3 +44,9 @@ AddEventHandler("playerDropped", function()
 	playersData[source] = nil;
 	refreshAllPlayerData(true);
 end);
+
+function tablelength(T)
+	local count = 0
+	for _ in pairs(T) do count = count + 1 end
+	return count
+end
