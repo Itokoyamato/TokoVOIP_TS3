@@ -3,15 +3,14 @@ cmake_minimum_required (VERSION 3.6)
 project (TokoVoip LANGUAGES CXX)
 add_definitions(-DASIO_STANDALONE -DUSE_STANDALONE_ASIO)
 
-find_package(Qt5 COMPONENTS Gui Widgets REQUIRED)
-link_libraries(Qt5::Gui Qt5::Widgets)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+find_package(Qt5 COMPONENTS Core Sql REQUIRED)
+link_libraries(Qt5::Core Qt5::Sql)
+
 include_directories(
     "src"
-    "deps/DSPFilters/shared/DSPFilters/include"
     "deps/openssl/include"
     "deps/asio/asio/include"
     "deps/Simple-WebSocket-Server"
@@ -19,54 +18,15 @@ include_directories(
     "deps/curl/include/curl"
 )
 
-set (DSP_FILTERS
-    "deps/DSPFilters/shared/DSPFilters/source/Bessel.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Biquad.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Butterworth.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Cascade.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/ChebyshevI.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/ChebyshevII.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Custom.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Design.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Documentation.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Elliptic.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Filter.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Legendre.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/Param.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/PoleFilter.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/RBJ.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/RootFinder.cpp"
-    "deps/DSPFilters/shared/DSPFilters/source/State.cpp"
-)
-source_group("DSPFilters" FILES ${DSP_FILTERS})
-
-set (PLUGIN_SRC
-    "src/config_radio.h"
-    "src/config_radio.cpp"
-    "src/config_radio.ui"
-    "src/config_radio_groupbox.h"
-    "src/config_radio_groupbox.cpp"
-    "src/config_radio_groupbox.ui"
-    "src/dsp_radio.h"
-    "src/dsp_radio.cpp"
-    "src/mod_radio.h"
-    "src/mod_radio.cpp"
-    "src/plugin.h"
-    "src/plugin.cpp"
-    "src/plugin_qt.h"
-    "src/plugin_qt.cpp"
-    "src/settings_radio.h"
-    "src/settings_radio.cpp"
+set (TOKOVOIP_SRC
     "src/tokovoip.cpp"
     "src/tokovoip.h"
-
-    "radiofx.qrc"
 )
-source_group("plugin" FILES ${PLUGIN_SRC})
+source_group("tokovoip" FILES ${TOKOVOIP_SRC})
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
-#source_group("" FILES ${PLUGIN_SRC})
+#source_group("" FILES ${TOKOVOIP_SRC})
 
 # Turn on the ability to create folders to organize projects (.vcproj)
 # It creates "CMakePredefinedTargets" folder by default and adds CMake
@@ -82,12 +42,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # message ("cxx Flags:" ${CMAKE_CXX_FLAGS})
 
 # Sub-directories where more CMakeLists.txt exist
-#add_subdirectory(app)
-#add_subdirectory (math)
-set(WITH_VOLUME true)
-set(WITH_VOLUME_WIDGETS true)
-#add_subdirectory(../teamspeak-plugin-qt-common common_out)
-include(deps/teamspeak-plugin-qt-common/CMakeLists.txt)
+include(deps/teamspeak-plugin-radiofx/CMakeLists.txt)
+
+project (TokoVoip LANGUAGES CXX)
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
     link_directories(deps/curl/x86/lib)
@@ -98,7 +55,7 @@ ENDIF()
 link_directories(deps/openssl/)
 
 add_library(TokoVoip SHARED
-    ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
+    ${TOKOVOIP_SRC} ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
     target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto32MD.lib)
@@ -107,3 +64,6 @@ ELSE()
     target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto64MD.lib)
     set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win64")
 ENDIF()
+
+set_property(TARGET TokoVoip PROPERTY CXX_STANDARD 17)
+set_property(TARGET TokoVoip PROPERTY CXX_STANDARD_REQUIRED ON)
