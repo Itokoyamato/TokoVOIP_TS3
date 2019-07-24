@@ -43,7 +43,7 @@ function doRefreshAllPlayerData(serverData)
 	for playerServerId, playerData in pairs(serverData) do
 		for key, data in pairs(playerData) do
 			if (not playersData[playerServerId]) then
-				playerData[playerServerId] = {};
+				playersData[playerServerId] = {};
 			end
 			playersData[playerServerId][key] = {data = data, shared = true};
 		end
