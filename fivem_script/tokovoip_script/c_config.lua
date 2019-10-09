@@ -14,6 +14,7 @@ TokoVoipConfig = {
 	keySwitchChannels = Keys["Z"], -- Keybind used to switch the radio channels
 	keySwitchChannelsSecondary = Keys["LEFTSHIFT"], -- If set, both the keySwitchChannels and keySwitchChannelsSecondary keybinds must be pressed to switch the radio channels
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
+	radioClickMaxChannel = 100, -- Set the max amount of radio channels that will have local radio clicks enabled
 
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
