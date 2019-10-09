@@ -55,3 +55,13 @@ AddEventHandler("onClientResourceStart", function(resource)
 		TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 	end
 end)
+
+-- Update config properties from another script
+function SetTokoProperty(key, value)
+	if TokoVoipConfig[key] and TokoVoipConfig[key] ~= "plugin_data" then
+		TokoVoipConfig[key] = value
+	end
+end
+
+-- Make exports available on first tick
+exports("SetTokoProperty", SetTokoProperty)
