@@ -16,6 +16,7 @@ TokoVoipConfig = {
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
 	radioClickMaxChannel = 100, -- Set the max amount of radio channels that will have local radio clicks enabled
 
+	radioAnim = true, -- Enable or disable the radio animation
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
