@@ -322,3 +322,8 @@ AddEventHandler("updateVoipTargetPed", function(newTargetPed, useLocal)
 	targetPed = newTargetPed
 	useLocalPed = useLocal
 end)
+
+-- Make exports available on first tick
+exports("addPlayerToRadio", addPlayerToRadio);
+exports("removePlayerFromRadio", removePlayerFromRadio);
+exports("isPlayerInChannel", isPlayerInChannel);
