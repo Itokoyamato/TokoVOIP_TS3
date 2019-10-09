@@ -135,7 +135,7 @@ function TokoVoip.initialize(self)
 			end
 
 
-			if (IsControlPressed(0, self.radioKey) and self.plugin_data.radioChannel ~= -1) then -- Talk on radio
+			if (IsControlPressed(0, self.radioKey) and self.plugin_data.radioChannel ~= -1 and self.config.radioEnabled) then -- Talk on radio
 				self.plugin_data.radioTalking = true;
 				self.plugin_data.localRadioClicks = true;
 				if (self.plugin_data.radioChannel > self.config.radioClickMaxChannel) then
