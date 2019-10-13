@@ -61,8 +61,16 @@ end)
 
 -- Update config properties from another script
 function SetTokoProperty(key, value)
-	if TokoVoipConfig[key] and TokoVoipConfig[key] ~= "plugin_data" then
+	if TokoVoipConfig[key] ~= nil and TokoVoipConfig[key] ~= "plugin_data" then
 		TokoVoipConfig[key] = value
+
+		if voip then
+			if voip.config then
+				if voip.config[key] ~= nil then
+					voip.config[key] = value
+				end
+			end
+		end
 	end
 end
 
