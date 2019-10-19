@@ -61,7 +61,6 @@ end
 RegisterNetEvent("Tokovoip:doRefreshAllPlayerData");
 AddEventHandler("Tokovoip:doRefreshAllPlayerData", doRefreshAllPlayerData);
 
-
 --------------------------------------------------------------------------------
 --	Utils: Drawing functions
 --------------------------------------------------------------------------------
@@ -193,3 +192,8 @@ Keys = {
 	["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
 	["NENTER"] = 201, ["N4"] = 108, ["N5"] = 60, ["N6"] = 107, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118
 }
+
+-- Make exports available on first tick
+exports("getPlayerData", getPlayerData);
+exports("setPlayerData", setPlayerData);
+exports("refreshAllPlayerData", refreshAllPlayerData);

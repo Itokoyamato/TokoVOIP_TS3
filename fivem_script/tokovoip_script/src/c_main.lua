@@ -125,7 +125,7 @@ local function clientProcessing()
 
 			for _, channel in pairs(voip.myChannels) do
 				if (channel.subscribers[voip.serverId] and channel.subscribers[playerServerId] and voip.myChannels[remotePlayerChannel] and remotePlayerUsingRadio) then
-					if (remotePlayerChannel <= 100) then
+					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						tbl.radioEffect = true;
 					end
 					tbl.volume = 0;
@@ -322,3 +322,8 @@ AddEventHandler("updateVoipTargetPed", function(newTargetPed, useLocal)
 	targetPed = newTargetPed
 	useLocalPed = useLocal
 end)
+
+-- Make exports available on first tick
+exports("addPlayerToRadio", addPlayerToRadio);
+exports("removePlayerFromRadio", removePlayerFromRadio);
+exports("isPlayerInChannel", isPlayerInChannel);

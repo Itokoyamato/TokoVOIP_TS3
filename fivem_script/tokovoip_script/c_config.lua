@@ -14,7 +14,10 @@ TokoVoipConfig = {
 	keySwitchChannels = Keys["Z"], -- Keybind used to switch the radio channels
 	keySwitchChannelsSecondary = Keys["LEFTSHIFT"], -- If set, both the keySwitchChannels and keySwitchChannelsSecondary keybinds must be pressed to switch the radio channels
 	keyProximity = Keys["Z"], -- Keybind used to switch the proximity mode
-
+	radioClickMaxChannel = 100, -- Set the max amount of radio channels that will have local radio clicks enabled
+	radioAnim = true, -- Enable or disable the radio animation
+	radioEnabled = true, -- Enable or disable using the radio
+	
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
@@ -55,3 +58,21 @@ AddEventHandler("onClientResourceStart", function(resource)
 		TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 	end
 end)
+
+-- Update config properties from another script
+function SetTokoProperty(key, value)
+	if TokoVoipConfig[key] ~= nil and TokoVoipConfig[key] ~= "plugin_data" then
+		TokoVoipConfig[key] = value
+
+		if voip then
+			if voip.config then
+				if voip.config[key] ~= nil then
+					voip.config[key] = value
+				end
+			end
+		end
+	end
+end
+
+-- Make exports available on first tick
+exports("SetTokoProperty", SetTokoProperty)
