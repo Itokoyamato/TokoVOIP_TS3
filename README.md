@@ -55,7 +55,7 @@ You will need the following installed:
 
 Clone the repo and don't forget to initialize the submodules:
 ```
-git submodule update --init --recursive`
+git submodule update --init --recursive
 ```
 
 Then move to the `ts3_plugin` folder, and generate the Visual Studio solution: (set the correct path to Qt)
