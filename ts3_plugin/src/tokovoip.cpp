@@ -248,6 +248,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 				outputLog("Error getting client UUID", error);
 			} else {
 				if (clientId == getMyId(serverId)) continue;
+				bool foundPlayer = false;
 				for (auto user : data) {
 					if (!user.is_object()) continue;
 					if (!user["uuid"].is_string()) continue;
@@ -257,7 +258,8 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 					float volume = user["volume"];
 					bool isRadioEffect = user["radioEffect"];
 
-					if (channelName == thisChannelName && UUID == gameUUID) {
+					if (channelName == thisChannelName && UUID == gameUUID) { 
+						foundPlayer = true
 						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
 							playWavFile("mic_click_on");
 						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(serverId))
@@ -278,6 +280,9 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 						}
 					}
 				};
+				if (!foundPlayer) {
+					setClientMuteStatus(serverId, clientId, true);
+				}
 				ts3Functions.freeMemory(UUID);
 			}
 		}
