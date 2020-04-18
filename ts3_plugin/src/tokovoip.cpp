@@ -247,8 +247,12 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 			if ((error = ts3Functions.getClientVariableAsString(serverId, clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
 				outputLog("Error getting client UUID", error);
 			} else {
-				if (clientId == getMyId(serverId)) continue;
 				bool foundPlayer = false;
+				if (clientId == getMyId(serverId))
+				{
+					foundPlayer = true;
+					continue;
+				}
 				for (auto user : data) {
 					if (!user.is_object()) continue;
 					if (!user["uuid"].is_string()) continue;
@@ -259,7 +263,7 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 					bool isRadioEffect = user["radioEffect"];
 
 					if (channelName == thisChannelName && UUID == gameUUID) { 
-						foundPlayer = true
+						foundPlayer = true;
 						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
 							playWavFile("mic_click_on");
 						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(serverId))
@@ -280,6 +284,12 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 						}
 					}
 				};
+				// Checks if ts3 user is on fivem server. Fixes onesync infinity issues as big mode is using 
+				// player culling (Removes a player from your game if he is far away), this fix should mute him when he is removed from your game (too far away)
+				
+				// Also keep in mind teamspeak3 defautly mutes everyone in channel if theres more than 100 people,
+				// this can be changed in the server settings -> Misc -> Min clients in channel before silence
+				
 				if (!foundPlayer) {
 					setClientMuteStatus(serverId, clientId, true);
 				}
