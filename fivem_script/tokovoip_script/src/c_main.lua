@@ -117,6 +117,7 @@ local function clientProcessing()
 			else
 				tbl.volume = volume;
 				tbl.muted = 0;
+				tbl.forceUnmuted = 1
 			end
 
 			usersdata[#usersdata + 1] = tbl
@@ -130,7 +131,6 @@ local function clientProcessing()
 			if (subscriber ~= voip.serverId) then
 				local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
 				local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
-				if(remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
 					local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
 
 					local founduserData = nil
@@ -147,12 +147,19 @@ local function clientProcessing()
 							resave = true
 						}
 					end
-				
+
+
 					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						founduserData.radioEffect = true;
 					end
 					founduserData.volume = 0;
 					founduserData.muted = 0;
+					if(not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then
+						founduserData.radioEffect = false;
+						if not founduserData.forceUnmuted then
+							founduserData.muted = true;
+						end
+				 	end
 					founduserData.posX = 0;
 					founduserData.posY = 0;
 					founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
@@ -160,7 +167,6 @@ local function clientProcessing()
 						usersdata[#usersdata + 1] = founduserData
 					end
 				end
-			end
 		end
 	end
 
