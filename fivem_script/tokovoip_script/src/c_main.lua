@@ -143,10 +143,11 @@ local function clientProcessing()
 					if not founduserData then
 						founduserData = {
 							uuid = getPlayerData(subscriber, "voip:pluginUUID"),
+							founduserData.radioEffect = false,
 							resave = true
 						}
 					end
-
+				
 					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						founduserData.radioEffect = true;
 					end
