@@ -143,7 +143,7 @@ local function clientProcessing()
 					if not founduserData then
 						founduserData = {
 							uuid = getPlayerData(subscriber, "voip:pluginUUID"),
-							founduserData.radioEffect = false,
+							radioEffect = false,
 							resave = true
 						}
 					end
