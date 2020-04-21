@@ -145,7 +145,8 @@ local function clientProcessing()
 						founduserData = {
 							uuid = getPlayerData(subscriber, "voip:pluginUUID"),
 							radioEffect = false,
-							resave = true
+							resave = true,
+							volume = 0,
 						}
 					end
 
