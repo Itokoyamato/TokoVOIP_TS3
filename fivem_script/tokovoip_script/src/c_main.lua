@@ -112,6 +112,7 @@ local function clientProcessing()
 			--
 
 			-- Process proximity
+			tbl.forceUnmuted = 0
 			if (dist >= voip.distance[mode]) then
 				tbl.muted = 1;
 			else
@@ -152,13 +153,14 @@ local function clientProcessing()
 					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						founduserData.radioEffect = true;
 					end
-					founduserData.volume = 0;
 					founduserData.muted = 0;
 					if(not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then
 						founduserData.radioEffect = false;
 						if not founduserData.forceUnmuted then
 							founduserData.muted = true;
 						end
+					else
+						founduserData.volume = 0;
 				 	end
 					founduserData.posX = 0;
 					founduserData.posY = 0;
