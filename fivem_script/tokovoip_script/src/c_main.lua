@@ -147,6 +147,7 @@ local function clientProcessing()
 							radioEffect = false,
 							resave = true,
 							volume = 0,
+							muted = 1
 						}
 					end
 
@@ -154,13 +155,14 @@ local function clientProcessing()
 					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						founduserData.radioEffect = true;
 					end
-					founduserData.muted = 0;
+
 					if(not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then
 						founduserData.radioEffect = false;
 						if not founduserData.forceUnmuted then
 							founduserData.muted = true;
 						end
 					else
+						founduserData.muted = false
 						founduserData.volume = 0;
 				 	end
 					founduserData.posX = 0;
