@@ -164,10 +164,10 @@ local function clientProcessing()
 					else
 						founduserData.muted = false
 						founduserData.volume = 0;
+						founduserData.posX = 0;
+						founduserData.posY = 0;
+						founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 				 	end
-					founduserData.posX = 0;
-					founduserData.posY = 0;
-					founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 					if(founduserData.resave) then
 						usersdata[#usersdata + 1] = founduserData
 					end
