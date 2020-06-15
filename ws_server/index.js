@@ -12,8 +12,8 @@ app.use(express.json());
 
 http.listen(3000, () => {
   console.log('Listening on *:3000');
-  // masterHeartbeat();
-  // masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
+  masterHeartbeat();
+  masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
 });
 
 io.on('connection', socket => {
@@ -84,8 +84,8 @@ function onSocketDisconnect(socket) {
 function masterHeartbeat() {
   console.log('Heartbeat sent');
   axios.post('http://localhost:3005/heartbeat', {
-    tsServer: '66.70.204.168',
+    tsServer: '127.0.0.1',
     ip: '127.0.0.1',
-    port: '3007',
+    port: '3000',
   }).catch(e => console.error('Sending heartbeat failed with error: ', e));
 }
