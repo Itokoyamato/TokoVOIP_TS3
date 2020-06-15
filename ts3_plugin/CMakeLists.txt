@@ -16,6 +16,7 @@ include_directories(
     "deps/Simple-WebSocket-Server"
     "deps/json/single_include/nlohmann"
     "deps/curl/include/curl"
+    "deps/cpp-httplib"
 )
 
 set (TOKOVOIP_SRC
@@ -33,7 +34,7 @@ source_group("tokovoip" FILES ${TOKOVOIP_SRC})
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Set compiler flags and options. 
+# Set compiler flags and options.
 # Here it is setting the Visual Studio warning level to 4
 # set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
 

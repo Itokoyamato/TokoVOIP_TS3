@@ -11,7 +11,7 @@
 // ------------------------------------------------------------
 
 // --------------------------------------------------------------------------------
-// --	Using websockets to send data to TS3Plugin via local network
+// --	Using websockets to send data to TS3Plugin
 // --------------------------------------------------------------------------------
 
 function getTickCount() {
@@ -37,7 +37,7 @@ const INCORRECT_VERSION = 5;
 
 function init() {
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://127.0.0.1:38204/tokovoip');
+	websocket = new WebSocket('ws://127.0.0.1:3006');
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
@@ -140,15 +140,15 @@ function receivedClientCall(event) {
 			lastPing = getTickCount();
 			lastReconnect = getTickCount();
 			init();
-	
+
 		} else if (eventName == 'updateTokovoipInfo') {
 			if (connected)
 				updateTokovoipInfo(payload, 1);
-	
+
 		} else if (eventName == 'updateTokoVoip') {
 			voip.plugin_data = payload;
 			updatePlugin();
-	
+
 		} else if (eventName == 'disconnect') {
 			sendData('disconnect');
 			voipStatus = NOT_CONNECTED;
