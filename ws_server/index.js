@@ -3,6 +3,7 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
+const uuid = require('uuid').v4;
 
 let masterHeartbeatInterval;
 const clients = {};
@@ -18,7 +19,54 @@ http.listen(3000, () => {
 io.on('connection', socket => {
   socket.clientIp = socket.request.connection.remoteAddress;
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
+
+  socket.on('data', (data) => incomingData(socket, data));
 });
+
+function incomingData(socket, data) {
+  socket.tokoData = data;
+
+  if (socket.tokoData.from === 'fivem') {
+    if (!socket.uuid) {
+      const newUUID = uuid();
+      socket.uuid = newUUID;
+      socket.from = 'fivem';
+      clients[newUUID] = {
+        ip: socket.clientIp,
+        uuid: socket.uuid,
+        fivem: {},
+        ts3: {},
+      };
+      clients[socket.uuid].fivem.socket = socket;
+      clients[socket.uuid].fivem.linkedAt = (new Date()).toISOString();
+    }
+    if (!clients[socket.uuid]) return;
+    clients[socket.uuid].fivem.data = socket.tokoData;
+    clients[socket.uuid].fivem.updatedAt = (new Date()).toISOString();
+    if (clients[socket.uuid].ts3.socket) {
+      clients[socket.uuid].ts3.socket.send(JSON.stringify(clients[socket.uuid].fivem.data));
+    }
+
+  } else if (socket.tokoData.from === 'ts3') {
+    if (!socket.uuid) {
+      if (!data.tsClientIp) return;
+      const client = Object.values(clients).find(item => item.fivem.socket.clientIp === data.tsClientIp);
+      if (!client) return;
+      socket.uuid = client.uuid;
+      socket.from = 'ts3';
+      client.ts3.socket = socket;
+      client.ts3.linkedAt = (new Date()).toISOString();
+    }
+    if (!socket.uuid || !clients[socket.uuid]) return;
+    clients[socket.uuid].ts3.data = socket.tokoData;
+    clients[socket.uuid].ts3.updatedAt = (new Date()).toISOString();
+    if (clients[socket.uuid].fivem.socket) {
+      clients[socket.uuid].fivem.socket.send(JSON.stringify(clients[socket.uuid].ts3.data));
+    }
+  }
+
+  return socket;
+}
 
 function masterHeartbeat() {
   console.log('Heartbeat sent');
