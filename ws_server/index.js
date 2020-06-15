@@ -20,10 +20,11 @@ io.on('connection', socket => {
   socket.clientIp = socket.request.connection.remoteAddress;
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
-  socket.on('data', (data) => incomingData(socket, data));
+  socket.on('data', (data) => onIncomingData(socket, data));
+  socket.on('disconnect', _ => onSocketDisconnect(socket));
 });
 
-function incomingData(socket, data) {
+function onIncomingData(socket, data) {
   socket.tokoData = data;
 
   if (socket.tokoData.from === 'fivem') {
@@ -66,6 +67,18 @@ function incomingData(socket, data) {
   }
 
   return socket;
+}
+
+function onSocketDisconnect(socket) {
+  if (!socket.uuid) return;
+  if (socket.from === 'fivem') {
+    if (clients[socket.uuid].ts3.socket) {
+      delete clients[socket.uuid].ts3.socket.uuid;
+    }
+    delete clients[socket.uuid];
+  } else if (socket.from === 'ts3') {
+    clients[socket.uuid].ts3 = {};
+  }
 }
 
 function masterHeartbeat() {
