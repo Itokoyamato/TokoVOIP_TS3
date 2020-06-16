@@ -34,6 +34,10 @@ void playWavFile(const char* fileNameWithoutExtension);
 json getServerInfoFromMaster();
 json getServerFromClientIP(json servers);
 
+void initWebSocket();
+void resetState();
+void resetChannel();
+
 class Tokovoip {
 private:
 	map<string, bool> radioData;

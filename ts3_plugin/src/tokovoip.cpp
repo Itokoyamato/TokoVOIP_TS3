@@ -30,7 +30,7 @@ using WsClient = SimpleWeb::SocketClient<SimpleWeb::WS>;
 
 int isRunning = 0;
 
-HANDLE threadService = INVALID_HANDLE_VALUE;
+HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
 HANDLE threadTimeout = INVALID_HANDLE_VALUE;
 HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
@@ -295,8 +295,9 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 }
 
 int tries = 0;
-DWORD WINAPI ServiceThread(LPVOID lpParam)
+DWORD WINAPI WebSocketService(LPVOID lpParam)
 {
+	pluginStatus = 0;
 	/*int sleepLength = 5000;
 
 	json serverInfo = NULL;
@@ -375,84 +376,66 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 		outputLog("Websocket connection opened");
 	};
 
-	client.on_close = [](shared_ptr<WsClient::Connection>, int status, const string &) {
+	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
 		outputLog("Websocket connection closed: status " + status);
+		client.stop();
+		resetState();
+		initWebSocket();
 	};
 
-	client.on_error = [](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
+	client.on_error = [&](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
 		outputLog("Websocket error: " + ec.message());
+		client.stop();
+		resetState();
+		initWebSocket();
 	};
 
 	client.start();
 	return NULL;
 }
 
-bool connected = false;
-DWORD WINAPI TimeoutThread(LPVOID lpParam)
-{
-	while (!exitTimeoutThread)
-	{
-		time_t currentTick = time(nullptr);
-		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+void initWebSocket() {
+	outputLog("Initializing WebSocket Thread", 0);
+	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
+}
 
-		if (currentTick - lastPingTick < 10)
-			connected = true;
-		if (lastPingTick > 0 && currentTick - lastPingTick > 10 && connected == true)
-		{
-			string thisChannelName = getChannelName(serverId, getMyId(serverId));
-			if (mainChannel == thisChannelName)
-			{
-				uint64* result;
-				DWORD error;
-				if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
-				{
-					outputLog("Can't get channel list", error);
-				}
-				else
-				{
-					bool joined = false;
-					uint64* iter = result;
-					while (*iter && !joined)
-					{
-						uint64 channelId = *iter;
-						iter++;
-						char* cName;
-						if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
-							outputLog("Can't get channel name", error);
-						}
-						else
-						{
-							if (!strcmp(waitChannel.c_str(), cName))
-							{
-								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
-									outputLog("Can't join channel", error);
-									pluginStatus = 2;
-									tokovoip->setProcessingState(false);
-									return (0);
-								}
-								else
-								{
-									joined = true;
-								}
-							}
-							ts3Functions.freeMemory(cName);
-						}
-					}
-					ts3Functions.freeMemory(result);
-				}
-			}
-			Sleep(500);
-			outputLog("Lost connection: plugin timed out client", 0);
-			pluginStatus = 0;
-			clientConnection = NULL;
-			connected = false;
-			resetClientsAll();
-			if (originalName != "")
-				setClientName(originalName);
-		}
-		Sleep(100);
+void resetChannel() {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	uint64* result;
+	DWORD error;
+	if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok) {
+		outputLog("resetChannel: Can't get channel list", error);
+		return;
 	}
-	return NULL;
+
+	uint64* iter = result;
+	while (*iter) {
+		uint64 channelId = *iter;
+		iter++;
+		char* cName;
+		if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+			outputLog("resetChannel: Can't get channel name", error);
+			continue;
+		}
+		if (!strcmp(waitChannel.c_str(), cName)) {
+			if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
+				outputLog("resetChannel: Can't join channel", error);
+				tokovoip->setProcessingState(false);
+				return;
+			}
+			break;
+		}
+		ts3Functions.freeMemory(cName);
+	}
+	ts3Functions.freeMemory(result);
+}
+
+void resetState() {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	string currentChannelName = getChannelName(serverId, getMyId(serverId));
+	if (mainChannel == currentChannelName) resetChannel();
+	resetClientsAll();
+	if (originalName != "") setClientName(originalName);
 }
 
 DWORD WINAPI SendDataThread(LPVOID lpParam)
@@ -664,9 +647,10 @@ int Tokovoip::initialize(char *id) {
 	tokovoip = this;
 	exitTimeoutThread = false;
 	exitSendDataThread = false;
-	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
+	//threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
 	//threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 	//threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
+	initWebSocket();
 	return (1);
 }
 
