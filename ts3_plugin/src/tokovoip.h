@@ -25,7 +25,6 @@ uint64 getCurrentChannel(uint64 serverConnectionHandlerID);
 anyID getMyId(uint64 serverConnectionHandlerID);
 string getChannelName(uint64 serverConnectionHandlerID, anyID clientId);
 
-void sendCallback(string str);
 void setClientName(string name);
 void setClientTalking(bool status);
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
@@ -38,6 +37,9 @@ void initWebSocket();
 void resetState();
 void resetChannel();
 string getWebSocketEndpoint();
+void sendWSMessage(string eventName, json value);
+void initDataThread();
+json TS3DataToJSON();
 
 class Tokovoip {
 private:

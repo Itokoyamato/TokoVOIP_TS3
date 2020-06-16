@@ -31,6 +31,9 @@ using WsClient = SimpleWeb::SocketClient<SimpleWeb::WS>;
 int isRunning = 0;
 
 HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
+shared_ptr<WsClient::Connection> wsConnection;
+
+
 HANDLE threadTimeout = INVALID_HANDLE_VALUE;
 HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
@@ -48,13 +51,24 @@ time_t lastChannelJoin = 0;
 string clientIP = "";
 
 time_t noiseWait = 0;
-shared_ptr<WsClient::Connection> clientConnection;
+
+DWORD WINAPI SendDataService(LPVOID lpParam) {
+	while (!exitSendDataThread) {
+		if (tokovoip->getProcessingState()) {
+			Sleep(100);
+			continue;
+		}
+		json data = TS3DataToJSON();
+		sendWSMessage("TS3Data", data);
+		Sleep(1000);
+	}
+	return NULL;
+}
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> message) {
 	tokovoip->setProcessingState(true);
 	lastPingTick = time(nullptr);
 	pluginStatus = 1;
-	clientConnection = connection;
 
 	auto message_str = message->string();
 	//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
@@ -295,14 +309,13 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 }
 
 int tries = 0;
-DWORD WINAPI WebSocketService(LPVOID lpParam)
-{
+DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	pluginStatus = 0;
 
 	string endpoint = getWebSocketEndpoint();
 	if (endpoint == "") {
 		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
-		return;
+		return NULL;
 	}
 	
 	//WsClient client(endpoint);
@@ -314,6 +327,8 @@ DWORD WINAPI WebSocketService(LPVOID lpParam)
 
 	client.on_open = [](shared_ptr<WsClient::Connection> connection) {
 		outputLog("Websocket connection opened");
+		wsConnection = connection;
+		initDataThread();
 	};
 
 	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
@@ -337,6 +352,12 @@ DWORD WINAPI WebSocketService(LPVOID lpParam)
 void initWebSocket() {
 	outputLog("Initializing WebSocket Thread", 0);
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
+}
+
+void initDataThread() {
+	outputLog("Initializing Data Thread", 0);
+	exitSendDataThread = false;
+	threadSendData = CreateThread(NULL, 0, SendDataService, NULL, 0, NULL);
 }
 
 string getWebSocketEndpoint() {
@@ -442,6 +463,8 @@ void resetChannel() {
 }
 
 void resetState() {
+	wsConnection = NULL;
+	exitSendDataThread = false;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	string currentChannelName = getChannelName(serverId, getMyId(serverId));
 	if (mainChannel == currentChannelName) resetChannel();
@@ -449,27 +472,29 @@ void resetState() {
 	if (originalName != "") setClientName(originalName);
 }
 
-DWORD WINAPI SendDataThread(LPVOID lpParam)
-{
-	while (!exitSendDataThread) {
-		if (tokovoip->getProcessingState() == false) {
-			sendCallback("TokoVOIP version:" + (string)ts3plugin_version());
-			sendCallback("TokoVOIP status:" + to_string(pluginStatus));
+json TS3DataToJSON() {
+	json data;
+	data["pluginVersion"] = (string)ts3plugin_version();
+	data["pluginStatus"] = to_string(pluginStatus);
 
-			uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-			if (isConnected(serverId)) {
-				char *UUID;
-				if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
-					sendCallback("TokoVOIP UUID:" + (string)UUID);
-				free(UUID);
-			}
-		}
-		if (tokovoip->getProcessingState() == false)
-			Sleep(1000);
-		else
-			Sleep(50);
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (isConnected(serverId)) {
+		char *UUID;
+		if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
+			data["uuid"] = (string)UUID;
+		free(UUID);
 	}
-	return NULL;
+	return data;
+}
+
+
+void sendWSMessage(string eventName, json value) {
+	if (!wsConnection) return;
+
+	json msg;
+	msg["event"] = eventName;
+	msg["value"] = value;
+	wsConnection->send(msg.dump());
 }
 
 // callback function writes data to a std::ostream
@@ -656,8 +681,8 @@ int Tokovoip::initialize(char *id) {
 	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
-	exitTimeoutThread = false;
-	exitSendDataThread = false;
+	//exitTimeoutThread = false;
+	//exitSendDataThread = false;
 	//threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
 	//threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
 	//threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
@@ -669,7 +694,6 @@ void Tokovoip::shutdown()
 {
 	//exitTimeoutThread = true;
 	//exitSendDataThread = true;
-	//clientConnection.reset();
 	//resetClientsAll();
 
 	//DWORD exitCode;
@@ -776,12 +800,6 @@ void setClientTalking(bool status)
 		if (error != ERROR_ok && error != ERROR_ok_no_update)
 			outputLog("Can't flush self updates.", error);
 	}
-}
-
-void	sendCallback(string str)
-{
-	if (!clientConnection) return;
-	clientConnection->send(str);
 }
 
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status)
