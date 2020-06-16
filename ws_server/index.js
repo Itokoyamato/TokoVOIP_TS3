@@ -6,6 +6,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
 const uuid = require('uuid').v4;
+const lodash = require('lodash');
 
 let masterHeartbeatInterval;
 const clients = {};
@@ -39,7 +40,14 @@ io.on('connection', socket => {
 
   socket.on('data', (data) => onIncomingData(socket, data));
   socket.on('disconnect', _ => onSocketDisconnect(socket));
+  socket.on('setTS3Data', (data) => setTS3Data(socket, data));
 });
+
+function setTS3Data(socket, data) {
+  const client = clients[socket.uuid];
+  if (!client) return;
+  lodash.set(client.ts3.data, data.key, data.value);
+}
 
 function onIncomingData(socket, data) {
   socket.tokoData = data;
