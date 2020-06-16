@@ -297,7 +297,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 int tries = 0;
 DWORD WINAPI ServiceThread(LPVOID lpParam)
 {
-	int sleepLength = 5000;
+	/*int sleepLength = 5000;
 
 	json serverInfo = NULL;
 	json fivemServer = NULL;
@@ -362,12 +362,13 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 	string fivemServerIP = fivemServer["ip"];
 	string fivemServerPORT = fivemServer["port"];
 
-	outputLog(fivemServerIP + ":" + fivemServerPORT);
+	outputLog(fivemServerIP + ":" + fivemServerPORT);*/
 
-	WsClient client("ws://" + fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket");
+	//WsClient client("ws://" + fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket");
+	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket");
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
-		outputLog("Websocket message received");
+		outputLog("Websocket message received:" + in_message->string());
 	};
 
 	client.on_open = [](shared_ptr<WsClient::Connection> connection) {
@@ -375,11 +376,11 @@ DWORD WINAPI ServiceThread(LPVOID lpParam)
 	};
 
 	client.on_close = [](shared_ptr<WsClient::Connection>, int status, const string &) {
-		outputLog("Websocket connection closed: status " + status + " (" + string + ")");
+		outputLog("Websocket connection closed: status " + status);
 	};
 
 	client.on_error = [](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
-		outputLog("Websocket error");
+		outputLog("Websocket error: " + ec.message());
 	};
 
 	client.start();
