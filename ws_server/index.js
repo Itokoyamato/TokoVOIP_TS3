@@ -1,3 +1,5 @@
+const bootTime = new Date();
+
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
@@ -16,8 +18,23 @@ http.listen(3000, () => {
   masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
 });
 
+app.get('/', (_, res) => {
+  res.send({
+    started: bootTime.toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+app.get('/playerbyip', (req, res) => {
+  const player = Object.values(clients).find(item => {
+    return !item.ts3.socket && item.ip === req.query.ip;
+  });
+  if (!player) return res.status(404).send();
+  return res.status(204).send();
+});
+
 io.on('connection', socket => {
-  socket.clientIp = socket.request.connection.remoteAddress;
+  socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
   socket.on('data', (data) => onIncomingData(socket, data));
