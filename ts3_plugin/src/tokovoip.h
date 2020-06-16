@@ -37,6 +37,7 @@ json getServerFromClientIP(json servers);
 void initWebSocket();
 void resetState();
 void resetChannel();
+string getWebSocketEndpoint();
 
 class Tokovoip {
 private:

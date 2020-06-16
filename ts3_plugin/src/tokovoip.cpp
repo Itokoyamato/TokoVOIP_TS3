@@ -298,74 +298,14 @@ int tries = 0;
 DWORD WINAPI WebSocketService(LPVOID lpParam)
 {
 	pluginStatus = 0;
-	/*int sleepLength = 5000;
 
-	json serverInfo = NULL;
-	json fivemServer = NULL;
-
-	sleepLength = 5000;
-	tries = 0;
-	while (clientIP == "") {
-		tries += 1;
-		outputLog("Requesting client IP (attempt " + to_string(tries) + ")");
-		httplib::Client cli("api.ipify.org");
-		cli.set_follow_location(true);
-		auto res = cli.Get("/");
-		if (res && res->status == 200) clientIP = res->body;
-		if (clientIP == "") {
-			Sleep(sleepLength);
-			if (tries >= 2) sleepLength += 5000;
-			if (tries >= 5) {
-				outputLog("Could not retrieve the client IP");
-				return NULL;
-			}
-		}
+	string endpoint = getWebSocketEndpoint();
+	if (endpoint == "") {
+		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
+		return;
 	}
-
-	sleepLength = 5000;
-	tries = 0;
-	while (serverInfo == NULL) {
-		tries += 1;
-		outputLog("Requesting server info (attempt " + to_string(tries) + ")");
-		serverInfo = getServerInfoFromMaster();
-		if (serverInfo == NULL) {
-			outputLog("No server info found");
-			Sleep(sleepLength);
-			if (tries >= 2) sleepLength += 5000;
-			if(tries >= 5) {
-				outputLog("Could not retrieve the server info");
-				return NULL;
-			}
-		}
-	}
-
-	outputLog("Retrieved server info");
-
-	sleepLength = 5000;
-	tries = 0;
-	while (fivemServer == NULL) {
-		tries += 1;
-		outputLog("Requesting fivem server info (attempt " + to_string(tries) + ")");
-		fivemServer = getServerFromClientIP(serverInfo["servers"]);
-		if (fivemServer == NULL) {
-			outputLog("No server found");
-			Sleep(sleepLength);
-			if (tries >= 20) sleepLength = 10000;
-			if (tries >= 40) {
-				outputLog("Could not retrieve the fivem server info");
-				return NULL;
-			}
-		}
-	}
-
-	outputLog("Retrieved fivem server info");
-
-	string fivemServerIP = fivemServer["ip"];
-	string fivemServerPORT = fivemServer["port"];
-
-	outputLog(fivemServerIP + ":" + fivemServerPORT);*/
-
-	//WsClient client("ws://" + fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket");
+	
+	//WsClient client(endpoint);
 	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket");
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
@@ -397,6 +337,77 @@ DWORD WINAPI WebSocketService(LPVOID lpParam)
 void initWebSocket() {
 	outputLog("Initializing WebSocket Thread", 0);
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
+}
+
+string getWebSocketEndpoint() {
+	int sleepLength = 5000;
+
+	json serverInfo = NULL;
+	json fivemServer = NULL;
+
+	sleepLength = 5000;
+	tries = 0;
+	while (clientIP == "") {
+		tries += 1;
+		outputLog("Requesting client IP (attempt " + to_string(tries) + ")");
+		httplib::Client cli("api.ipify.org");
+		cli.set_follow_location(true);
+		auto res = cli.Get("/");
+		if (res && res->status == 200) clientIP = res->body;
+		if (clientIP == "") {
+			Sleep(sleepLength);
+			if (tries >= 2) sleepLength += 5000;
+			if (tries >= 5) {
+				outputLog("Could not retrieve the client IP");
+				return "";
+			}
+		}
+	}
+
+	sleepLength = 5000;
+	tries = 0;
+	while (serverInfo == NULL) {
+		tries += 1;
+		outputLog("Requesting server info (attempt " + to_string(tries) + ")");
+		serverInfo = getServerInfoFromMaster();
+		if (serverInfo == NULL) {
+			outputLog("No server info found");
+			Sleep(sleepLength);
+			if (tries >= 2) sleepLength += 5000;
+			if(tries >= 5) {
+				outputLog("Could not retrieve the server info");
+				return "";
+			}
+		}
+	}
+
+	outputLog("Retrieved server info");
+
+	sleepLength = 5000;
+	tries = 0;
+	while (fivemServer == NULL) {
+		tries += 1;
+		outputLog("Requesting fivem server info (attempt " + to_string(tries) + ")");
+		fivemServer = getServerFromClientIP(serverInfo["servers"]);
+		if (fivemServer == NULL) {
+			outputLog("No server found");
+			Sleep(sleepLength);
+			if (tries >= 20) sleepLength = 10000;
+			if (tries >= 40) {
+				outputLog("Could not retrieve the fivem server info");
+				return "";
+			}
+		}
+	}
+
+	outputLog("Retrieved fivem server info");
+
+	string fivemServerIP = fivemServer["ip"];
+	string fivemServerPORT = fivemServer["port"];
+
+	outputLog(fivemServerIP + ":" + fivemServerPORT);
+
+	return fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket";
 }
 
 void resetChannel() {
