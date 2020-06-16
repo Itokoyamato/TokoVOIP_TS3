@@ -34,16 +34,12 @@ HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
 shared_ptr<WsClient::Connection> wsConnection;
 
 
-HANDLE threadTimeout = INVALID_HANDLE_VALUE;
 HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
-volatile bool exitTimeoutThread = FALSE;
 volatile bool exitSendDataThread = FALSE;
 
 bool isTalking = false;
 char* originalName = "";
-time_t lastPingTick = 0;
-int pluginStatus = 0;
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
@@ -58,17 +54,20 @@ DWORD WINAPI SendDataService(LPVOID lpParam) {
 			Sleep(100);
 			continue;
 		}
-		json data = TS3DataToJSON();
-		sendWSMessage("TS3Data", data);
+		json data = {
+			{ "key", "pluginVersion" },
+			{ "value", (string)ts3plugin_version() },
+		};
+		sendWSMessage("setTS3Data", data);
 		Sleep(1000);
 	}
 	return NULL;
 }
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> message) {
-	tokovoip->setProcessingState(true);
-	lastPingTick = time(nullptr);
-	pluginStatus = 1;
+	int currentPluginStatus = 0;
+	tokovoip->setProcessingState(true, currentPluginStatus);
+	currentPluginStatus = 1;
 
 	auto message_str = message->string();
 	//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
@@ -76,7 +75,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 
 	if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
 	{
-		tokovoip->setProcessingState(false);
+		tokovoip->setProcessingState(false, currentPluginStatus);
 		return (0);
 	}
 
@@ -91,7 +90,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 	// Check if connected to any channel
 	if (thisChannelName == "")
 	{
-		tokovoip->setProcessingState(false);
+		tokovoip->setProcessingState(false, currentPluginStatus);
 		return (0);
 	}
 
@@ -101,7 +100,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 	json json_data = json::parse(message_str.c_str(), nullptr, false);
 	if (json_data.is_discarded()) {
 		ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
-		tokovoip->setProcessingState(false);
+		tokovoip->setProcessingState(false, currentPluginStatus);
 		return (0);
 	}
 
@@ -123,8 +122,8 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 
 	if (isChannelWhitelisted(json_data, thisChannelName)) {
 		resetClientsAll();
-		pluginStatus = 3;
-		tokovoip->setProcessingState(false);
+		currentPluginStatus = 3;
+		tokovoip->setProcessingState(false, currentPluginStatus);
 		return (0);
 	}
 
@@ -166,14 +165,14 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 								{
 									setClientMuteStatus(serverId, *clientIdIterator, true);
 								}
-								tokovoip->setProcessingState(false);
+								tokovoip->setProcessingState(false, currentPluginStatus);
 								return (0);
 							}
 							lastChannelJoin = time(nullptr);
 							if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
 								outputLog("Can't join channel", error);
-								pluginStatus = 2;
-								tokovoip->setProcessingState(false);
+								currentPluginStatus = 2;
+								tokovoip->setProcessingState(false, currentPluginStatus);
 								return (0);
 							}
 							else
@@ -190,8 +189,8 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 		else
 		{
 			resetClientsAll();
-			pluginStatus = 2;
-			tokovoip->setProcessingState(false);
+			currentPluginStatus = 2;
+			tokovoip->setProcessingState(false, currentPluginStatus);
 			return (0);
 		}
 	}
@@ -202,7 +201,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 	if (originalName == "")
 		if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
 			outputLog("Error getting client nickname", error);
-			tokovoip->setProcessingState(false);
+			tokovoip->setProcessingState(false, currentPluginStatus);
 			return (0);
 		}
 
@@ -304,19 +303,23 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClie
 			ts3Functions.freeMemory(UUID);
 		}
 	}
-	pluginStatus = 3;
-	tokovoip->setProcessingState(false);
+	currentPluginStatus = 3;
+	tokovoip->setProcessingState(false, currentPluginStatus);
 }
 
 int tries = 0;
 DWORD WINAPI WebSocketService(LPVOID lpParam) {
-	pluginStatus = 0;
+	while (true) {
+		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+		if (isConnected(serverId)) break;
+		Sleep(1000);
+	}
 
-	string endpoint = getWebSocketEndpoint();
+	/*string endpoint = getWebSocketEndpoint();
 	if (endpoint == "") {
 		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
 		return NULL;
-	}
+	}*/
 	
 	//WsClient client(endpoint);
 	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket");
@@ -328,7 +331,23 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	client.on_open = [](shared_ptr<WsClient::Connection> connection) {
 		outputLog("Websocket connection opened");
 		wsConnection = connection;
-		initDataThread();
+
+		json data = {
+			{ "key", "pluginVersion" },
+			{ "value", (string)ts3plugin_version() },
+		};
+		sendWSMessage("setTS3Data", data);
+
+		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+		char *UUID;
+		if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok) {
+			json data = {
+				{ "key", "uuid" },
+				{ "value", (string)UUID },
+			};
+			sendWSMessage("setTS3Data", data);
+		}
+		free(UUID);
 	};
 
 	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
@@ -452,7 +471,7 @@ void resetChannel() {
 		if (!strcmp(waitChannel.c_str(), cName)) {
 			if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
 				outputLog("resetChannel: Can't join channel", error);
-				tokovoip->setProcessingState(false);
+				tokovoip->setProcessingState(false, 0);
 				return;
 			}
 			break;
@@ -472,29 +491,12 @@ void resetState() {
 	if (originalName != "") setClientName(originalName);
 }
 
-json TS3DataToJSON() {
-	json data;
-	data["pluginVersion"] = (string)ts3plugin_version();
-	data["pluginStatus"] = to_string(pluginStatus);
 
-	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-	if (isConnected(serverId)) {
-		char *UUID;
-		if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
-			data["uuid"] = (string)UUID;
-		free(UUID);
-	}
-	return data;
-}
-
-
-void sendWSMessage(string eventName, json value) {
+void sendWSMessage(string endpoint, json value) {
 	if (!wsConnection) return;
 
-	json msg;
-	msg["event"] = eventName;
-	msg["value"] = value;
-	wsConnection->send(msg.dump());
+	json send = json::array({ endpoint, value });
+	wsConnection->send("42" + send.dump());
 }
 
 // callback function writes data to a std::ostream

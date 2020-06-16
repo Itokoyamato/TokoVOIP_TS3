@@ -22,8 +22,6 @@ function getTickCount() {
 
 let websocket;
 let connected = false;
-let lastPing = 0;
-let lastReconnect = 0;
 let lastOk = 0;
 
 let voip = {};
@@ -37,7 +35,7 @@ const INCORRECT_VERSION = 5;
 
 function init() {
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://localhost:3000/socket.io/?EIO=3&transport=websocket');
+	websocket = new WebSocket('ws://localhost:3000/socket.io/?EIO=3&transport=websocket&from=fivem');
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
@@ -112,7 +110,6 @@ function init() {
 			reason = 'Unknown reason';
 
 		console.log('TokoVOIP: closed connection - ' + reason);
-		lastReconnect = getTickCount();
 		connected = false;
 		updateScriptData('pluginStatus', -1);
 		init();
@@ -120,9 +117,8 @@ function init() {
 }
 
 function sendData(message) {
-	if (websocket.readyState == websocket.OPEN) {
-		websocket.send(`42${JSON.stringify(['data', message])}`);
-	}
+	if (websocket.readyState != websocket.OPEN) return;
+	websocket.send(`42${JSON.stringify(['data', message])}`);
 }
 
 function receivedClientCall(event) {
@@ -137,8 +133,6 @@ function receivedClientCall(event) {
 
 	} else if (voip) {
 		if (eventName == 'initializeSocket') {
-			lastPing = getTickCount();
-			lastReconnect = getTickCount();
 			init();
 
 		} else if (eventName == 'updateTokovoipInfo') {
@@ -190,8 +184,6 @@ function checkPluginStatus() {
 			voipStatus = OK;
 			break;
 	}
-	if (getTickCount() - lastPing > 5000)
-		voipStatus = NOT_CONNECTED;
 }
 
 function checkPluginVersion() {
@@ -204,6 +196,7 @@ function checkPluginVersion() {
 }
 
 function isPluginVersionCorrect() {
+	if (!voip.pluginVersion) return false;
 	if (parseInt(voip.pluginVersion.replace(/\./g, '')) < parseInt(voip.minVersion.replace(/\./g, ''))) return false;
 	return true;
 }
@@ -259,17 +252,8 @@ function updateConfig(payload) {
 }
 
 function updatePlugin() {
-	const timeout = getTickCount() - lastPing;
-	const lastRetry = getTickCount() - lastReconnect;
-	if (timeout >= 10000 && lastRetry >= 5000) {
-		console.log('TokoVOIP: timed out - ' + (timeout) + ' - ' + (lastRetry));
-		lastReconnect = getTickCount();
-		connected = false;
-		updateScriptData('pluginStatus', -1);
-		init();
-	} else if (connected) {
-		sendData(voip.plugin_data);
-	}
+	if (!connected) return;
+	sendData(voip.plugin_data);
 }
 
 function updateScriptData(key, data) {

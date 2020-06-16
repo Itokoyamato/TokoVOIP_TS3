@@ -49,6 +49,7 @@ function TokoVoip.loop(self)
 end
 
 function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
+	if (self.pluginStatus ~= 3) then return end;
 	self:updatePlugin("updateTokoVoip", self.plugin_data);
 end
 
@@ -161,7 +162,7 @@ function TokoVoip.initialize(self)
 					setPlayerData(self.serverId, "radio:talking", false, true);
 				end
 				self:updateTokoVoipInfo();
-				
+
 				if lastTalkState == true and self.config.radioAnim then
 					lastTalkState = false
 					StopAnimTask(PlayerPedId(), "random@arrests","generic_radio_chatter", -4.0);

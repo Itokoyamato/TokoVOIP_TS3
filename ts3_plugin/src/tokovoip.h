@@ -39,7 +39,6 @@ void resetChannel();
 string getWebSocketEndpoint();
 void sendWSMessage(string eventName, json value);
 void initDataThread();
-json TS3DataToJSON();
 
 class Tokovoip {
 private:
@@ -48,6 +47,7 @@ private:
 	bool processingState = false;
 	char *plugin_id;
 	char *plugin_path;
+	int pluginStatus = 0;
 
 public:
 	int initialize(char* id);
@@ -74,7 +74,7 @@ public:
 		return false;
 	}
 
-	void setProcessingState(bool state) {
+	void setProcessingState(bool state, int currentPluginStatus) {
 		 processingState = state;
 		 if (state == false) {
 		 	map<string, bool> updatedRadioData;
@@ -82,6 +82,14 @@ public:
 		 		updatedRadioData[data.first] = radioData[data.first];
 		 	}
 		 	safeRadioData = updatedRadioData;
+
+			if (pluginStatus == currentPluginStatus) return;
+			pluginStatus = currentPluginStatus;
+			json data = {
+				{ "key", "pluginStatus" },
+				{ "value", pluginStatus },
+			};
+			sendWSMessage("setTS3Data", data);
 		 }
 	}
 
