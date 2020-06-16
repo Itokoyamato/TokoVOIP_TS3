@@ -37,7 +37,7 @@ const INCORRECT_VERSION = 5;
 
 function init() {
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://127.0.0.1:3006');
+	websocket = new WebSocket('ws://localhost:3000/socket.io/?EIO=3&transport=websocket');
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
@@ -121,7 +121,7 @@ function init() {
 
 function sendData(message) {
 	if (websocket.readyState == websocket.OPEN) {
-		websocket.send(message);
+		websocket.send(`42${JSON.stringify(['data', message])}`);
 	}
 }
 
@@ -268,7 +268,7 @@ function updatePlugin() {
 		updateScriptData('pluginStatus', -1);
 		init();
 	} else if (connected) {
-		sendData(JSON.stringify(voip.plugin_data));
+		sendData(voip.plugin_data);
 	}
 }
 
@@ -283,3 +283,9 @@ function updateScriptData(key, data) {
 }
 
 window.addEventListener('message', receivedClientCall, false);
+
+// init()
+
+// setInterval(_ => {
+// 	websocket.send('42' + JSON.stringify(['data', {'from': 'fivem'}]));
+// }, 1000);
