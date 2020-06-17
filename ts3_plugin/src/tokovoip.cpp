@@ -320,15 +320,22 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
 		return NULL;
 	}*/
+
+	char *UUID;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) != ERROR_ok) {
+		outputLog("WebsocketServer: Failed to get UUID");
+		return NULL;
+	}
 	
 	//WsClient client(endpoint);
-	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket");
+	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket&from=ts3&uuid=" + (string)UUID);
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
 		outputLog("Websocket message received:" + in_message->string());
 	};
 
-	client.on_open = [](shared_ptr<WsClient::Connection> connection) {
+	client.on_open = [&](shared_ptr<WsClient::Connection> connection) {
 		outputLog("Websocket connection opened");
 		wsConnection = connection;
 
@@ -338,16 +345,11 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		};
 		sendWSMessage("setTS3Data", data);
 
-		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-		char *UUID;
-		if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok) {
-			json data = {
-				{ "key", "uuid" },
-				{ "value", (string)UUID },
-			};
-			sendWSMessage("setTS3Data", data);
-		}
-		free(UUID);
+		data = {
+			{ "key", "uuid" },
+			{ "value", (string)UUID },
+		};
+		sendWSMessage("setTS3Data", data);
 	};
 
 	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
