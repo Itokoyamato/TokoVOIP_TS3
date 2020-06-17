@@ -5,7 +5,6 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
-const uuid = require('uuid').v4;
 const lodash = require('lodash');
 
 let masterHeartbeatInterval;
@@ -34,13 +33,67 @@ app.get('/playerbyip', (req, res) => {
   return res.status(204).send();
 });
 
-io.on('connection', socket => {
+io.on('connection', async socket => {
+  if (!socket.request._query.from) return;
+
   socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
-  socket.on('data', (data) => onIncomingData(socket, data));
   socket.on('disconnect', _ => onSocketDisconnect(socket));
-  socket.on('setTS3Data', (data) => setTS3Data(socket, data));
+
+  // TS3 Handshake:
+  // main entrypoint
+  // fivem will wait for it to be ready and handshake after
+  if (socket.request._query.from === 'ts3') {
+    if (!socket.request._query.uuid) {
+      socket.disconnect('UUID Required');
+      return;
+    }
+
+    // If client already exist, reset it
+    let client = clients[socket.request._query.uuid];
+    if (client) {
+      if (client.fivem.socket) client.fivem.socket.disconnect();
+      if (client.ts3.socket) client.ts3.socket.disconnect();
+    }
+
+    // Initialize client data
+    client = clients[socket.request._query.uuid] = {
+      ip: socket.clientIp,
+      uuid: socket.request._query.uuid,
+      fivem: {},
+      ts3: {
+        uuid: socket.request._query.uuid,
+      },
+    };
+    socket.uuid = socket.request._query.uuid;
+    socket.from = 'ts3';
+    client.ts3.socket = socket;
+    client.ts3.linkedAt = (new Date()).toISOString();
+
+    socket.on('setTS3Data', (data) => setTS3Data(socket, data));
+
+  // FiveM Handshake:
+  // will wait for TS3 handshake to be complete and retry until then
+  } else if (socket.request._query.from === 'fivem') {
+    let client;
+    let tries = 0;
+    while (!client) {
+      ++tries;
+      if (tries > 1) sleep(5000);
+      if (tries > 12) {
+        socket.disconnect('Failed to handshake with TS3 (Timeout after 60 seconds)');
+        return;
+      }
+      client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
+    }
+    socket.uuid = client.uuid;
+    socket.from = 'fivem';
+    client.fivem.socket = socket;
+    client.fivem.linkedAt = (new Date()).toISOString();
+
+    socket.on('data', (data) => onIncomingData(socket, data));
+  }
 });
 
 function setTS3Data(socket, data) {
@@ -50,60 +103,16 @@ function setTS3Data(socket, data) {
 }
 
 function onIncomingData(socket, data) {
+  const client = clients[socket.uuid];
+  if (!socket.uuid || !client || !client.ts3.socket) return;
   socket.tokoData = data;
-
-  if (socket.tokoData.from === 'fivem') {
-    if (!socket.uuid) {
-      const newUUID = uuid();
-      socket.uuid = newUUID;
-      socket.from = 'fivem';
-      clients[newUUID] = {
-        ip: socket.clientIp,
-        uuid: socket.uuid,
-        fivem: {},
-        ts3: {},
-      };
-      clients[socket.uuid].fivem.socket = socket;
-      clients[socket.uuid].fivem.linkedAt = (new Date()).toISOString();
-    }
-    if (!clients[socket.uuid]) return;
-    clients[socket.uuid].fivem.data = socket.tokoData;
-    clients[socket.uuid].fivem.updatedAt = (new Date()).toISOString();
-    if (clients[socket.uuid].ts3.socket) {
-      clients[socket.uuid].ts3.socket.send(JSON.stringify(clients[socket.uuid].fivem.data));
-    }
-
-  } else if (socket.tokoData.from === 'ts3') {
-    if (!socket.uuid) {
-      if (!data.tsClientIp) return;
-      const client = Object.values(clients).find(item => item.fivem.socket.clientIp === data.tsClientIp);
-      if (!client) return;
-      socket.uuid = client.uuid;
-      socket.from = 'ts3';
-      client.ts3.socket = socket;
-      client.ts3.linkedAt = (new Date()).toISOString();
-    }
-    if (!socket.uuid || !clients[socket.uuid]) return;
-    clients[socket.uuid].ts3.data = socket.tokoData;
-    clients[socket.uuid].ts3.updatedAt = (new Date()).toISOString();
-    if (clients[socket.uuid].fivem.socket) {
-      clients[socket.uuid].fivem.socket.send(JSON.stringify(clients[socket.uuid].ts3.data));
-    }
-  }
-
-  return socket;
+  client.fivem.data = socket.tokoData;
+  client.fivem.updatedAt = (new Date()).toISOString();
+  client.ts3.socket.send(JSON.stringify(client.fivem.data));
 }
 
 function onSocketDisconnect(socket) {
-  if (!socket.uuid) return;
-  if (socket.from === 'fivem') {
-    if (clients[socket.uuid].ts3.socket) {
-      delete clients[socket.uuid].ts3.socket.uuid;
-    }
-    delete clients[socket.uuid];
-  } else if (socket.from === 'ts3') {
-    clients[socket.uuid].ts3 = {};
-  }
+  lodash.set(clients[socket.uuid], `${socket.from}`, {});
 }
 
 function masterHeartbeat() {
@@ -114,3 +123,5 @@ function masterHeartbeat() {
     port: '3000',
   }).catch(e => console.error('Sending heartbeat failed with error: ', e));
 }
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
