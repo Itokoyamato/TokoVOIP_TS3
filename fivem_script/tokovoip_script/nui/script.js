@@ -58,6 +58,10 @@ function init() {
 			updateScriptData('pluginUUID', msg.data.uuid);
 		}
 
+		if (msg.event === 'disconnectMessage') {
+			console.error(msg);
+		}
+
 		// Handle talking states
 		if (evt.data == 'startedtalking') {
 			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 1}));
@@ -68,7 +72,7 @@ function init() {
 	};
 
 	websocket.onerror = (evt) => {
-		console.log('TokoVOIP: error - ' + evt.data);
+		console.error('TokoVOIP: error - ' + evt.data);
 	};
 
 	websocket.onclose = () => {
