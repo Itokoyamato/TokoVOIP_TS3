@@ -322,7 +322,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		outputLog("WebsocketServer: Failed to get UUID");
 		return NULL;
 	}
-	
+
 	WsClient client(endpoint + "&uuid=" + (string)UUID);
 	lastWSConnection = time(nullptr);
 
@@ -498,7 +498,6 @@ void resetChannel() {
 
 void resetState() {
 	wsConnection = NULL;
-	exitSendDataThread = false;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	string currentChannelName = getChannelName(serverId, getMyId(serverId));
 	if (mainChannel == currentChannelName) resetChannel();
@@ -698,25 +697,15 @@ int Tokovoip::initialize(char *id) {
 	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
-	//exitTimeoutThread = false;
-	//exitSendDataThread = false;
-	//threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
-	//threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
-	//threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
 	initWebSocket();
 	return (1);
 }
 
 void Tokovoip::shutdown()
 {
-	//exitTimeoutThread = true;
-	//exitSendDataThread = true;
-	//resetClientsAll();
-
-	//DWORD exitCode;
-	//BOOL result = GetExitCodeThread(threadService, &exitCode);
-	//if (!result || exitCode == STILL_ACTIVE)
-	//	outputLog("service thread not terminated", LogLevel_CRITICAL);
+	exitSendDataThread = true;
+	if (wsConnection) wsConnection.close();
+	resetClientsAll();
 }
 
 vector<string> explode(const string& str, const char& ch) {
