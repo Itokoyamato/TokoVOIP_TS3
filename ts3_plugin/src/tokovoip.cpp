@@ -688,7 +688,7 @@ int Tokovoip::initialize(char *id) {
 void Tokovoip::shutdown()
 {
 	exitWebSocketThread = true;
-	if (wsConnection) wsConnection.reset();
+	if (wsConnection) wsConnection->send_close(1000);
 	resetClientsAll();
 }
 
