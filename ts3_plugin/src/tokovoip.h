@@ -38,7 +38,6 @@ void resetState();
 void resetChannel();
 string getWebSocketEndpoint();
 void sendWSMessage(string eventName, json value);
-void initDataThread();
 
 class Tokovoip {
 private:

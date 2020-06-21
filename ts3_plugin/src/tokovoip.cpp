@@ -31,12 +31,11 @@ using WsClient = SimpleWeb::SocketClient<SimpleWeb::WS>;
 int isRunning = 0;
 
 HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
+bool exitWebSocketThread = FALSE;
 shared_ptr<WsClient::Connection> wsConnection;
 
 
-HANDLE threadSendData = INVALID_HANDLE_VALUE;
 HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
-volatile bool exitSendDataThread = FALSE;
 
 bool isTalking = false;
 char* originalName = "";
@@ -48,22 +47,6 @@ string clientIP = "";
 time_t lastWSConnection = 0;
 
 time_t noiseWait = 0;
-
-DWORD WINAPI SendDataService(LPVOID lpParam) {
-	while (!exitSendDataThread) {
-		if (tokovoip->getProcessingState()) {
-			Sleep(100);
-			continue;
-		}
-		json data = {
-			{ "key", "pluginVersion" },
-			{ "value", (string)ts3plugin_version() },
-		};
-		sendWSMessage("setTS3Data", data);
-		Sleep(1000);
-	}
-	return NULL;
-}
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
@@ -336,6 +319,10 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 			handleMessage(connection, json_data[1].dump());
 		} else if (message.find("disconnect") != string::npos) {
 			outputLog(message);
+		} else if (message.find("ping") != string::npos) {
+			sendWSMessage("pong", "{}");
+		} else {
+			outputLog(message);
 		}
 	};
 
@@ -366,6 +353,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		outputLog("Websocket connection closed: " + to_string(status));
 		client.stop();
 		resetState();
+		if (exitWebSocketThread) return;
 		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
 		if (sleepTime > 0) Sleep(sleepTime);
 		initWebSocket();
@@ -375,6 +363,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		outputLog("Websocket error: " + ec.message());
 		client.stop();
 		resetState();
+		if (exitWebSocketThread) return;
 		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
 		if (sleepTime > 0) Sleep(sleepTime);
 		initWebSocket();
@@ -386,13 +375,8 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 
 void initWebSocket() {
 	outputLog("Initializing WebSocket Thread", 0);
+	exitWebSocketThread = false;
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
-}
-
-void initDataThread() {
-	outputLog("Initializing Data Thread", 0);
-	exitSendDataThread = false;
-	threadSendData = CreateThread(NULL, 0, SendDataService, NULL, 0, NULL);
 }
 
 string getWebSocketEndpoint() {
@@ -703,8 +687,8 @@ int Tokovoip::initialize(char *id) {
 
 void Tokovoip::shutdown()
 {
-	exitSendDataThread = true;
-	if (wsConnection) wsConnection.close();
+	exitWebSocketThread = true;
+	if (wsConnection) wsConnection.reset();
 	resetClientsAll();
 }
 
