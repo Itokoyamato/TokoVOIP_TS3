@@ -19,9 +19,6 @@
 #include "tokovoip.h"
 #include "client_ws.hpp"
 
-#define CURL_STATICLIB
-#include "curl.h"
-
 #include "httplib.h"
 using namespace httplib;
 
@@ -33,9 +30,6 @@ int isRunning = 0;
 HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
 bool exitWebSocketThread = FALSE;
 shared_ptr<WsClient::Connection> wsConnection;
-
-
-HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
 
 bool isTalking = false;
 char* originalName = "";
@@ -497,69 +491,19 @@ void sendWSMessage(string endpoint, json value) {
 	wsConnection->send("42" + send.dump());
 }
 
-// callback function writes data to a std::ostream
-static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp)
-{
-	if (userp)
-	{
-		std::ostream& os = *static_cast<std::ostream*>(userp);
-		std::streamsize len = size * nmemb;
-		if (os.write(static_cast<char*>(buf), len))
-			return len;
-	}
-
-	return 0;
-}
-
-size_t curl_callback(const char* in, size_t size, size_t num, string* out) {
-	const size_t totalBytes(size * num);
-	out->append(in, totalBytes);
-	return totalBytes;
-}
-
-json downloadJSON(string url) {
-	CURL* curl = curl_easy_init();
-
-	// Set remote URL.
-	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-
-	// Don't bother trying IPv6, which would increase DNS resolution time.
-	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-
-	// Don't wait forever, time out after 10 seconds.
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
-
-	// Follow HTTP redirects if necessary.
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-	// Response information.
-	int httpCode(0);
-	unique_ptr<string> httpData(new string());
-
-	// Hook up data handling function.
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_callback);
-
-	// Hook up data container (will be passed as the last parameter to the
-	// callback handling function).  Can be any pointer type, since it will
-	// internally be passed as a void pointer.
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
-
-	// Run our HTTP GET command, capture the HTTP response code, and clean up.
-	curl_easy_perform(curl);
-	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-	curl_easy_cleanup(curl);
-
-	if (httpCode == 200) {
-		// Response looks good - done using Curl now.  Try to parse the results
-		// and print them out.
-		json parsedJSON = json::parse(*httpData.get(), nullptr, false);
+json downloadJSON(string host, string path) {
+	httplib::Client cli(host.c_str());
+	cli.set_follow_location(true);
+	auto res = cli.Get(path.c_str());
+	if (res && res->status == 200) {
+		json parsedJSON = json::parse(res->body, nullptr, false);
 		if (parsedJSON.is_discarded()) {
 			outputLog("Downloaded JSON is invalid");
 			return NULL;
 		}
 		return parsedJSON;
 	} else {
-		outputLog("Couldn't retrieve JSON (Code: " + to_string(httpCode) + ")");
+		outputLog("Couldn't retrieve JSON (Code: " + to_string(res->status) + ")");
 		return NULL;
 	}
 
@@ -567,7 +511,7 @@ json downloadJSON(string url) {
 }
 
 void checkUpdate() {
-	json updateJSON = downloadJSON("http://itokoyamato.net/files/tokovoip/tokovoip_info.json");
+	json updateJSON = downloadJSON("http://itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
 	if (updateJSON != NULL) {
 		outputLog("Got update json");
 	}
@@ -678,7 +622,7 @@ int Tokovoip::initialize(char *id) {
 	outputLog("TokoVOIP initialized", 0);
 
 	resetClientsAll();
-	checkUpdate();
+	//checkUpdate();
 	isRunning = false;
 	tokovoip = this;
 	initWebSocket();
