@@ -73,6 +73,7 @@ io.on('connection', async socket => {
     handshakes.splice(handshake, 1);
 
     socket.on('setTS3Data', (data) => setTS3Data(socket, data));
+    ts3Heartbeat(socket);
 
   // FiveM Handshake
   } else if (socket.request._query.from === 'fivem') {
@@ -132,6 +133,17 @@ async function onSocketDisconnect(socket) {
   if (!socket.from === 'fivem') return;
   const handshake = handshakes.findIndex(item => item == socket);
   if (handshake !== -1) handshakes.splice(handshake, 1);
+}
+
+function ts3Heartbeat(socket) {
+  if (!socket) return;
+  const start = new Date();
+  socket.emit('ping');
+  socket.once('pong', _ => {
+    setTimeout(_ => ts3Heartbeat(socket), 1000);
+    if (!socket.uuid || !clients[socket.uuid]) return;
+    clients[socket.uuid].ts3.latency = (new Date).getTime() - start.getTime();
+  });
 }
 
 function masterHeartbeat() {
