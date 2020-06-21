@@ -64,12 +64,8 @@ DWORD WINAPI SendDataService(LPVOID lpParam) {
 	return NULL;
 }
 
-int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> message) {
+int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
-
-	auto message_str = message->string();
-	//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
-
 
 	if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
 	{
@@ -331,6 +327,14 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
 		outputLog("Websocket message received:" + in_message->string());
+		string message = in_message->string();
+		if (message.find("processTokovoip") != string::npos) {
+			int pos = message.find("42[\"");
+			message.erase(pos, 2);
+			json json_data = json::parse(message, nullptr, false);
+			if (json_data.is_discarded()) return;
+			handleMessage(connection, json_data[1].dump());
+		}
 	};
 
 	client.on_open = [&](shared_ptr<WsClient::Connection> connection) {
