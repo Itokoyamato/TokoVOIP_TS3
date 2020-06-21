@@ -45,6 +45,7 @@ string mainChannel = "";
 string waitChannel = "";
 time_t lastChannelJoin = 0;
 string clientIP = "";
+time_t lastWSConnection = 0;
 
 time_t noiseWait = 0;
 
@@ -309,11 +310,11 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		Sleep(1000);
 	}
 
-	/*string endpoint = getWebSocketEndpoint();
+	string endpoint = getWebSocketEndpoint();
 	if (endpoint == "") {
 		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
 		return NULL;
-	}*/
+	}
 
 	char *UUID;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
@@ -322,11 +323,11 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		return NULL;
 	}
 	
-	//WsClient client(endpoint);
-	WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket&from=ts3&uuid=" + (string)UUID);
+	WsClient client(endpoint + "&uuid=" + (string)UUID);
+	//WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket&from=ts3&uuid=" + (string)UUID);
+	lastWSConnection = time(nullptr);
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
-		outputLog("Websocket message received:" + in_message->string());
 		string message = in_message->string();
 		if (message.find("processTokovoip") != string::npos) {
 			int pos = message.find("42[\"");
@@ -334,6 +335,8 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 			json json_data = json::parse(message, nullptr, false);
 			if (json_data.is_discarded()) return;
 			handleMessage(connection, json_data[1].dump());
+		} else if (message.find("disconnect") != string::npos) {
+			outputLog(message);
 		}
 	};
 
@@ -361,9 +364,11 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	};
 
 	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
-		outputLog("Websocket connection closed: status " + status);
+		outputLog("Websocket connection closed: " + to_string(status));
 		client.stop();
 		resetState();
+		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
+		if (sleepTime > 0) Sleep(sleepTime);
 		initWebSocket();
 	};
 
@@ -371,6 +376,8 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		outputLog("Websocket error: " + ec.message());
 		client.stop();
 		resetState();
+		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
+		if (sleepTime > 0) Sleep(sleepTime);
 		initWebSocket();
 	};
 
@@ -449,15 +456,14 @@ string getWebSocketEndpoint() {
 			}
 		}
 	}
+	if (fivemServer == NULL) return "";
 
 	outputLog("Retrieved fivem server info");
 
 	string fivemServerIP = fivemServer["ip"];
 	string fivemServerPORT = fivemServer["port"];
 
-	outputLog(fivemServerIP + ":" + fivemServerPORT);
-
-	return fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket";
+	return fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket&from=ts3";
 }
 
 void resetChannel() {
