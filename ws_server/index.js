@@ -72,7 +72,8 @@ io.on('connection', async socket => {
     client.ts3.linkedAt = (new Date()).toISOString();
     handshakes.splice(handshake, 1);
 
-    socket.on('setTS3Data', (data) => setTS3Data(socket, data));
+    socket.on('setTS3Data', data => setTS3Data(socket, data));
+    socket.on('onTalkStatusChanged', data => setTS3Data(socket, { key: 'talking', value: data }));
     ts3Heartbeat(socket);
 
   // FiveM Handshake
