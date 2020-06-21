@@ -324,7 +324,6 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	}
 	
 	WsClient client(endpoint + "&uuid=" + (string)UUID);
-	//WsClient client("localhost:3000/socket.io/?EIO=3&transport=websocket&from=ts3&uuid=" + (string)UUID);
 	lastWSConnection = time(nullptr);
 
 	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
@@ -770,16 +769,10 @@ void playWavFile(const char* fileNameWithoutExtension)
 	}
 }
 
-void	setClientName(string name)
-{
+void	setClientName(string name) {
 	DWORD error;
 	char* currentName;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-
-	// Cancel name change is anti-spam timer still active
-	if (time(nullptr) - lastNameSetTick < 2) return;
-
-	lastNameSetTick = time(nullptr);
 
 	if ((error = ts3Functions.flushClientSelfUpdates(serverId, NULL)) != ERROR_ok && error != ERROR_ok_no_update)
 		return outputLog("Can't flush self updates.", error);
@@ -789,6 +782,11 @@ void	setClientName(string name)
 
 	// Cancel name changing if name is already the same
 	if (name == (string)currentName) return;
+
+	// Cancel name change is anti-spam timer still active
+	if (time(nullptr) - lastNameSetTick < 2) return;
+
+	lastNameSetTick = time(nullptr);
 
 	// Set name
 	if ((error = ts3Functions.setClientSelfVariableAsString(serverId, CLIENT_NICKNAME, name.c_str())) != ERROR_ok)
