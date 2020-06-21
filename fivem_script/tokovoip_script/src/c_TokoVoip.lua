@@ -49,7 +49,7 @@ function TokoVoip.loop(self)
 end
 
 function TokoVoip.sendDataToTS3(self) -- Send usersdata to the Javascript Websocket
-	if (self.pluginStatus ~= 3) then return end;
+	if (self.pluginStatus == -1) then return end;
 	self:updatePlugin("updateTokoVoip", self.plugin_data);
 end
 
