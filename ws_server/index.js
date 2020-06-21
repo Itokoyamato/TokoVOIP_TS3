@@ -10,6 +10,8 @@ const lodash = require('lodash');
 let masterHeartbeatInterval;
 const clients = {};
 
+const handshakes = [];
+
 app.use(express.json());
 
 http.listen(3000, () => {
@@ -26,35 +28,34 @@ app.get('/', (_, res) => {
 });
 
 app.get('/playerbyip', (req, res) => {
-  const player = Object.values(clients).find(item => {
-    return !item.ts3.socket && item.ip === req.query.ip;
-  });
+  const player = handshakes.find(item => item.clientIp === req.query.ip);
   if (!player) return res.status(404).send();
   return res.status(204).send();
 });
 
+http.on('upgrade', (req, socket) => {
+  if (!req._query.from) socket.destroy();
+  if (req._query.from === 'ts3' && !req._query.uuid) socket.destroy();
+});
+
 io.on('connection', async socket => {
-  if (!socket.request._query.from) return;
 
   socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
   socket.on('disconnect', _ => onSocketDisconnect(socket));
 
-  // TS3 Handshake:
-  // main entrypoint
-  // fivem will wait for it to be ready and handshake after
+  // TS3 Handshake
   if (socket.request._query.from === 'ts3') {
-    if (!socket.request._query.uuid) {
-      socket.disconnect('UUID Required');
-      return;
-    }
+    socket.from = 'ts3';
 
-    // If client already exist, reset it
     let client = clients[socket.request._query.uuid];
-    if (client) {
-      if (client.fivem.socket) client.fivem.socket.disconnect();
-      if (client.ts3.socket) client.ts3.socket.disconnect();
+
+    const handshake = handshakes.findIndex(item => item.clientIp === socket.clientIp);
+    if (handshake === -1) {
+      socket.emit('disconnectMessage', 'handshakeNotFound');
+      socket.disconnect(true);
+      return;
     }
 
     // Initialize client data
@@ -67,28 +68,29 @@ io.on('connection', async socket => {
       },
     };
     socket.uuid = socket.request._query.uuid;
-    socket.from = 'ts3';
     client.ts3.socket = socket;
     client.ts3.linkedAt = (new Date()).toISOString();
+    handshakes.splice(handshake, 1);
 
     socket.on('setTS3Data', (data) => setTS3Data(socket, data));
 
-  // FiveM Handshake:
-  // will wait for TS3 handshake to be complete and retry until then
+  // FiveM Handshake
   } else if (socket.request._query.from === 'fivem') {
+    socket.from = 'fivem';
+    handshakes.push(socket);
     let client;
     let tries = 0;
     while (!client) {
       ++tries;
-      if (tries > 1) sleep(5000);
+      if (tries > 1) await sleep(5000);
       if (tries > 12) {
-        socket.disconnect('Failed to handshake with TS3 (Timeout after 60 seconds)');
+        socket.emit('disconnectMessage', 'ts3HandshakeFailed');
+        socket.disconnect(true);
         return;
       }
       client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
     }
     socket.uuid = client.uuid;
-    socket.from = 'fivem';
     client.fivem.socket = socket;
     client.fivem.linkedAt = (new Date()).toISOString();
     if (client.ts3.data && client.ts3.data.uuid) {
@@ -117,8 +119,19 @@ function onIncomingData(socket, data) {
   client.ts3.socket.emit('processTokovoip', client.fivem.data);
 }
 
-function onSocketDisconnect(socket) {
-  lodash.set(clients[socket.uuid], `${socket.from}`, {});
+async function onSocketDisconnect(socket) {
+  if (socket.uuid && clients[socket.uuid]) {
+    const client = clients[socket.uuid];
+    const secondary = (socket.from === 'fivem') ? 'ts3' : 'fivem';
+    if (client[secondary].socket) {
+      client[secondary].socket.emit('disconnectMessage', `${socket.from}Disconnected`);
+      client[secondary].socket.disconnect(true);
+    }
+    delete clients[socket.uuid];
+  }
+  if (!socket.from === 'fivem') return;
+  const handshake = handshakes.findIndex(item => item == socket);
+  if (handshake !== -1) handshakes.splice(handshake, 1);
 }
 
 function masterHeartbeat() {
