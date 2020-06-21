@@ -40,27 +40,22 @@ function init() {
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
 		connected = true;
-		lastPing = getTickCount();
 	};
 
 	websocket.onmessage = (evt) => {
-		// Handle plugin status
-		if (evt.data.includes('TokoVOIP status:')) {
-			connected = true;
-			lastPing = getTickCount();
-			forcedInfo = false;
-			const pluginStatus = evt.data.split(':')[1].replace(/\./g, '');
-			updateScriptData('pluginStatus', parseInt(pluginStatus));
+		let msg = '';
+		if (evt.data.includes('42["')) {
+			const parsed = JSON.parse(evt.data.replace('42', ''));
+			msg = {
+				event: parsed[0],
+				data: parsed[1],
+			};
 		}
 
-		// Handle plugin version
-		if (evt.data.includes('TokoVOIP version:')) {
-			updateScriptData('pluginVersion', evt.data.split(':')[1]);
-		}
-
-		// Handle plugin UUID
-		if (evt.data.includes('TokoVOIP UUID:')) {
-			updateScriptData('pluginUUID', evt.data.split(':')[1]);
+		if (msg.event === 'setTS3Data') {
+			if (msg.data.pluginStatus !== undefined) updateScriptData('pluginStatus', parseInt(msg.data.pluginStatus));
+			updateScriptData('pluginVersion', msg.data.pluginVersion);
+			updateScriptData('pluginUUID', msg.data.uuid);
 		}
 
 		// Handle talking states
@@ -267,9 +262,3 @@ function updateScriptData(key, data) {
 }
 
 window.addEventListener('message', receivedClientCall, false);
-
-// init()
-
-// setInterval(_ => {
-// 	websocket.send('42' + JSON.stringify(['data', {'from': 'fivem'}]));
-// }, 1000);
