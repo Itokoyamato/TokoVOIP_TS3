@@ -511,7 +511,7 @@ json downloadJSON(string host, string path) {
 }
 
 void checkUpdate() {
-	json updateJSON = downloadJSON("http://itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
+	json updateJSON = downloadJSON("itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
 	if (updateJSON != NULL) {
 		outputLog("Got update json");
 	}
@@ -622,7 +622,7 @@ int Tokovoip::initialize(char *id) {
 	outputLog("TokoVOIP initialized", 0);
 
 	resetClientsAll();
-	//checkUpdate();
+	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
 	initWebSocket();
