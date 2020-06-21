@@ -91,6 +91,9 @@ io.on('connection', async socket => {
     socket.from = 'fivem';
     client.fivem.socket = socket;
     client.fivem.linkedAt = (new Date()).toISOString();
+    if (client.ts3.data && client.ts3.data.uuid) {
+      socket.emit('setTS3Data', client.ts3.data);
+    }
 
     socket.on('data', (data) => onIncomingData(socket, data));
   }
@@ -99,7 +102,10 @@ io.on('connection', async socket => {
 function setTS3Data(socket, data) {
   const client = clients[socket.uuid];
   if (!client) return;
-  lodash.set(client.ts3.data, data.key, data.value);
+  lodash.set(client.ts3, `data.${data.key}`, data.value);
+  if (client.fivem.socket) {
+    client.fivem.socket.emit('setTS3Data', client.ts3.data);
+  }
 }
 
 function onIncomingData(socket, data) {
