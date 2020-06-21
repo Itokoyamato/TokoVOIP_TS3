@@ -47,7 +47,7 @@ private:
 	bool processingState = false;
 	char *plugin_id;
 	char *plugin_path;
-	int pluginStatus = 0;
+	int pluginStatus = -1;
 
 public:
 	int initialize(char* id);

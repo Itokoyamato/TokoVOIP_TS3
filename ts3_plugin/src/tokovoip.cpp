@@ -65,9 +65,7 @@ DWORD WINAPI SendDataService(LPVOID lpParam) {
 }
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> message) {
-	int currentPluginStatus = 0;
-	tokovoip->setProcessingState(true, currentPluginStatus);
-	currentPluginStatus = 1;
+	int currentPluginStatus = 1;
 
 	auto message_str = message->string();
 	//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
@@ -348,6 +346,12 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		data = {
 			{ "key", "uuid" },
 			{ "value", (string)UUID },
+		};
+		sendWSMessage("setTS3Data", data);
+
+		data = {
+				{ "key", "pluginStatus" },
+				{ "value", 0 },
 		};
 		sendWSMessage("setTS3Data", data);
 	};
