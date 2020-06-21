@@ -114,7 +114,7 @@ function onIncomingData(socket, data) {
   socket.tokoData = data;
   client.fivem.data = socket.tokoData;
   client.fivem.updatedAt = (new Date()).toISOString();
-  client.ts3.socket.send(JSON.stringify(client.fivem.data));
+  client.ts3.socket.emit('processTokovoip', client.fivem.data);
 }
 
 function onSocketDisconnect(socket) {
