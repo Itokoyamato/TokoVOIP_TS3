@@ -692,8 +692,14 @@ void setClientTalking(bool status)
 {
 	DWORD error;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-	if (status)
-	{
+	char* vad;
+	if ((error = ts3Functions.getPreProcessorConfigValue(serverId, "vad", &vad)) != ERROR_ok) {
+		outputLog("Error retrieving vad setting");
+		return;
+	}
+	if (strcmp(vad, "true") == 0) return;
+
+	if (status) {
 		if ((error = ts3Functions.setClientSelfVariableAsInt(serverId, CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
 			outputLog("Can't active input.", error);
 		error = ts3Functions.flushClientSelfUpdates(serverId, NULL);
