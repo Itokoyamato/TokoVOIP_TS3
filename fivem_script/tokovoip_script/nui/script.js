@@ -56,19 +56,10 @@ function init() {
 			if (msg.data.pluginStatus !== undefined) updateScriptData('pluginStatus', parseInt(msg.data.pluginStatus));
 			updateScriptData('pluginVersion', msg.data.pluginVersion);
 			updateScriptData('pluginUUID', msg.data.uuid);
+			if (msg.data.talking !== undefined) $.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({ state: (msg.data.talking) ? 1 : 0 }));
 		}
 
-		if (msg.event === 'disconnectMessage') {
-			console.error(msg);
-		}
-
-		// Handle talking states
-		if (evt.data == 'startedtalking') {
-			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 1}));
-		}
-		if (evt.data == 'stoppedtalking') {
-			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 0}));
-		}
+		if (msg.event === 'disconnectMessage') console.error(msg);
 	};
 
 	websocket.onerror = (evt) => {
