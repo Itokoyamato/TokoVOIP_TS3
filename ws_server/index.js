@@ -74,12 +74,13 @@ io.on('connection', async socket => {
 
     socket.on('setTS3Data', data => setTS3Data(socket, data));
     socket.on('onTalkStatusChanged', data => setTS3Data(socket, { key: 'talking', value: data }));
-    ts3Heartbeat(socket);
+    socketHeartbeat(socket);
 
   // FiveM Handshake
   } else if (socket.request._query.from === 'fivem') {
     socket.from = 'fivem';
     handshakes.push(socket);
+    socketHeartbeat(socket);
     let client;
     let tries = 0;
     while (!client) {
@@ -136,14 +137,15 @@ async function onSocketDisconnect(socket) {
   if (handshake !== -1) handshakes.splice(handshake, 1);
 }
 
-function ts3Heartbeat(socket) {
+function socketHeartbeat(socket) {
   if (!socket) return;
   const start = new Date();
   socket.emit('ping');
   socket.once('pong', _ => {
-    setTimeout(_ => ts3Heartbeat(socket), 1000);
+    setTimeout(_ => socketHeartbeat(socket), 1000);
     if (!socket.uuid || !clients[socket.uuid]) return;
-    clients[socket.uuid].ts3.latency = (new Date).getTime() - start.getTime();
+    socket.latency = (new Date).getTime() - start.getTime();
+    clients[socket.uuid][socket.from].latency = socket.latency;
   });
 }
 
