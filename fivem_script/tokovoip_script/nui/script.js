@@ -62,7 +62,9 @@ function init(address) {
 			if (msg.data.talking !== undefined) $.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({ state: (msg.data.talking) ? 1 : 0 }));
 		}
 
-		if (msg.event === 'disconnectMessage') console.error(msg);
+		if (msg.event === 'ping') websocket.send(`42${JSON.stringify(['pong', ''])}`);
+
+		if (msg.event === 'disconnectMessage') console.error(msg.data);
 	};
 
 	websocket.onerror = (evt) => {
