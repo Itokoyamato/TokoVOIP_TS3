@@ -21,6 +21,7 @@ function getTickCount() {
 }
 
 let websocket;
+let endpoint;
 let connected = false;
 let lastOk = 0;
 
@@ -33,9 +34,11 @@ const WRONG_SERVER = 3;
 const WRONG_CHANNEL = 4;
 const INCORRECT_VERSION = 5;
 
-function init() {
+function init(address) {
+	if (!address) return;
+	endpoint = address;
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://localhost:3000/socket.io/?EIO=3&transport=websocket&from=fivem');
+	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem`);
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
@@ -102,7 +105,7 @@ function init() {
 		console.log('TokoVOIP: closed connection - ' + reason);
 		connected = false;
 		updateScriptData('pluginStatus', -1);
-		init();
+		init(endpoint);
 	};
 }
 
@@ -123,7 +126,7 @@ function receivedClientCall(event) {
 
 	} else if (voip) {
 		if (eventName == 'initializeSocket') {
-			init();
+			init(payload);
 
 		} else if (eventName == 'updateTokovoipInfo') {
 			if (connected)

@@ -96,7 +96,7 @@ end
 
 function TokoVoip.initialize(self)
 	self:updateConfig();
-	self:updatePlugin("initializeSocket", nil);
+	self:updatePlugin("initializeSocket", self.wsServer);
 	Citizen.CreateThread(function()
 		while (true) do
 			Citizen.Wait(5);
