@@ -6,6 +6,7 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
 const lodash = require('lodash');
+const config = require('./config.json');
 
 let masterHeartbeatInterval;
 const clients = {};
@@ -152,9 +153,9 @@ function socketHeartbeat(socket) {
 function masterHeartbeat() {
   console.log('Heartbeat sent');
   axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
-    tsServer: '127.0.0.1',
-    ip: '127.0.0.1',
-    port: '3000',
+    tsServer: config.TSServer,
+    ip: config.FivemServerIP,
+    port: config.FivemServerPort,
   }).catch(e => console.error('Sending heartbeat failed with error:', e.code));
 }
 
