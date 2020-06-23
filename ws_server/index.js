@@ -151,11 +151,11 @@ function socketHeartbeat(socket) {
 
 function masterHeartbeat() {
   console.log('Heartbeat sent');
-  axios.post('http://localhost:3005/heartbeat', {
+  axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
     tsServer: '127.0.0.1',
     ip: '127.0.0.1',
     port: '3000',
-  }).catch(e => console.error('Sending heartbeat failed with error: ', e));
+  }).catch(e => console.error('Sending heartbeat failed with error:', e.code));
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
