@@ -574,8 +574,9 @@ json getServerInfoFromMaster() {
 		return NULL;
 	}
 
-	httplib::Client cli("localhost", 3005);
+	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
 	string path = "/server?address=" + string(serverIP);
+	cli.set_follow_location(true);
 	auto res = cli.Get(path.c_str());
 	if (res && res->status == 200) {
 		json parsedJSON = json::parse(res->body, nullptr, false);
@@ -605,6 +606,7 @@ json getServerFromClientIP(json servers) {
 		outputLog("Requesting fivem server " + to_string(serverCount));
 		httplib::Client cli(ip, atoi(port.c_str()));
 		string path = "/playerbyip?ip=" + string(clientIP);
+		cli.set_follow_location(true);
 		auto res = cli.Get(path.c_str());
 		if (res && res->status == 204) return JSON;
 		outputLog("Client not connected to fivem server " + to_string(serverCount));
