@@ -15,8 +15,8 @@ const handshakes = [];
 
 app.use(express.json());
 
-http.listen(3000, () => {
-  console.log('Listening on *:3000');
+http.listen(config.WSPort, () => {
+  console.log(`Listening on *:${config.WSPort}`);
   masterHeartbeat();
   masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
 });

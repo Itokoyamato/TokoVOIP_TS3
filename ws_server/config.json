@@ -1,5 +1,6 @@
 {
+  "WSPort": 3000,
   "TSServer": "ts.myserver.com",
   "FivemServerIP": "127.0.0.1",
-  "FivemServerPort": "32000"
+  "FivemServerPort": 32000
 }
