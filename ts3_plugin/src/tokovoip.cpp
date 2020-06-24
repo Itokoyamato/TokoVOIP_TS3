@@ -376,7 +376,6 @@ void initWebSocket() {
 string getWebSocketEndpoint() {
 	int sleepLength = 5000;
 
-	json serverInfo = NULL;
 	json fivemServer = NULL;
 
 	sleepLength = 5000;
@@ -400,47 +399,52 @@ string getWebSocketEndpoint() {
 
 	sleepLength = 5000;
 	tries = 0;
-	while (serverInfo == NULL) {
+	bool verified = false;
+	while (!verified) {
 		tries += 1;
-		outputLog("Requesting server info (attempt " + to_string(tries) + ")");
-		serverInfo = getServerInfoFromMaster();
-		if (serverInfo == NULL) {
-			outputLog("No server info found");
+		outputLog("Verifying TS server (attempt " + to_string(tries) + ")");
+		verified = verifyTSServer();
+		if (!verified) {
 			Sleep(sleepLength);
 			if (tries >= 2) sleepLength += 5000;
 			if(tries >= 5) {
-				outputLog("Could not retrieve the server info");
+				outputLog("Failed to verify TS server");
 				return "";
 			}
 		}
 	}
 
-	outputLog("Retrieved server info");
+	outputLog("Successfully verified TS server");
 
 	sleepLength = 5000;
 	tries = 0;
 	while (fivemServer == NULL) {
 		tries += 1;
-		outputLog("Requesting fivem server info (attempt " + to_string(tries) + ")");
-		fivemServer = getServerFromClientIP(serverInfo["servers"]);
+		outputLog("Handshaking (attempt " + to_string(tries) + ")");
+		fivemServer = handshake(clientIP);
 		if (fivemServer == NULL) {
-			outputLog("No server found");
 			Sleep(sleepLength);
 			if (tries >= 20) sleepLength = 10000;
 			if (tries >= 40) {
-				outputLog("Could not retrieve the fivem server info");
+				outputLog("Failed to handshake");
 				return "";
 			}
 		}
 	}
 	if (fivemServer == NULL) return "";
 
-	outputLog("Retrieved fivem server info");
+	outputLog("Successfully handshaked");
 
-	string fivemServerIP = fivemServer["ip"];
-	string fivemServerPORT = fivemServer["port"];
+	outputLog(fivemServer.dump());
+	json server = fivemServer["server"];
+	outputLog(server.dump());
+	string fivemServerIP = server["ip"];
+	int fivemServerPORT = server["port"];
 
-	return fivemServerIP + ":" + fivemServerPORT + "/socket.io/?EIO=3&transport=websocket&from=ts3";
+	outputLog(fivemServerIP);
+	outputLog(to_string(fivemServerPORT));
+
+	return fivemServerIP + ":" + to_string(fivemServerPORT) + "/socket.io/?EIO=3&transport=websocket&from=ts3";
 }
 
 void resetChannel() {
@@ -564,7 +568,7 @@ void checkUpdate() {
 	}
 }
 
-json getServerInfoFromMaster() {
+bool verifyTSServer() {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	unsigned int error;
 	char* serverIP;
@@ -575,41 +579,30 @@ json getServerInfoFromMaster() {
 	}
 
 	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
-	string path = "/server?address=" + string(serverIP);
+	string path = "/verify?address=" + string(serverIP);
+	cli.set_follow_location(true);
+	auto res = cli.Get(path.c_str());
+	if (res && res->status == 200) return true;
+	return false;
+}
+
+json handshake(string clientIP) {
+	if (clientIP == "") return NULL;
+
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	unsigned int error;
+
+	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	string path = "/handshake?ip=" + string(clientIP);
 	cli.set_follow_location(true);
 	auto res = cli.Get(path.c_str());
 	if (res && res->status == 200) {
 		json parsedJSON = json::parse(res->body, nullptr, false);
 		if (parsedJSON.is_discarded()) {
-			outputLog("ServerInfo: invalid JSON");
+			outputLog("Handshake: Downloaded JSON is invalid");
 			return NULL;
 		}
 		return parsedJSON;
-	 }
-	return NULL;
-}
-
-json getServerFromClientIP(json servers) {
-	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-	unsigned int error;
-
-	if (clientIP == "") return NULL;
-
-	int serverCount = 0;
-	for (json::iterator it = servers.begin(); it != servers.end(); ++it) {
-		json JSON = *it;
-		if (JSON.find("ip") == JSON.end() || JSON.find("port") == JSON.end()) continue;
-		string ip = JSON["ip"];
-		string port = JSON["port"];
-
-		serverCount += 1;
-		outputLog("Requesting fivem server " + to_string(serverCount));
-		httplib::Client cli(ip, atoi(port.c_str()));
-		string path = "/playerbyip?ip=" + string(clientIP);
-		cli.set_follow_location(true);
-		auto res = cli.Get(path.c_str());
-		if (res && res->status == 204) return JSON;
-		outputLog("Client not connected to fivem server " + to_string(serverCount));
 	}
 	return NULL;
 }
