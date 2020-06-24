@@ -81,6 +81,16 @@ io.on('connection', async socket => {
   } else if (socket.request._query.from === 'fivem') {
     socket.from = 'fivem';
     handshakes.push(socket);
+    await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+      body: {
+        ip: socket.clientIp,
+        server: {
+          ip: config.FivemServerIP,
+          port: config.FivemServerPort,
+          tsServer: config.tsServer,
+        },
+      },
+    });
     socketHeartbeat(socket);
     let client;
     let tries = 0;
