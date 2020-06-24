@@ -15,8 +15,8 @@ const handshakes = [];
 
 app.use(express.json());
 
-http.listen(config.WSPort, () => {
-  console.log(`Listening on *:${config.WSPort}`);
+http.listen(config.WSServerPort, () => {
+  console.log(`Listening on *:${config.WSServerPort}`);
   masterHeartbeat();
   masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
 });
@@ -81,16 +81,6 @@ io.on('connection', async socket => {
   } else if (socket.request._query.from === 'fivem') {
     socket.from = 'fivem';
     handshakes.push(socket);
-    await axios.post('https://master.tokovoip.itokoyamato.net/register', {
-      body: {
-        ip: socket.clientIp,
-        server: {
-          ip: config.FivemServerIP,
-          port: config.FivemServerPort,
-          tsServer: config.tsServer,
-        },
-      },
-    });
     socketHeartbeat(socket);
     let client;
     let tries = 0;
@@ -103,6 +93,14 @@ io.on('connection', async socket => {
         return;
       }
       client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
+      await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+        ip: socket.clientIp,
+        server: {
+          tsServer: config.TSServer,
+          ip: config.WSServerIP,
+          port: config.WSServerPort,
+        },
+      });
     }
     socket.uuid = client.uuid;
     client.fivem.socket = socket;
@@ -164,8 +162,10 @@ function masterHeartbeat() {
   console.log('Heartbeat sent');
   axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
     tsServer: config.TSServer,
-    ip: config.FivemServerIP,
-    port: config.FivemServerPort,
+    WSServerIP: config.WSServerIP,
+    WSServerPort: config.WSServerPort,
+    FivemServerIP: config.FivemServerIP,
+    FivemServerPort: config.FivemServerPort,
   }).catch(e => console.error('Sending heartbeat failed with error:', e.code));
 }
 
