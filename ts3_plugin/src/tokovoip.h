@@ -49,7 +49,7 @@ private:
 	int pluginStatus = -1;
 
 public:
-	int initialize(char* id);
+	int initialize(char* id, QObject* parent);
 	void shutdown();
 
 	char *getPluginID() {

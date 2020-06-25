@@ -42,6 +42,9 @@ time_t lastWSConnection = 0;
 
 time_t noiseWait = 0;
 
+int connectButtonId;
+int disconnectButtonId;
+
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
 
@@ -281,9 +284,15 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 
 int tries = 0;
 DWORD WINAPI WebSocketService(LPVOID lpParam) {
+	tries = 0;
 	while (true) {
+		++tries;
 		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 		if (isConnected(serverId)) break;
+		if (tries > 5) {
+			outputLog("Failed to retrieve the websocket endpoint.");
+			return NULL;
+		}
 		Sleep(1000);
 	}
 
@@ -374,11 +383,8 @@ void initWebSocket() {
 }
 
 string getWebSocketEndpoint() {
-	int sleepLength = 5000;
-
 	json fivemServer = NULL;
 
-	sleepLength = 5000;
 	tries = 0;
 	while (clientIP == "") {
 		tries += 1;
@@ -388,8 +394,7 @@ string getWebSocketEndpoint() {
 		auto res = cli.Get("/");
 		if (res && res->status == 200) clientIP = res->body;
 		if (clientIP == "") {
-			Sleep(sleepLength);
-			if (tries >= 2) sleepLength += 5000;
+			Sleep(5000);
 			if (tries >= 5) {
 				outputLog("Could not retrieve the client IP");
 				return "";
@@ -397,7 +402,6 @@ string getWebSocketEndpoint() {
 		}
 	}
 
-	sleepLength = 5000;
 	tries = 0;
 	bool verified = false;
 	while (!verified) {
@@ -405,8 +409,7 @@ string getWebSocketEndpoint() {
 		outputLog("Verifying TS server (attempt " + to_string(tries) + ")");
 		verified = verifyTSServer();
 		if (!verified) {
-			Sleep(sleepLength);
-			if (tries >= 2) sleepLength += 5000;
+			Sleep(5000);
 			if(tries >= 5) {
 				outputLog("Failed to verify TS server");
 				return "";
@@ -416,16 +419,14 @@ string getWebSocketEndpoint() {
 
 	outputLog("Successfully verified TS server");
 
-	sleepLength = 5000;
 	tries = 0;
 	while (fivemServer == NULL) {
 		tries += 1;
 		outputLog("Handshaking (attempt " + to_string(tries) + ")");
 		fivemServer = handshake(clientIP);
 		if (fivemServer == NULL) {
-			Sleep(sleepLength);
-			if (tries >= 20) sleepLength = 10000;
-			if (tries >= 40) {
+			Sleep(5000);
+			if (tries >= 10) {
 				outputLog("Failed to handshake");
 				return "";
 			}
@@ -607,20 +608,34 @@ json handshake(string clientIP) {
 	return NULL;
 }
 
-int Tokovoip::initialize(char *id) {
+void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int menuItemID, uint64 selectedItemID)
+{
+	if (type == PLUGIN_MENU_TYPE_GLOBAL) {
+		if (menuItemID == connectButtonId) {
+			initWebSocket();
+		}
+	}
+}
+
+int Tokovoip::initialize(char *id, QObject* parent) {
 	plugin_id = id;
 	const int sz = strlen(id) + 1;
 	plugin_id = (char*)malloc(sz * sizeof(char));
 	strcpy(plugin_id, id);
 	if (isRunning != 0)
 		return (0);
+
+	auto plugin = qobject_cast<Plugin_Base*>(parent);
+	auto& context_menu = plugin->context_menu();
+	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
+	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
+
 	outputLog("TokoVOIP initialized", 0);
 
 	resetClientsAll();
 	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
-	initWebSocket();
 	return (1);
 }
 
