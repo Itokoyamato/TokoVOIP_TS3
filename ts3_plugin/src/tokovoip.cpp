@@ -356,7 +356,7 @@ void tokovoipProcess() {
 		if (exitWebSocketThread) return;
 		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
 		if (sleepTime > 0) Sleep(sleepTime);
-		initWebSocket();
+		initWebSocket(true);
 	};
 
 	client.on_error = [&](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
@@ -366,7 +366,7 @@ void tokovoipProcess() {
 		if (exitWebSocketThread) return;
 		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
 		if (sleepTime > 0) Sleep(sleepTime);
-		initWebSocket();
+		initWebSocket(true);
 	};
 
 	client.start();
@@ -378,11 +378,12 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	return NULL;
 }
 
-void initWebSocket() {
-	if (isWebsocketThreadRunning()) {
+void initWebSocket(bool ignoreRunning) {
+	if (!ignoreRunning && isWebsocketThreadRunning()) {
 		outputLog("Tokovoip is already running or handshaking. You can force disconnect it via the menu Plugins->TokoVoip->Disconnect");
 		return;
 	}
+	if (ignoreRunning) killWebsocketThread();
 	outputLog("Initializing WebSocket Thread", 0);
 	exitWebSocketThread = false;
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
@@ -617,7 +618,6 @@ json handshake(string clientIP) {
 	return NULL;
 }
 
-Plugin_Base* plugin;
 void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int menuItemID, uint64 selectedItemID)
 {
 	if (type == PLUGIN_MENU_TYPE_GLOBAL) {
@@ -654,15 +654,14 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 
 void Tokovoip::shutdown()
 {
-	exitWebSocketThread = true;
-	if (wsConnection) wsConnection->send_close(1000);
+	killWebsocketThread();
 	resetClientsAll();
 }
 
 // Utils
 
 void updateWebsocketState(bool force, bool state) {
-	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), connectButtonId, (force) ? !state : !isWebsocketThreadRunning());
+	ts3Functions.setPluginMenuEnabled(tokovoip->plugin->id().c_str(), connectButtonId, (force) ? !state : !isWebsocketThreadRunning());
 }
 
 bool isWebsocketThreadRunning() {
@@ -713,7 +712,7 @@ bool isChannelWhitelisted(json data, string channel) {
 void playWavFile(const char* fileNameWithoutExtension)
 {
 	char pluginPath[PATH_BUFSIZE];
-	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->getPluginID());
+	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->plugin->id().c_str());
 	std::string path = std::string((string)pluginPath);
 	DWORD error;
 	std::string to_play = path + "tokovoip/" + std::string(fileNameWithoutExtension) + ".wav";

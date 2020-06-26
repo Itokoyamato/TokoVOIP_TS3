@@ -33,7 +33,7 @@ void playWavFile(const char* fileNameWithoutExtension);
 bool verifyTSServer();
 json handshake(string clientIP);
 
-void initWebSocket();
+void initWebSocket(bool ignoreRunning = false);
 void resetState();
 void resetChannel();
 string getWebSocketEndpoint();
@@ -53,12 +53,10 @@ private:
 	int pluginStatus = -1;
 
 public:
+	Plugin_Base* plugin;
+
 	int initialize(char* id, QObject* parent);
 	void shutdown();
-
-	char *getPluginID() {
-		return plugin_id;
-	}
 
 	void setRadioData(string uuid, bool state) {
 		radioData[uuid] = state;
