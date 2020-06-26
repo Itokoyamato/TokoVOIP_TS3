@@ -443,14 +443,9 @@ string getWebSocketEndpoint() {
 
 	outputLog("Successfully handshaked");
 
-	outputLog(fivemServer.dump());
 	json server = fivemServer["server"];
-	outputLog(server.dump());
 	string fivemServerIP = server["ip"];
 	int fivemServerPORT = server["port"];
-
-	outputLog(fivemServerIP);
-	outputLog(to_string(fivemServerPORT));
 
 	return fivemServerIP + ":" + to_string(fivemServerPORT) + "/socket.io/?EIO=3&transport=websocket&from=ts3";
 }
