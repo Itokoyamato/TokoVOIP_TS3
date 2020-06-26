@@ -377,6 +377,19 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 }
 
 void initWebSocket() {
+	DWORD lpExitCode;
+	GetExitCodeThread(threadWebSocket, &lpExitCode);
+	if (lpExitCode == STILL_ACTIVE) {
+		outputLog("TokoVoip is still in the process of running or handshaking. Killing ...");
+		TerminateThread(threadWebSocket, 0);
+		Sleep(1000);
+		GetExitCodeThread(threadWebSocket, &lpExitCode);
+		if (lpExitCode == STILL_ACTIVE) {
+			outputLog("Failed to kill running tokovoip.");
+			return;
+		}
+		outputLog("Successfully killed running instance.");
+	}
 	outputLog("Initializing WebSocket Thread", 0);
 	exitWebSocketThread = false;
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
@@ -647,6 +660,19 @@ void Tokovoip::shutdown()
 }
 
 // Utils
+
+void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message) {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	char* channelName = "";
+	ts3Functions.getChannelVariableAsString(serverId, new_channel_id, CHANNEL_NAME, &channelName);
+	if (channelName == "") return;
+	string name = channelName;
+	transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return tolower(c); });
+	if (name.find("tokovoip") != string::npos) {
+		outputLog("Detected 'TokoVoip' in channel name, booting ..");
+		initWebSocket();
+	}
+}
 
 bool isChannelWhitelisted(json data, string channel) {
 	if (data == NULL) return false;

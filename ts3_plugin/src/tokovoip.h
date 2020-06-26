@@ -38,6 +38,7 @@ void resetState();
 void resetChannel();
 string getWebSocketEndpoint();
 void sendWSMessage(string eventName, json value);
+void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message);
 
 class Tokovoip {
 private:
