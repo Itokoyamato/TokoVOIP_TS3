@@ -44,6 +44,7 @@ time_t noiseWait = 0;
 
 int connectButtonId;
 int disconnectButtonId;
+int unmuteButtonId;
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
@@ -624,6 +625,8 @@ void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int 
 			initWebSocket();
 		} else if (menuItemID == disconnectButtonId) {
 			killWebsocketThread();
+		} else if (menuItemID == unmuteButtonId) {
+			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 		}
 	}
 }
@@ -636,6 +639,7 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 	auto& context_menu = plugin->context_menu();
 	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
 	disconnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Disconnect", "");
+	unmuteButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Unmute All", "");
 	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
 
