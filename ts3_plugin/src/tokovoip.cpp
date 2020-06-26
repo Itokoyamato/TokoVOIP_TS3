@@ -290,7 +290,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 		if (isConnected(serverId)) break;
 		if (tries > 5) {
-			outputLog("Failed to retrieve the websocket endpoint.");
+			outputLog("WebsocketServer: Not connected to a TS server.");
 			return NULL;
 		}
 		Sleep(1000);
@@ -298,7 +298,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 
 	string endpoint = getWebSocketEndpoint();
 	if (endpoint == "") {
-		outputLog("Failed to retrieve the websocket endpoint, too many tries. Restart TS3 to try again.");
+		outputLog("WebsocketServer: Failed to retrieve the websocket endpoint.");
 		return NULL;
 	}
 
@@ -330,7 +330,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	};
 
 	client.on_open = [&](shared_ptr<WsClient::Connection> connection) {
-		outputLog("Websocket connection opened");
+		outputLog("WebsocketServer: connection opened");
 		wsConnection = connection;
 
 		json data = {
@@ -353,7 +353,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	};
 
 	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
-		outputLog("Websocket connection closed: " + to_string(status));
+		outputLog("WebsocketServer: connection closed: " + to_string(status));
 		client.stop();
 		resetState();
 		if (exitWebSocketThread) return;
@@ -363,7 +363,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	};
 
 	client.on_error = [&](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
-		outputLog("Websocket error: " + ec.message());
+		outputLog("WebsocketServer: error: " + ec.message());
 		client.stop();
 		resetState();
 		if (exitWebSocketThread) return;
