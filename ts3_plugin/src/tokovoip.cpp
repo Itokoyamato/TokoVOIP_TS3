@@ -654,7 +654,7 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 
 void Tokovoip::shutdown()
 {
-	killWebsocketThread();
+	TerminateThread(threadWebSocket, 0);
 	resetClientsAll();
 }
 
