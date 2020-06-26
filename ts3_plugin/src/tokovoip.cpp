@@ -283,7 +283,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 }
 
 int tries = 0;
-DWORD WINAPI WebSocketService(LPVOID lpParam) {
+void tokovoipProcess() {
 	tries = 0;
 	while (true) {
 		++tries;
@@ -291,7 +291,7 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 		if (isConnected(serverId)) break;
 		if (tries > 5) {
 			outputLog("WebsocketServer: Not connected to a TS server.");
-			return NULL;
+			return;
 		}
 		Sleep(1000);
 	}
@@ -299,14 +299,14 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	string endpoint = getWebSocketEndpoint();
 	if (endpoint == "") {
 		outputLog("WebsocketServer: Failed to retrieve the websocket endpoint.");
-		return NULL;
+		return;
 	}
 
 	char *UUID;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) != ERROR_ok) {
 		outputLog("WebsocketServer: Failed to get UUID");
-		return NULL;
+		return;
 	}
 
 	WsClient client(endpoint + "&uuid=" + (string)UUID);
@@ -320,13 +320,9 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 			json json_data = json::parse(message, nullptr, false);
 			if (json_data.is_discarded()) return;
 			handleMessage(connection, json_data[1].dump());
-		} else if (message.find("disconnect") != string::npos) {
-			outputLog(message);
-		} else if (message.find("ping") != string::npos) {
-			sendWSMessage("pong", "{}");
-		} else {
-			outputLog(message);
-		}
+		} else if (message.find("disconnect") != string::npos) outputLog(message);
+		else if (message.find("ping") != string::npos) sendWSMessage("pong", "{}");
+		else outputLog(message);
 	};
 
 	client.on_open = [&](shared_ptr<WsClient::Connection> connection) {
@@ -373,22 +369,18 @@ DWORD WINAPI WebSocketService(LPVOID lpParam) {
 	};
 
 	client.start();
+}
+DWORD WINAPI WebSocketService(LPVOID lpParam) {
+	updateWebsocketState();
+	tokovoipProcess();
+	updateWebsocketState(true, false);
 	return NULL;
 }
 
 void initWebSocket() {
-	DWORD lpExitCode;
-	GetExitCodeThread(threadWebSocket, &lpExitCode);
-	if (lpExitCode == STILL_ACTIVE) {
-		outputLog("TokoVoip is still in the process of running or handshaking. Killing ...");
-		TerminateThread(threadWebSocket, 0);
-		Sleep(1000);
-		GetExitCodeThread(threadWebSocket, &lpExitCode);
-		if (lpExitCode == STILL_ACTIVE) {
-			outputLog("Failed to kill running tokovoip.");
-			return;
-		}
-		outputLog("Successfully killed running instance.");
+	if (isWebsocketThreadRunning()) {
+		outputLog("Tokovoip is already running or handshaking. You can force disconnect it via the menu Plugins->TokoVoip->Disconnect");
+		return;
 	}
 	outputLog("Initializing WebSocket Thread", 0);
 	exitWebSocketThread = false;
@@ -494,10 +486,13 @@ void resetChannel() {
 
 void resetState() {
 	wsConnection = NULL;
+	updateWebsocketState();
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-	string currentChannelName = getChannelName(serverId, getMyId(serverId));
-	if (mainChannel == currentChannelName) resetChannel();
-	resetClientsAll();
+	if (isConnected(serverId)) {
+		string currentChannelName = getChannelName(serverId, getMyId(serverId));
+		if (mainChannel == currentChannelName) resetChannel();
+		resetClientsAll();
+	}
 	if (originalName != "") setClientName(originalName);
 }
 
@@ -621,26 +616,27 @@ json handshake(string clientIP) {
 	return NULL;
 }
 
+Plugin_Base* plugin;
 void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int menuItemID, uint64 selectedItemID)
 {
 	if (type == PLUGIN_MENU_TYPE_GLOBAL) {
 		if (menuItemID == connectButtonId) {
 			initWebSocket();
+		} else if (menuItemID == disconnectButtonId) {
+			killWebsocketThread();
 		}
 	}
 }
 
 int Tokovoip::initialize(char *id, QObject* parent) {
-	plugin_id = id;
-	const int sz = strlen(id) + 1;
-	plugin_id = (char*)malloc(sz * sizeof(char));
-	strcpy(plugin_id, id);
 	if (isRunning != 0)
 		return (0);
 
-	auto plugin = qobject_cast<Plugin_Base*>(parent);
+	plugin = qobject_cast<Plugin_Base*>(parent);
 	auto& context_menu = plugin->context_menu();
 	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
+	disconnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Disconnect", "");
+	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
 
 	outputLog("TokoVOIP initialized", 0);
@@ -660,6 +656,32 @@ void Tokovoip::shutdown()
 }
 
 // Utils
+
+void updateWebsocketState(bool force, bool state) {
+	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), connectButtonId, (force) ? !state : !isWebsocketThreadRunning());
+}
+
+bool isWebsocketThreadRunning() {
+	DWORD lpExitCode;
+	GetExitCodeThread(threadWebSocket, &lpExitCode);
+	return lpExitCode == STILL_ACTIVE;
+}
+
+bool killWebsocketThread() {
+	if (isWebsocketThreadRunning()) {
+		outputLog("TokoVoip is still in the process of running or handshaking. Killing ...");
+		TerminateThread(threadWebSocket, 0);
+		Sleep(1000);
+		if (isWebsocketThreadRunning()) {
+			outputLog("Failed to kill running tokovoip.");
+			return false;
+		}
+		outputLog("Successfully killed running instance.");
+		resetState();
+	}
+	updateWebsocketState();
+	return true;
+}
 
 void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message) {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
