@@ -20,7 +20,7 @@ app.use(express.json());
 http.listen(config.WSServerPort, () => {
   console.log(`Listening on *:${config.WSServerPort}`);
   masterHeartbeat();
-  masterHeartbeatInterval = setInterval(masterHeartbeat, 30000);
+  masterHeartbeatInterval = setInterval(masterHeartbeat, 300000);
 });
 
 app.get('/', (_, res) => {
