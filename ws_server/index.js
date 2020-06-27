@@ -152,9 +152,9 @@ function socketHeartbeat(socket) {
   socket.emit('ping');
   socket.once('pong', _ => {
     setTimeout(_ => socketHeartbeat(socket), 1000);
-    if (!socket.uuid || !clients[socket.uuid]) return;
     socket.latency = (new Date).getTime() - start.getTime();
-    clients[socket.uuid][socket.from].latency = socket.latency;
+    if (!socket.uuid || !clients[socket.uuid]) return;
+    clients[socket.uuid].latency = lodash.get(clients[socket.uuid], 'fivem.latency', 0) + lodash.get(clients[socket.uuid], 'ts3.latency', 0);
   });
 }
 
