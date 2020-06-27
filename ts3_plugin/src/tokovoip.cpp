@@ -383,7 +383,6 @@ void initWebSocket(bool ignoreRunning) {
 		outputLog("Tokovoip is already running or handshaking. You can force disconnect it via the menu Plugins->TokoVoip->Disconnect");
 		return;
 	}
-	if (ignoreRunning) killWebsocketThread();
 	outputLog("Initializing WebSocket Thread", 0);
 	exitWebSocketThread = false;
 	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
@@ -647,8 +646,8 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 	return (1);
 }
 
-void Tokovoip::shutdown()
-{
+void Tokovoip::shutdown() {
+	if (wsConnection) wsConnection->send_close(0);
 	TerminateThread(threadWebSocket, 0);
 	resetClientsAll();
 }
@@ -668,6 +667,7 @@ bool isWebsocketThreadRunning() {
 bool killWebsocketThread() {
 	if (isWebsocketThreadRunning()) {
 		outputLog("TokoVoip is still in the process of running or handshaking. Killing ...");
+		if (wsConnection) wsConnection->send_close(0);
 		TerminateThread(threadWebSocket, 0);
 		Sleep(1000);
 		if (isWebsocketThreadRunning()) {
