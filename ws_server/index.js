@@ -6,6 +6,8 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
 const lodash = require('lodash');
+require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
+const chalk = require('chalk');
 const config = require('./config.json');
 
 let masterHeartbeatInterval;
@@ -40,17 +42,19 @@ http.on('upgrade', (req, socket) => {
 });
 
 io.on('connection', async socket => {
-
+  socket.from = socket.request._query.from;
   socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
+  socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
   socket.on('disconnect', _ => onSocketDisconnect(socket));
 
-  // TS3 Handshake
-  if (socket.request._query.from === 'ts3') {
-    socket.from = 'ts3';
+  console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {cyan opened} - ${socket.safeIp}`);
 
+  // TS3 Handshake
+  if (socket.from === 'ts3') {
     let client = clients[socket.request._query.uuid];
+    socket.uuid = socket.request._query.uuid;
 
     const handshake = handshakes.findIndex(item => item.clientIp === socket.clientIp);
     if (handshake === -1) {
@@ -68,18 +72,18 @@ io.on('connection', async socket => {
         uuid: socket.request._query.uuid,
       },
     };
-    socket.uuid = socket.request._query.uuid;
     client.ts3.socket = socket;
     client.ts3.linkedAt = (new Date()).toISOString();
     handshakes.splice(handshake, 1);
+
+    console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
 
     socket.on('setTS3Data', data => setTS3Data(socket, data));
     socket.on('onTalkStatusChanged', data => setTS3Data(socket, { key: 'talking', value: data }));
     socketHeartbeat(socket);
 
   // FiveM Handshake
-  } else if (socket.request._query.from === 'fivem') {
-    socket.from = 'fivem';
+  } else if (socket.from === 'fivem') {
     handshakes.push(socket);
     socketHeartbeat(socket);
     let client;
@@ -132,6 +136,7 @@ function onIncomingData(socket, data) {
 }
 
 async function onSocketDisconnect(socket) {
+  console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
   if (socket.uuid && clients[socket.uuid]) {
     const client = clients[socket.uuid];
     const secondary = (socket.from === 'fivem') ? 'ts3' : 'fivem';
