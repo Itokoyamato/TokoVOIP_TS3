@@ -84,38 +84,39 @@ io.on('connection', async socket => {
 
   // FiveM Handshake
   } else if (socket.from === 'fivem') {
-    handshakes.push(socket);
     socketHeartbeat(socket);
-    let client;
-    let tries = 0;
-    while (!client) {
-      ++tries;
-      if (tries > 1) await sleep(5000);
-      if (tries > 12) {
-        socket.emit('disconnectMessage', 'ts3HandshakeFailed');
-        socket.disconnect(true);
-        return;
-      }
-      client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
-      await axios.post('https://master.tokovoip.itokoyamato.net/register', {
-        ip: socket.clientIp,
-        server: {
-          tsServer: config.TSServer,
-          ip: config.WSServerIP,
-          port: config.WSServerPort,
-        },
-      });
-    }
-    socket.uuid = client.uuid;
-    client.fivem.socket = socket;
-    client.fivem.linkedAt = (new Date()).toISOString();
-    if (client.ts3.data && client.ts3.data.uuid) {
-      socket.emit('setTS3Data', client.ts3.data);
-    }
-
+    await registerHandshake(socket);
     socket.on('data', (data) => onIncomingData(socket, data));
   }
 });
+
+async function registerHandshake(socket) {
+  handshakes.push(socket);
+  let client;
+  let tries = 0;
+  while (!client) {
+    ++tries;
+    if (tries > 1) await sleep(5000);
+    if (tries > 12) {
+      socket.emit('disconnectMessage', 'ts3HandshakeFailed');
+      socket.disconnect(true);
+      return;
+    }
+    client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
+    await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+      ip: socket.clientIp,
+      server: {
+        tsServer: config.TSServer,
+        ip: config.WSServerIP,
+        port: config.WSServerPort,
+      },
+    });
+  }
+  socket.uuid = client.uuid;
+  client.fivem.socket = socket;
+  client.fivem.linkedAt = (new Date()).toISOString();
+  if (lodash.get(client, 'ts3.data.uuid')) socket.emit('setTS3Data', client.ts3.data);
+}
 
 function setTS3Data(socket, data) {
   const client = clients[socket.uuid];
@@ -137,18 +138,20 @@ function onIncomingData(socket, data) {
 
 async function onSocketDisconnect(socket) {
   console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
+  if (socket.from === 'fivem') {
+    const handshake = handshakes.findIndex(item => item == socket);
+    if (handshake !== -1) handshakes.splice(handshake, 1);
+  }
   if (socket.uuid && clients[socket.uuid]) {
     const client = clients[socket.uuid];
+    delete clients[socket.uuid];
     const secondary = (socket.from === 'fivem') ? 'ts3' : 'fivem';
     if (client[secondary].socket) {
       client[secondary].socket.emit('disconnectMessage', `${socket.from}Disconnected`);
-      client[secondary].socket.disconnect(true);
+      if (secondary === 'ts3') sleep(100) && client[secondary].socket.disconnect(true);
+      else registerHandshake(client[secondary].socket);
     }
-    delete clients[socket.uuid];
   }
-  if (!socket.from === 'fivem') return;
-  const handshake = handshakes.findIndex(item => item == socket);
-  if (handshake !== -1) handshakes.splice(handshake, 1);
 }
 
 function socketHeartbeat(socket) {
