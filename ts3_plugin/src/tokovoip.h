@@ -30,7 +30,7 @@ void setClientTalking(bool status);
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
 void playWavFile(const char* fileNameWithoutExtension);
 
-bool verifyTSServer();
+string verifyTSServer();
 json handshake(string clientIP);
 
 void initWebSocket(bool ignoreRunning = false);

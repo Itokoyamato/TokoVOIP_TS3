@@ -392,35 +392,23 @@ string getWebSocketEndpoint() {
 	json fivemServer = NULL;
 
 	tries = 0;
-	while (clientIP == "") {
-		tries += 1;
-		outputLog("Requesting client IP (attempt " + to_string(tries) + ")");
-		httplib::Client cli("api.ipify.org");
-		cli.set_follow_location(true);
-		auto res = cli.Get("/");
-		if (res && res->status == 200) clientIP = res->body;
-		if (clientIP == "") {
-			Sleep(5000);
-			if (tries >= 5) {
-				outputLog("Could not retrieve the client IP");
-				return "";
-			}
-		}
-	}
-
-	tries = 0;
-	bool verified = false;
-	while (!verified) {
+	string verifyData = "";
+	while (verifyData == "") {
 		tries += 1;
 		outputLog("Verifying TS server (attempt " + to_string(tries) + ")");
-		verified = verifyTSServer();
-		if (!verified) {
+		verifyData = verifyTSServer();
+		if (verifyData == "") {
 			Sleep(5000);
 			if(tries >= 5) {
 				outputLog("Failed to verify TS server");
 				return "";
 			}
 		}
+	}
+	clientIP = verifyData;
+	if (clientIP == "") {
+		outputLog("Failed to retrieve clientIP");
+		return NULL;
 	}
 
 	outputLog("Successfully verified TS server");
@@ -573,7 +561,7 @@ void checkUpdate() {
 	}
 }
 
-bool verifyTSServer() {
+string verifyTSServer() {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	unsigned int error;
 	char* serverIP;
@@ -587,8 +575,8 @@ bool verifyTSServer() {
 	string path = "/verify?address=" + string(serverIP);
 	cli.set_follow_location(true);
 	auto res = cli.Get(path.c_str());
-	if (res && res->status == 200) return true;
-	return false;
+	if (res && res->status == 200) return res->body;
+	return NULL;
 }
 
 json handshake(string clientIP) {
