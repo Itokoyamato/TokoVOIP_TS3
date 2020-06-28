@@ -673,6 +673,7 @@ bool killWebsocketThread() {
 
 void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message) {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (client_id != getMyId(serverId)) return;
 	char* channelName = "";
 	ts3Functions.getChannelVariableAsString(serverId, new_channel_id, CHANNEL_NAME, &channelName);
 	if (channelName == "") return;
