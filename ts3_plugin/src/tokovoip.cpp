@@ -45,6 +45,7 @@ time_t noiseWait = 0;
 int connectButtonId;
 int disconnectButtonId;
 int unmuteButtonId;
+bool isPTT = true;
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
@@ -685,6 +686,14 @@ void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id,
 	}
 }
 
+void onTokovoipCurrentServerConnectionChanged(uint64 sch_id) {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (!serverId) return;
+	char* res;
+	ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_INPUT_DEACTIVATED, &res);
+	isPTT = (res == "0") ? false : true;
+}
+
 bool isChannelWhitelisted(json data, string channel) {
 	if (data == NULL) return false;
 	if (data.find("TSChannelWhitelist") == data.end()) return false;
@@ -744,7 +753,7 @@ void setClientTalking(bool status)
 		outputLog("Error retrieving vad setting");
 		return;
 	}
-	if (strcmp(vad, "true") == 0) return;
+	if (strcmp(vad, "true") == 0 && !isPTT) return;
 
 	if (status) {
 		if ((error = ts3Functions.setClientSelfVariableAsInt(serverId, CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
