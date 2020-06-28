@@ -574,6 +574,7 @@ string verifyTSServer() {
 	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
 	string path = "/verify?address=" + string(serverIP);
 	cli.set_follow_location(true);
+	outputLog("Getting " + path);
 	auto res = cli.Get(path.c_str());
 	if (res && res->status == 200) return res->body;
 	return NULL;
@@ -588,6 +589,7 @@ json handshake(string clientIP) {
 	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
 	string path = "/handshake?ip=" + string(clientIP);
 	cli.set_follow_location(true);
+	outputLog("Getting " + path);
 	auto res = cli.Get(path.c_str());
 	if (res && res->status == 200) {
 		json parsedJSON = json::parse(res->body, nullptr, false);
