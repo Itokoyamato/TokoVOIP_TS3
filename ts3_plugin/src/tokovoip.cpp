@@ -569,7 +569,7 @@ string verifyTSServer() {
 
 	if ((error = ts3Functions.getConnectionVariableAsString(serverId, getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CONNECTION_SERVER_IP, &serverIP)) != ERROR_ok) {
 		if (error != ERROR_not_connected) ts3Functions.logMessage("Error querying server name", LogLevel_ERROR, "Plugin", serverId);
-		return NULL;
+		return "";
 	}
 
 	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
@@ -578,7 +578,7 @@ string verifyTSServer() {
 	outputLog("Getting " + path);
 	auto res = cli.Get(path.c_str());
 	if (res && res->status == 200) return res->body;
-	return NULL;
+	return "";
 }
 
 json handshake(string clientIP) {
