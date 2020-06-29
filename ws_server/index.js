@@ -37,8 +37,8 @@ app.get('/playerbyip', (req, res) => {
 });
 
 http.on('upgrade', (req, socket) => {
-  if (!req._query.from) socket.destroy();
-  if (req._query.from === 'ts3' && !req._query.uuid) socket.destroy();
+  if (!req._query || !req._query.from) return socket.destroy();
+  if (req._query.from === 'ts3' && !req._query.uuid) return socket.destroy();
 });
 
 io.on('connection', async socket => {
