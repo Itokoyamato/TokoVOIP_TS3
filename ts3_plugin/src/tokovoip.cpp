@@ -45,6 +45,8 @@ time_t noiseWait = 0;
 int connectButtonId;
 int disconnectButtonId;
 int unmuteButtonId;
+int supportButtonId;
+int projectButtonId;
 bool isPTT = true;
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
@@ -612,6 +614,10 @@ void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int 
 			killWebsocketThread();
 		} else if (menuItemID == unmuteButtonId) {
 			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+		} else if (menuItemID == supportButtonId) {
+			system("start https://patreon.com/Itokoyamato");
+		} else if (menuItemID == projectButtonId) {
+			system("start https://github.com/Itokoyamato/TokoVOIP_TS3");
 		}
 	}
 }
@@ -625,6 +631,8 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
 	disconnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Disconnect", "");
 	unmuteButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Unmute All", "");
+	supportButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Support on Patreon", "");
+	projectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Project page", "");
 	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
 
