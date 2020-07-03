@@ -20,7 +20,6 @@ TokoVoipConfig = {
 	wsServer = "ip:port", -- Address of the websocket server
 
 	plugin_data = {
-		from = "fivem",
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
 		-- to the TSChannel once everything is running
