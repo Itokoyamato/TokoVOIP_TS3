@@ -15,6 +15,8 @@ const clients = {};
 
 const handshakes = [];
 
+console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {hex('#f96854') https://patreon.com/Itokoyamato}`);
+
 app.use(express.json());
 
 http.listen(config.WSServerPort, () => {
