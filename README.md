@@ -148,10 +148,11 @@ Archive tree example:
 ```
 .
 +-- package.ini
-+-- plugin
-|   +-- assets
-|       +-- img1.png
-|       +-- img2.png
++-- plugins
+|   +-- tokovoip
+|       +-- walkie_talkie16.png
+|       +-- mic_click_off.wav
+|       +-- mic_click_on.wav
 |   +-- plugin_win32.dll
 |   +-- plugin_win64.dll
 ```
