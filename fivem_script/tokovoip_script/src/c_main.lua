@@ -17,7 +17,7 @@
 local targetPed;
 local useLocalPed = true;
 local isRunning = false;
-local scriptVersion = "1.3.5";
+local scriptVersion = "1.5.0";
 local animStates = {}
 local displayingPluginScreen = false;
 local HeadBone = 0x796e;
@@ -125,7 +125,7 @@ local function clientProcessing()
 			setPlayerTalkingState(player, playerServerId);
 		end
 	end
-	
+
 	-- Process channels
 	for _, channel in pairs(voip.myChannels) do
 		for _, subscriber in pairs(channel.subscribers) do
@@ -183,6 +183,7 @@ end
 
 RegisterNetEvent("initializeVoip");
 AddEventHandler("initializeVoip", function()
+	Citizen.Wait(1000);
 	if (isRunning) then return Citizen.Trace("TokoVOIP is already running\n"); end
 	isRunning = true;
 

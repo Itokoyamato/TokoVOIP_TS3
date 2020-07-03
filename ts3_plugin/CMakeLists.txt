@@ -15,7 +15,7 @@ include_directories(
     "deps/asio/asio/include"
     "deps/Simple-WebSocket-Server"
     "deps/json/single_include/nlohmann"
-    "deps/curl/include/curl"
+    "deps/cpp-httplib"
 )
 
 set (TOKOVOIP_SRC
@@ -33,7 +33,7 @@ source_group("tokovoip" FILES ${TOKOVOIP_SRC})
 # defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Set compiler flags and options. 
+# Set compiler flags and options.
 # Here it is setting the Visual Studio warning level to 4
 # set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
 
@@ -46,22 +46,16 @@ include(deps/teamspeak-plugin-radiofx/CMakeLists.txt)
 
 project (TokoVoip LANGUAGES CXX)
 
-if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-    link_directories(deps/curl/x86/lib)
-ELSE()
-    link_directories(deps/curl/x64/lib)
-ENDIF()
-
 link_directories(deps/openssl/)
 
 add_library(TokoVoip SHARED
     ${TOKOVOIP_SRC} ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-    target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto32MD.lib)
+    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto32MD.lib)
     set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win32")
 ELSE()
-    target_link_libraries(TokoVoip libcurl_a wldap32.lib crypt32.lib normaliz.lib libcrypto64MD.lib)
+    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto64MD.lib)
     set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win64")
 ENDIF()
 

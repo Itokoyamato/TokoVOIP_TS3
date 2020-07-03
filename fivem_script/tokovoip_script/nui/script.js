@@ -11,7 +11,7 @@
 // ------------------------------------------------------------
 
 // --------------------------------------------------------------------------------
-// --	Using websockets to send data to TS3Plugin via local network
+// --	Using websockets to send data to TS3Plugin
 // --------------------------------------------------------------------------------
 
 function getTickCount() {
@@ -21,9 +21,8 @@ function getTickCount() {
 }
 
 let websocket;
+let endpoint;
 let connected = false;
-let lastPing = 0;
-let lastReconnect = 0;
 let lastOk = 0;
 
 let voip = {};
@@ -35,47 +34,41 @@ const WRONG_SERVER = 3;
 const WRONG_CHANNEL = 4;
 const INCORRECT_VERSION = 5;
 
-function init() {
+function init(address) {
+	if (!address) return;
+	endpoint = address;
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket('ws://127.0.0.1:38204/tokovoip');
+	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem`);
 
 	websocket.onopen = () => {
 		console.log('TokoVOIP: connection opened');
 		connected = true;
-		lastPing = getTickCount();
 	};
 
 	websocket.onmessage = (evt) => {
-		// Handle plugin status
-		if (evt.data.includes('TokoVOIP status:')) {
-			connected = true;
-			lastPing = getTickCount();
-			forcedInfo = false;
-			const pluginStatus = evt.data.split(':')[1].replace(/\./g, '');
-			updateScriptData('pluginStatus', parseInt(pluginStatus));
+		let msg = '';
+		if (evt.data.includes('42["')) {
+			const parsed = JSON.parse(evt.data.replace('42', ''));
+			msg = {
+				event: parsed[0],
+				data: parsed[1],
+			};
 		}
 
-		// Handle plugin version
-		if (evt.data.includes('TokoVOIP version:')) {
-			updateScriptData('pluginVersion', evt.data.split(':')[1]);
+		if (msg.event === 'setTS3Data') {
+			if (msg.data.pluginStatus !== undefined) updateScriptData('pluginStatus', parseInt(msg.data.pluginStatus));
+			updateScriptData('pluginVersion', msg.data.pluginVersion);
+			updateScriptData('pluginUUID', msg.data.uuid);
+			if (msg.data.talking !== undefined) $.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({ state: (msg.data.talking) ? 1 : 0 }));
 		}
 
-		// Handle plugin UUID
-		if (evt.data.includes('TokoVOIP UUID:')) {
-			updateScriptData('pluginUUID', evt.data.split(':')[1]);
-		}
+		if (msg.event === 'ping') websocket.send(`42${JSON.stringify(['pong', ''])}`);
 
-		// Handle talking states
-		if (evt.data == 'startedtalking') {
-			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 1}));
-		}
-		if (evt.data == 'stoppedtalking') {
-			$.post('http://tokovoip_script/setPlayerTalking', JSON.stringify({state: 0}));
-		}
+		if (msg.event === 'disconnectMessage') console.error(msg.data);
 	};
 
 	websocket.onerror = (evt) => {
-		console.log('TokoVOIP: error - ' + evt.data);
+		console.error('TokoVOIP: error - ' + evt.data);
 	};
 
 	websocket.onclose = () => {
@@ -112,17 +105,15 @@ function init() {
 			reason = 'Unknown reason';
 
 		console.log('TokoVOIP: closed connection - ' + reason);
-		lastReconnect = getTickCount();
 		connected = false;
 		updateScriptData('pluginStatus', -1);
-		init();
+		init(endpoint);
 	};
 }
 
 function sendData(message) {
-	if (websocket.readyState == websocket.OPEN) {
-		websocket.send(message);
-	}
+	if (websocket.readyState != websocket.OPEN) return;
+	websocket.send(`42${JSON.stringify(['data', message])}`);
 }
 
 function receivedClientCall(event) {
@@ -137,18 +128,16 @@ function receivedClientCall(event) {
 
 	} else if (voip) {
 		if (eventName == 'initializeSocket') {
-			lastPing = getTickCount();
-			lastReconnect = getTickCount();
-			init();
-	
+			init(payload);
+
 		} else if (eventName == 'updateTokovoipInfo') {
 			if (connected)
 				updateTokovoipInfo(payload, 1);
-	
+
 		} else if (eventName == 'updateTokoVoip') {
 			voip.plugin_data = payload;
 			updatePlugin();
-	
+
 		} else if (eventName == 'disconnect') {
 			sendData('disconnect');
 			voipStatus = NOT_CONNECTED;
@@ -190,8 +179,6 @@ function checkPluginStatus() {
 			voipStatus = OK;
 			break;
 	}
-	if (getTickCount() - lastPing > 5000)
-		voipStatus = NOT_CONNECTED;
 }
 
 function checkPluginVersion() {
@@ -204,6 +191,7 @@ function checkPluginVersion() {
 }
 
 function isPluginVersionCorrect() {
+	if (!voip.pluginVersion) return false;
 	if (parseInt(voip.pluginVersion.replace(/\./g, '')) < parseInt(voip.minVersion.replace(/\./g, ''))) return false;
 	return true;
 }
@@ -259,17 +247,8 @@ function updateConfig(payload) {
 }
 
 function updatePlugin() {
-	const timeout = getTickCount() - lastPing;
-	const lastRetry = getTickCount() - lastReconnect;
-	if (timeout >= 10000 && lastRetry >= 5000) {
-		console.log('TokoVOIP: timed out - ' + (timeout) + ' - ' + (lastRetry));
-		lastReconnect = getTickCount();
-		connected = false;
-		updateScriptData('pluginStatus', -1);
-		init();
-	} else if (connected) {
-		sendData(JSON.stringify(voip.plugin_data));
-	}
+	if (!connected) return;
+	sendData(voip.plugin_data);
 }
 
 function updateScriptData(key, data) {

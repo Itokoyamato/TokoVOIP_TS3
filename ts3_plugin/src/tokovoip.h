@@ -25,11 +25,24 @@ uint64 getCurrentChannel(uint64 serverConnectionHandlerID);
 anyID getMyId(uint64 serverConnectionHandlerID);
 string getChannelName(uint64 serverConnectionHandlerID, anyID clientId);
 
-void sendCallback(string str);
 void setClientName(string name);
 void setClientTalking(bool status);
 void setClientMuteStatus(uint64 serverConnectionHandlerID, anyID clientId, bool status);
 void playWavFile(const char* fileNameWithoutExtension);
+
+string verifyTSServer();
+json handshake(string clientIP);
+
+void initWebSocket(bool ignoreRunning = false);
+void resetState();
+void resetChannel();
+string getWebSocketEndpoint();
+void sendWSMessage(string eventName, json value);
+void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message);
+void onTokovoipCurrentServerConnectionChanged(uint64 sch_id);
+bool isWebsocketThreadRunning();
+bool killWebsocketThread();
+void updateWebsocketState(bool force = false, bool state = false);
 
 class Tokovoip {
 private:
@@ -38,14 +51,13 @@ private:
 	bool processingState = false;
 	char *plugin_id;
 	char *plugin_path;
+	int pluginStatus = -1;
 
 public:
-	int initialize(char* id);
-	void shutdown();
+	Plugin_Base* plugin;
 
-	char *getPluginID() {
-		return plugin_id;
-	}
+	int initialize(char* id, QObject* parent);
+	void shutdown();
 
 	void setRadioData(string uuid, bool state) {
 		radioData[uuid] = state;
@@ -64,7 +76,7 @@ public:
 		return false;
 	}
 
-	void setProcessingState(bool state) {
+	void setProcessingState(bool state, int currentPluginStatus) {
 		 processingState = state;
 		 if (state == false) {
 		 	map<string, bool> updatedRadioData;
@@ -72,6 +84,14 @@ public:
 		 		updatedRadioData[data.first] = radioData[data.first];
 		 	}
 		 	safeRadioData = updatedRadioData;
+
+			if (pluginStatus == currentPluginStatus) return;
+			pluginStatus = currentPluginStatus;
+			json data = {
+				{ "key", "pluginStatus" },
+				{ "value", pluginStatus },
+			};
+			sendWSMessage("setTS3Data", data);
 		 }
 	}
 

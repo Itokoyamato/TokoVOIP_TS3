@@ -2,7 +2,7 @@ TokoVoipConfig = {
 	refreshRate = 100, -- Rate at which the data is sent to the TSPlugin
 	networkRefreshRate = 2000, -- Rate at which the network data is updated/reset on the local ped
 	playerListRefreshRate = 5000, -- Rate at which the playerList is updated
-	minVersion = "1.2.4", -- Version of the TS plugin required to play on the server
+	minVersion = "1.5.0", -- Version of the TS plugin required to play on the server
 
 	distance = {
 		15, -- Normal speech distance in gta distance units
@@ -17,7 +17,8 @@ TokoVoipConfig = {
 	radioClickMaxChannel = 100, -- Set the max amount of radio channels that will have local radio clicks enabled
 	radioAnim = true, -- Enable or disable the radio animation
 	radioEnabled = true, -- Enable or disable using the radio
-	
+	wsServer = "ip:port", -- Address of the websocket server
+
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
 		-- If the TSChannelWait is enabled, players who are currently in TSChannelWait will be automatically moved
@@ -30,9 +31,9 @@ TokoVoipConfig = {
 		TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC",
 
 		-- Blocking screen informations
-		TSServer = "ts.rmog.us", -- TeamSpeak server address to be displayed on blocking screen
+		TSServer = "ts.yourserver.com", -- TeamSpeak server address to be displayed on blocking screen
 		TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak support channel name displayed on blocking screen
-		TSDownload = "[[COMMUNITY WEBSITE URL HERE]]", -- Download link displayed on blocking screen
+		TSDownload = "https://github.com/Itokoyamato/TokoVOIP_TS3/releases", -- Download link displayed on blocking screen
 		TSChannelWhitelist = { -- Black screen will not be displayed when users are in those TS channels
 			"Support 1",
 			"Support 2",

@@ -8,6 +8,9 @@
 #include "core/ts_helpers_qt.h"
 #include "core/ts_logging_qt.h"
 
+#include <QDesktopServices>
+#include <QUrl>
+
 #include "plugin.h" //pluginID
 #include "ts3_functions.h"
 #include "core/ts_serversinfo.h"
@@ -17,473 +20,501 @@
 #include "mod_radio.h"
 
 #include "tokovoip.h"
-#include "server_ws.hpp"
+#include "client_ws.hpp"
 
-#define CURL_STATICLIB
-#include "curl.h"
+#include "httplib.h"
+using namespace httplib;
 
 Tokovoip *tokovoip;
-typedef SimpleWeb::SocketServer<SimpleWeb::WS> WsServer;
+using WsClient = SimpleWeb::SocketClient<SimpleWeb::WS>;
 
 int isRunning = 0;
 
-HANDLE threadService = INVALID_HANDLE_VALUE;
-HANDLE threadTimeout = INVALID_HANDLE_VALUE;
-HANDLE threadSendData = INVALID_HANDLE_VALUE;
-HANDLE threadCheckUpdate = INVALID_HANDLE_VALUE;
-volatile bool exitTimeoutThread = FALSE;
-volatile bool exitSendDataThread = FALSE;
+HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
+bool exitWebSocketThread = FALSE;
+shared_ptr<WsClient::Connection> wsConnection;
 
 bool isTalking = false;
 char* originalName = "";
-time_t lastPingTick = 0;
-int pluginStatus = 0;
 time_t lastNameSetTick = 0;
 string mainChannel = "";
 string waitChannel = "";
 time_t lastChannelJoin = 0;
+string clientIP = "";
+time_t lastWSConnection = 0;
 
-WsServer server;
-shared_ptr<WsServer::Connection> ServerConnection;
 time_t noiseWait = 0;
 
-DWORD WINAPI ServiceThread(LPVOID lpParam)
-{
-	server.config.port = 38204;
-	auto& echo = server.endpoint["^/tokovoip/?$"];
+int connectButtonId;
+int disconnectButtonId;
+int unmuteButtonId;
+int supportButtonId;
+int projectButtonId;
+bool isPTT = true;
 
-	echo.on_message = [](shared_ptr<WsServer::Connection> connection, shared_ptr<WsServer::InMessage> message) {
+int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
+	int currentPluginStatus = 1;
 
-		tokovoip->setProcessingState(true);
-		lastPingTick = time(nullptr);
-		pluginStatus = 1;
-		ServerConnection = connection;
+	if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
+	{
+		tokovoip->setProcessingState(false, currentPluginStatus);
+		return (0);
+	}
 
-		auto message_str = message->string();
-		//ts3Functions.logMessage(message_str.c_str(), LogLevel_INFO, "TokoVOIP", 0);
+	DWORD error;
+	anyID clientId;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	std::vector<anyID> clients = getChannelClients(serverId, getCurrentChannel(serverId));
+	string thisChannelName = getChannelName(serverId, getMyId(serverId));
 
+	//--------------------------------------------------------
 
-		if (!isConnected(ts3Functions.getCurrentServerConnectionHandlerID()))
+	// Check if connected to any channel
+	if (thisChannelName == "")
+	{
+		tokovoip->setProcessingState(false, currentPluginStatus);
+		return (0);
+	}
+
+	//--------------------------------------------------------
+
+	// Load the json //
+	json json_data = json::parse(message_str.c_str(), nullptr, false);
+	if (json_data.is_discarded()) {
+		ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
+		tokovoip->setProcessingState(false, currentPluginStatus);
+		return (0);
+	}
+
+	json data = json_data["Users"];
+	string channelName = json_data["TSChannel"];
+	string channelPass = json_data["TSPassword"];
+	string waitingChannelName = json_data["TSChannelWait"];
+	mainChannel = channelName;
+	waitChannel = waitingChannelName;
+
+	bool radioTalking = json_data["radioTalking"];
+	bool radioClicks = json_data["localRadioClicks"];
+	bool local_click_on = json_data["local_click_on"];
+	bool local_click_off = json_data["local_click_off"];
+	bool remote_click_on = json_data["remote_click_on"];
+	bool remote_click_off = json_data["remote_click_off"];
+
+	//--------------------------------------------------------
+
+	if (isChannelWhitelisted(json_data, thisChannelName)) {
+		resetClientsAll();
+		currentPluginStatus = 3;
+		tokovoip->setProcessingState(false, currentPluginStatus);
+		return (0);
+	}
+
+	// Check if right channel
+	if (channelName != thisChannelName) {
+		if (originalName != "")
+			setClientName(originalName);
+
+		// Handle auto channel switch
+		if (thisChannelName == waitingChannelName)
 		{
-			tokovoip->setProcessingState(false);
-			return (0);
-		}
-
-		DWORD error;
-		anyID clientId;
-		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-		std::vector<anyID> clients = getChannelClients(serverId, getCurrentChannel(serverId));
-		string thisChannelName = getChannelName(serverId, getMyId(serverId));
-
-		//--------------------------------------------------------
-
-		// Check if connected to any channel
-		if (thisChannelName == "")
-		{
-			tokovoip->setProcessingState(false);
-			return (0);
-		}
-
-		//--------------------------------------------------------
-
-		// Load the json //
-		json json_data = json::parse(message_str.c_str(), nullptr, false);
-		if (json_data.is_discarded()) {
-			ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
-			tokovoip->setProcessingState(false);
-			return (0);
-		}
-
-		json data = json_data["Users"];
-		string channelName = json_data["TSChannel"];
-		string channelPass = json_data["TSPassword"];
-		string waitingChannelName = json_data["TSChannelWait"];
-		mainChannel = channelName;
-		waitChannel = waitingChannelName;
-
-		bool radioTalking = json_data["radioTalking"];
-		bool radioClicks = json_data["localRadioClicks"];
-		bool local_click_on = json_data["local_click_on"];
-		bool local_click_off = json_data["local_click_off"];
-		bool remote_click_on = json_data["remote_click_on"];
-		bool remote_click_off = json_data["remote_click_off"];
-
-		//--------------------------------------------------------
-
-		if (isChannelWhitelisted(json_data, thisChannelName)) {
-			resetClientsAll();
-			pluginStatus = 3;
-			tokovoip->setProcessingState(false);
-			return (0);
-		}
-
-		// Check if right channel
-		if (channelName != thisChannelName) {
-			if (originalName != "")
-				setClientName(originalName);
-
-			// Handle auto channel switch
-			if (thisChannelName == waitingChannelName)
+			if (noiseWait == 0 || (time(nullptr) - noiseWait) > 1)
+				noiseWait = time(nullptr);
+			uint64* result;
+			if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
 			{
-				if (noiseWait == 0 || (time(nullptr) - noiseWait) > 1)
-					noiseWait = time(nullptr);
-				uint64* result;
-				if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
-				{
-					outputLog("Can't get channel list", error);
-				}
-				else
-				{
-					bool joined = false;
-					uint64* iter = result;
-					while (*iter && !joined && (time(nullptr) - lastChannelJoin) > 1)
-					{
-						uint64 channelId = *iter;
-						iter++;
-						char* cName;
-						if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
-							outputLog("Can't get channel name", error);
-						}
-						else
-						{
-							if (!strcmp(channelName.c_str(), cName))
-							{
-								if (time(nullptr) - noiseWait < 1)
-								{
-									std::vector<anyID> channelClients = getChannelClients(serverId, channelId);
-									for (auto clientIdIterator = channelClients.begin(); clientIdIterator != channelClients.end(); clientIdIterator++)
-									{
-										setClientMuteStatus(serverId, *clientIdIterator, true);
-									}
-									tokovoip->setProcessingState(false);
-									return (0);
-								}
-								lastChannelJoin = time(nullptr);
-								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
-									outputLog("Can't join channel", error);
-									pluginStatus = 2;
-									tokovoip->setProcessingState(false);
-									return (0);
-								}
-								else
-								{
-									joined = true;
-								}
-							}
-							ts3Functions.freeMemory(cName);
-						}
-					}
-					ts3Functions.freeMemory(result);
-				}
+				outputLog("Can't get channel list", error);
 			}
 			else
 			{
-				resetClientsAll();
-				pluginStatus = 2;
-				tokovoip->setProcessingState(false);
-				return (0);
-			}
-		}
-
-		serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-
-		// Save client's original name
-		if (originalName == "")
-			if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
-				outputLog("Error getting client nickname", error);
-				tokovoip->setProcessingState(false);
-				return (0);
-			}
-
-		// Set client's name to ingame name
-		string newName = originalName;
-		
-		if (json_data.find("localName") != json_data.end()) {
-			string localName = json_data["localName"];
-			if (localName != "") newName = localName;
-		}
-
-		if (json_data.find("localNamePrefix") != json_data.end()) {
-			string localNamePrefix = json_data["localNamePrefix"];
-			if (localNamePrefix != "") newName = localNamePrefix + newName;
-		}
-
-		if (newName != "") {
-			setClientName(newName);
-		}
-
-		// Activate input if talking on radio
-		if (radioTalking)
-		{
-			setClientTalking(true);
-			if (!isTalking && radioClicks == true && local_click_on == true)
-				playWavFile("mic_click_on");
-			isTalking = true;
-		}
-		else
-		{
-			if (isTalking)
-			{
-				setClientTalking(false);
-				if (radioClicks == true && local_click_off == true)
-					playWavFile("mic_click_off");
-				isTalking = false;
-			}
-		}
-
-		// Handle positional audio
-		if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
-			TS3_VECTOR myPosition;
-			myPosition.x = (float)json_data["posX"];
-			myPosition.y = (float)json_data["posY"];
-			myPosition.z = (float)json_data["posZ"];
-			ts3Functions.systemset3DListenerAttributes(serverId, &myPosition, NULL, NULL);
-		}
-
-		// Process other clients
-		for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++) {
-			clientId = *clientIdIterator;
-			char *UUID;
-			if ((error = ts3Functions.getClientVariableAsString(serverId, clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
-				outputLog("Error getting client UUID", error);
-			} else {
-				bool foundPlayer = false;
-				if (clientId == getMyId(serverId))
+				bool joined = false;
+				uint64* iter = result;
+				while (*iter && !joined && (time(nullptr) - lastChannelJoin) > 1)
 				{
-					foundPlayer = true;
-					continue;
-				}
-				for (auto user : data) {
-					if (!user.is_object()) continue;
-					if (!user["uuid"].is_string()) continue;
-
-					string gameUUID = user["uuid"];
-					int muted = user["muted"];
-					float volume = user["volume"];
-					bool isRadioEffect = user["radioEffect"];
-
-					if (channelName == thisChannelName && UUID == gameUUID) { 
-						foundPlayer = true;
-						if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
-							playWavFile("mic_click_on");
-						if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(serverId))
-							playWavFile("mic_click_off");
-						tokovoip->setRadioData(UUID, isRadioEffect);
-						if (muted)
-							setClientMuteStatus(serverId, clientId, true);
-						else {
-							setClientMuteStatus(serverId, clientId, false);
-							ts3Functions.setClientVolumeModifier(serverId, clientId, volume);
-							if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
-								TS3_VECTOR Vector;
-								Vector.x = (float)user["posX"];
-								Vector.y = (float)user["posY"];
-								Vector.z = (float)user["posZ"];
-								ts3Functions.channelset3DAttributes(serverId, clientId, &Vector);
-							}
-						}
+					uint64 channelId = *iter;
+					iter++;
+					char* cName;
+					if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+						outputLog("Can't get channel name", error);
 					}
-				};
-				// Checks if ts3 user is on fivem server. Fixes onesync infinity issues as big mode is using 
-				// player culling (Removes a player from your game if he is far away), this fix should mute him when he is removed from your game (too far away)
-				
-				// Also keep in mind teamspeak3 defautly mutes everyone in channel if theres more than 100 people,
-				// this can be changed in the server settings -> Misc -> Min clients in channel before silence
-				
-				if (!foundPlayer) {
-					setClientMuteStatus(serverId, clientId, true);
-				}
-				ts3Functions.freeMemory(UUID);
-			}
-		}
-		pluginStatus = 3;
-		tokovoip->setProcessingState(false);
-		//--------------------------------------------------------
-
-
-	};
-	echo.on_open = [](shared_ptr<WsServer::Connection> connection) {
-		std::ostringstream oss;
-		oss << "Server: Opened connection " << (size_t)connection.get();
-		//outputLog((char*)oss.str().c_str(), 1);
-	};
-	echo.on_close = [](shared_ptr<WsServer::Connection> connection, int status, const string& /*reason*/) {
-		std::ostringstream oss;
-		oss << "Server: Closed connection " << (size_t)connection.get() << " with status code " << status;
-		//outputLog((char*)oss.str().c_str(), 1);
-	};
-	echo.on_error = [](shared_ptr<WsServer::Connection> connection, const SimpleWeb::error_code& ec) {
-		std::ostringstream oss;
-		oss << "Server: Error in connection " << (size_t)connection.get() << ". " <<
-			"Error: " << ec << ", error message: " << ec.message();
-		//outputLog((char*)oss.str().c_str(), 1);
-	};
-	server.start();
-	return NULL;
-}
-
-bool connected = false;
-DWORD WINAPI TimeoutThread(LPVOID lpParam)
-{
-	while (!exitTimeoutThread)
-	{
-		time_t currentTick = time(nullptr);
-		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-
-		if (currentTick - lastPingTick < 10)
-			connected = true;
-		if (lastPingTick > 0 && currentTick - lastPingTick > 10 && connected == true)
-		{
-			string thisChannelName = getChannelName(serverId, getMyId(serverId));
-			if (mainChannel == thisChannelName)
-			{
-				uint64* result;
-				DWORD error;
-				if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok)
-				{
-					outputLog("Can't get channel list", error);
-				}
-				else
-				{
-					bool joined = false;
-					uint64* iter = result;
-					while (*iter && !joined)
+					else
 					{
-						uint64 channelId = *iter;
-						iter++;
-						char* cName;
-						if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
-							outputLog("Can't get channel name", error);
-						}
-						else
+						if (!strcmp(channelName.c_str(), cName))
 						{
-							if (!strcmp(waitChannel.c_str(), cName))
+							if (time(nullptr) - noiseWait < 1)
 							{
-								if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
-									outputLog("Can't join channel", error);
-									pluginStatus = 2;
-									tokovoip->setProcessingState(false);
-									return (0);
-								}
-								else
+								std::vector<anyID> channelClients = getChannelClients(serverId, channelId);
+								for (auto clientIdIterator = channelClients.begin(); clientIdIterator != channelClients.end(); clientIdIterator++)
 								{
-									joined = true;
+									setClientMuteStatus(serverId, *clientIdIterator, true);
 								}
+								tokovoip->setProcessingState(false, currentPluginStatus);
+								return (0);
 							}
-							ts3Functions.freeMemory(cName);
+							lastChannelJoin = time(nullptr);
+							if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, channelPass.c_str(), NULL)) != ERROR_ok) {
+								outputLog("Can't join channel", error);
+								currentPluginStatus = 2;
+								tokovoip->setProcessingState(false, currentPluginStatus);
+								return (0);
+							}
+							else
+							{
+								joined = true;
+							}
+						}
+						ts3Functions.freeMemory(cName);
+					}
+				}
+				ts3Functions.freeMemory(result);
+			}
+		}
+		else
+		{
+			resetClientsAll();
+			currentPluginStatus = 2;
+			tokovoip->setProcessingState(false, currentPluginStatus);
+			return (0);
+		}
+	}
+
+	serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+
+	// Save client's original name
+	if (originalName == "")
+		if ((error = ts3Functions.getClientVariableAsString(serverId, getMyId(serverId), CLIENT_NICKNAME, &originalName)) != ERROR_ok) {
+			outputLog("Error getting client nickname", error);
+			tokovoip->setProcessingState(false, currentPluginStatus);
+			return (0);
+		}
+
+	// Set client's name to ingame name
+	string newName = originalName;
+
+	if (json_data.find("localName") != json_data.end()) {
+		string localName = json_data["localName"];
+		if (localName != "") newName = localName;
+	}
+
+	if (json_data.find("localNamePrefix") != json_data.end()) {
+		string localNamePrefix = json_data["localNamePrefix"];
+		if (localNamePrefix != "") newName = localNamePrefix + newName;
+	}
+
+	if (newName != "") {
+		setClientName(newName);
+	}
+
+	// Activate input if talking on radio
+	if (radioTalking)
+	{
+		setClientTalking(true);
+		if (!isTalking && radioClicks == true && local_click_on == true)
+			playWavFile("mic_click_on");
+		isTalking = true;
+	}
+	else
+	{
+		if (isTalking)
+		{
+			setClientTalking(false);
+			if (radioClicks == true && local_click_off == true)
+				playWavFile("mic_click_off");
+			isTalking = false;
+		}
+	}
+
+	// Handle positional audio
+	if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+		TS3_VECTOR myPosition;
+		myPosition.x = (float)json_data["posX"];
+		myPosition.y = (float)json_data["posY"];
+		myPosition.z = (float)json_data["posZ"];
+		ts3Functions.systemset3DListenerAttributes(serverId, &myPosition, NULL, NULL);
+	}
+
+	// Process other clients
+	for (auto clientIdIterator = clients.begin(); clientIdIterator != clients.end(); clientIdIterator++) {
+		clientId = *clientIdIterator;
+		char *UUID;
+		if ((error = ts3Functions.getClientVariableAsString(serverId, clientId, CLIENT_UNIQUE_IDENTIFIER, &UUID)) != ERROR_ok) {
+			outputLog("Error getting client UUID", error);
+		} else {
+			bool foundPlayer = false;
+			if (clientId == getMyId(serverId)) {
+				foundPlayer = true;
+				continue;
+			}
+			for (auto user : data) {
+				if (!user.is_object()) continue;
+				if (!user["uuid"].is_string()) continue;
+
+				string gameUUID = user["uuid"];
+				int muted = user["muted"];
+				float volume = user["volume"];
+				bool isRadioEffect = user["radioEffect"];
+
+				if (channelName == thisChannelName && UUID == gameUUID) {
+					foundPlayer = true;
+					if (isRadioEffect == true && tokovoip->getRadioData(UUID) == false && remote_click_on == true)
+						playWavFile("mic_click_on");
+					if (remote_click_off == true && isRadioEffect == false && tokovoip->getRadioData(UUID) == true && clientId != getMyId(serverId))
+						playWavFile("mic_click_off");
+					tokovoip->setRadioData(UUID, isRadioEffect);
+					if (muted)
+						setClientMuteStatus(serverId, clientId, true);
+					else {
+						setClientMuteStatus(serverId, clientId, false);
+						ts3Functions.setClientVolumeModifier(serverId, clientId, volume);
+						if (json_data.find("posX") != json_data.end() && json_data.find("posY") != json_data.end() && json_data.find("posZ") != json_data.end()) {
+							TS3_VECTOR Vector;
+							Vector.x = (float)user["posX"];
+							Vector.y = (float)user["posY"];
+							Vector.z = (float)user["posZ"];
+							ts3Functions.channelset3DAttributes(serverId, clientId, &Vector);
 						}
 					}
-					ts3Functions.freeMemory(result);
 				}
-			}
-			Sleep(500);
-			outputLog("Lost connection: plugin timed out client", 0);
-			pluginStatus = 0;
-			ServerConnection = NULL;
-			connected = false;
-			resetClientsAll();
-			if (originalName != "")
-				setClientName(originalName);
+			};
+			// Checks if ts3 user is on fivem server. Fixes onesync infinity issues as big mode is using
+			// player culling (Removes a player from your game if he is far away), this fix should mute him when he is removed from your game (too far away)
+
+			// Also keep in mind teamspeak3 defautly mutes everyone in channel if theres more than 100 people,
+			// this can be changed in the server settings -> Misc -> Min clients in channel before silence
+
+			if (!foundPlayer) setClientMuteStatus(serverId, clientId, true);
+			ts3Functions.freeMemory(UUID);
 		}
-		Sleep(100);
 	}
+	currentPluginStatus = 3;
+	tokovoip->setProcessingState(false, currentPluginStatus);
+}
+
+int tries = 0;
+void tokovoipProcess() {
+	tries = 0;
+	while (true) {
+		++tries;
+		uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+		if (isConnected(serverId)) break;
+		if (tries > 5) {
+			outputLog("WebsocketServer: Not connected to a TS server.");
+			return;
+		}
+		Sleep(1000);
+	}
+
+	string endpoint = getWebSocketEndpoint();
+	if (endpoint == "") {
+		outputLog("WebsocketServer: Failed to retrieve the websocket endpoint.");
+		return;
+	}
+
+	char *UUID;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) != ERROR_ok) {
+		outputLog("WebsocketServer: Failed to get UUID");
+		return;
+	}
+
+	WsClient client(endpoint + "&uuid=" + (string)UUID);
+	lastWSConnection = time(nullptr);
+
+	client.on_message = [](shared_ptr<WsClient::Connection> connection, shared_ptr<WsClient::InMessage> in_message) {
+		string message = in_message->string();
+		if (message.find("processTokovoip") != string::npos) {
+			int pos = message.find("42[\"");
+			message.erase(pos, 2);
+			json json_data = json::parse(message, nullptr, false);
+			if (json_data.is_discarded()) return;
+			handleMessage(connection, json_data[1].dump());
+		} else if (message.find("disconnect") != string::npos) outputLog(message);
+		else if (message.find("ping") != string::npos) sendWSMessage("pong", "{}");
+		else outputLog(message);
+	};
+
+	client.on_open = [&](shared_ptr<WsClient::Connection> connection) {
+		outputLog("WebsocketServer: connection opened");
+		wsConnection = connection;
+
+		json data = {
+			{ "key", "pluginVersion" },
+			{ "value", (string)ts3plugin_version() },
+		};
+		sendWSMessage("setTS3Data", data);
+
+		data = {
+			{ "key", "uuid" },
+			{ "value", (string)UUID },
+		};
+		sendWSMessage("setTS3Data", data);
+
+		data = {
+				{ "key", "pluginStatus" },
+				{ "value", 0 },
+		};
+		sendWSMessage("setTS3Data", data);
+	};
+
+	client.on_close = [&](shared_ptr<WsClient::Connection>, int status, const string &) {
+		outputLog("WebsocketServer: connection closed: " + to_string(status));
+		client.stop();
+		resetState();
+		if (exitWebSocketThread) return;
+		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
+		if (sleepTime > 0) Sleep(sleepTime);
+		initWebSocket(true);
+	};
+
+	client.on_error = [&](shared_ptr<WsClient::Connection>, const SimpleWeb::error_code &ec) {
+		outputLog("WebsocketServer: error: " + ec.message());
+		client.stop();
+		resetState();
+		if (exitWebSocketThread) return;
+		int sleepTime = (5 - (time(nullptr) - lastWSConnection)) * 1000;
+		if (sleepTime > 0) Sleep(sleepTime);
+		initWebSocket(true);
+	};
+
+	client.start();
+}
+DWORD WINAPI WebSocketService(LPVOID lpParam) {
+	updateWebsocketState();
+	tokovoipProcess();
+	updateWebsocketState(true, false);
 	return NULL;
 }
 
-DWORD WINAPI SendDataThread(LPVOID lpParam)
-{
-	while (!exitSendDataThread) {
-		if (tokovoip->getProcessingState() == false) {
-			sendCallback("TokoVOIP version:" + (string)ts3plugin_version());
-			sendCallback("TokoVOIP status:" + to_string(pluginStatus));
+void initWebSocket(bool ignoreRunning) {
+	if (!ignoreRunning && isWebsocketThreadRunning()) {
+		outputLog("Tokovoip is already running or handshaking. You can force disconnect it via the menu Plugins->TokoVoip->Disconnect");
+		return;
+	}
+	outputLog("Initializing WebSocket Thread", 0);
+	exitWebSocketThread = false;
+	threadWebSocket = CreateThread(NULL, 0, WebSocketService, NULL, 0, NULL);
+}
 
-			uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-			if (isConnected(serverId)) {
-				char *UUID;
-				if (ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_UNIQUE_IDENTIFIER, &UUID) == ERROR_ok)
-					sendCallback("TokoVOIP UUID:" + (string)UUID);
-				free(UUID);
+string getWebSocketEndpoint() {
+	json fivemServer = NULL;
+
+	tries = 0;
+	string verifyData = "";
+	while (verifyData == "") {
+		tries += 1;
+		outputLog("Verifying TS server (attempt " + to_string(tries) + ")");
+		verifyData = verifyTSServer();
+		if (verifyData == "") {
+			Sleep(5000);
+			if(tries >= 5) {
+				outputLog("Failed to verify TS server");
+				return "";
 			}
 		}
-		if (tokovoip->getProcessingState() == false)
-			Sleep(1000);
-		else
-			Sleep(50);
 	}
-	return NULL;
-}
-
-// callback function writes data to a std::ostream
-static size_t data_write(void* buf, size_t size, size_t nmemb, void* userp)
-{
-	if (userp)
-	{
-		std::ostream& os = *static_cast<std::ostream*>(userp);
-		std::streamsize len = size * nmemb;
-		if (os.write(static_cast<char*>(buf), len))
-			return len;
+	clientIP = verifyData;
+	if (clientIP == "") {
+		outputLog("Failed to retrieve clientIP");
+		return NULL;
 	}
 
-	return 0;
+	outputLog("Successfully verified TS server");
+
+	tries = 0;
+	while (fivemServer == NULL) {
+		tries += 1;
+		outputLog("Handshaking (attempt " + to_string(tries) + ")");
+		fivemServer = handshake(clientIP);
+		if (fivemServer == NULL) {
+			Sleep(5000);
+			if (tries >= 10) {
+				outputLog("Failed to handshake");
+				return "";
+			}
+		}
+	}
+	if (fivemServer == NULL) return "";
+
+	outputLog("Successfully handshaked");
+
+	json server = fivemServer["server"];
+	string fivemServerIP = server["ip"];
+	int fivemServerPORT = server["port"];
+
+	return fivemServerIP + ":" + to_string(fivemServerPORT) + "/socket.io/?EIO=3&transport=websocket&from=ts3";
 }
 
-size_t curl_callback(const char* in, size_t size, size_t num, string* out) {
-	const size_t totalBytes(size * num);
-	out->append(in, totalBytes);
-	return totalBytes;
+void resetChannel() {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	uint64* result;
+	DWORD error;
+	if ((error = ts3Functions.getChannelList(serverId, &result)) != ERROR_ok) {
+		outputLog("resetChannel: Can't get channel list", error);
+		return;
+	}
+
+	uint64* iter = result;
+	while (*iter) {
+		uint64 channelId = *iter;
+		iter++;
+		char* cName;
+		if ((error = ts3Functions.getChannelVariableAsString(serverId, channelId, CHANNEL_NAME, &cName)) != ERROR_ok) {
+			outputLog("resetChannel: Can't get channel name", error);
+			continue;
+		}
+		if (!strcmp(waitChannel.c_str(), cName)) {
+			if ((error = ts3Functions.requestClientMove(serverId, getMyId(serverId), channelId, "", NULL)) != ERROR_ok) {
+				outputLog("resetChannel: Can't join channel", error);
+				tokovoip->setProcessingState(false, 0);
+				return;
+			}
+			break;
+		}
+		ts3Functions.freeMemory(cName);
+	}
+	ts3Functions.freeMemory(result);
 }
 
-json downloadJSON(string url) {
-    CURL* curl = curl_easy_init();
+void resetState() {
+	wsConnection = NULL;
+	updateWebsocketState();
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (isConnected(serverId)) {
+		string currentChannelName = getChannelName(serverId, getMyId(serverId));
+		if (mainChannel == currentChannelName) resetChannel();
+		resetClientsAll();
+	}
+	if (originalName != "") setClientName(originalName);
+}
 
-    // Set remote URL.
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-    // Don't bother trying IPv6, which would increase DNS resolution time.
-    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+void sendWSMessage(string endpoint, json value) {
+	if (!wsConnection) return;
 
-    // Don't wait forever, time out after 10 seconds.
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+	json send = json::array({ endpoint, value });
+	wsConnection->send("42" + send.dump());
+}
 
-    // Follow HTTP redirects if necessary.
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-    // Response information.
-    int httpCode(0);
-    unique_ptr<string> httpData(new string());
-
-    // Hook up data handling function.
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_callback);
-
-    // Hook up data container (will be passed as the last parameter to the
-    // callback handling function).  Can be any pointer type, since it will
-    // internally be passed as a void pointer.
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
-
-    // Run our HTTP GET command, capture the HTTP response code, and clean up.
-    curl_easy_perform(curl);
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-    curl_easy_cleanup(curl);
-
-    if (httpCode == 200) {
-        // Response looks good - done using Curl now.  Try to parse the results
-        // and print them out.
-		json parsedJSON = json::parse(*httpData.get(), nullptr, false);
+json downloadJSON(string host, string path) {
+	httplib::Client cli(host.c_str());
+	cli.set_follow_location(true);
+	auto res = cli.Get(path.c_str());
+	if (res && res->status == 200) {
+		json parsedJSON = json::parse(res->body, nullptr, false);
 		if (parsedJSON.is_discarded()) {
 			outputLog("Downloaded JSON is invalid");
 			return NULL;
 		}
 		return parsedJSON;
-    } else {
-		outputLog("Couldn't retrieve JSON (Code: " + to_string(httpCode) + ")");
-        return NULL;
-    }
+	} else {
+		outputLog("Couldn't retrieve JSON (Code: " + to_string(res->status) + ")");
+		return NULL;
+	}
 
-    return NULL;
+	return NULL;
 }
 
 void checkUpdate() {
-	json updateJSON = downloadJSON("http://itokoyamato.net/files/tokovoip/tokovoip_info.json");
+	json updateJSON = downloadJSON("itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
 	if (updateJSON != NULL) {
 		outputLog("Got update json");
 	}
@@ -497,7 +528,7 @@ void checkUpdate() {
 	string minVersion = updateJSON["minVersion"];
 	string minVersionNum = updateJSON["minVersion"];
 	minVersionNum.erase(remove(minVersionNum.begin(), minVersionNum.end(), '.'), minVersionNum.end());
-	
+
 	string currentVersion = updateJSON["currentVersion"];
 	string currentVersionNum = updateJSON["currentVersion"];
 	currentVersionNum.erase(remove(currentVersionNum.begin(), currentVersionNum.end(), '.'), currentVersionNum.end());
@@ -536,65 +567,143 @@ void checkUpdate() {
 	}
 }
 
-int Tokovoip::initialize(char *id) {
-	plugin_id = id;
-	const int sz = strlen(id) + 1;
-	plugin_id = (char*)malloc(sz * sizeof(char));
-	strcpy(plugin_id, id);
+string verifyTSServer() {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	unsigned int error;
+	char* serverIP;
+
+	if ((error = ts3Functions.getConnectionVariableAsString(serverId, getMyId(ts3Functions.getCurrentServerConnectionHandlerID()), CONNECTION_SERVER_IP, &serverIP)) != ERROR_ok) {
+		if (error != ERROR_not_connected) ts3Functions.logMessage("Error querying server name", LogLevel_ERROR, "Plugin", serverId);
+		return "";
+	}
+
+	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	string path = "/verify?address=" + string(serverIP);
+	cli.set_follow_location(true);
+	outputLog("Getting " + path);
+	auto res = cli.Get(path.c_str());
+	if (res && res->status == 200) return res->body;
+	return "";
+}
+
+json handshake(string clientIP) {
+	if (clientIP == "") return NULL;
+
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	unsigned int error;
+
+	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	string path = "/handshake?ip=" + string(clientIP);
+	cli.set_follow_location(true);
+	outputLog("Getting " + path);
+	auto res = cli.Get(path.c_str());
+	if (res && res->status == 200) {
+		json parsedJSON = json::parse(res->body, nullptr, false);
+		if (parsedJSON.is_discarded()) {
+			outputLog("Handshake: Downloaded JSON is invalid");
+			return NULL;
+		}
+		return parsedJSON;
+	}
+	return NULL;
+}
+
+void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int menuItemID, uint64 selectedItemID)
+{
+	if (type == PLUGIN_MENU_TYPE_GLOBAL) {
+		if (menuItemID == connectButtonId) {
+			initWebSocket();
+		} else if (menuItemID == disconnectButtonId) {
+			killWebsocketThread();
+		} else if (menuItemID == unmuteButtonId) {
+			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
+		} else if (menuItemID == supportButtonId) {
+			QDesktopServices::openUrl(QUrl("https://patreon.com/Itokoyamato"));
+		} else if (menuItemID == projectButtonId) {
+			QDesktopServices::openUrl(QUrl("https://github.com/Itokoyamato/TokoVOIP_TS3"));
+		}
+	}
+}
+
+int Tokovoip::initialize(char *id, QObject* parent) {
 	if (isRunning != 0)
 		return (0);
+
+	plugin = qobject_cast<Plugin_Base*>(parent);
+	auto& context_menu = plugin->context_menu();
+	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
+	disconnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Disconnect", "");
+	unmuteButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Unmute All", "");
+	supportButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Support on Patreon", "");
+	projectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Project page", "");
+	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
+	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
+
 	outputLog("TokoVOIP initialized", 0);
+
 	resetClientsAll();
 	checkUpdate();
 	isRunning = false;
 	tokovoip = this;
-	exitTimeoutThread = false;
-	exitSendDataThread = false;
-	threadService = CreateThread(NULL, 0, ServiceThread, NULL, 0, NULL);
-	threadTimeout = CreateThread(NULL, 0, TimeoutThread, NULL, 0, NULL);
-	threadSendData = CreateThread(NULL, 0, SendDataThread, NULL, 0, NULL);
 	return (1);
 }
 
-void Tokovoip::shutdown()
-{
-	exitTimeoutThread = true;
-	exitSendDataThread = true;
-	server.stop();
+void Tokovoip::shutdown() {
+	if (wsConnection) wsConnection->send_close(0);
+	TerminateThread(threadWebSocket, 0);
 	resetClientsAll();
-
-	DWORD exitCode;
-	BOOL result = GetExitCodeThread(threadService, &exitCode);
-	if (!result || exitCode == STILL_ACTIVE)
-		outputLog("service thread not terminated", LogLevel_CRITICAL);
-}
-
-vector<string> explode(const string& str, const char& ch) {
-	string next;
-	vector<string> result;
-
-	// For each character in the string
-	for (string::const_iterator it = str.begin(); it != str.end(); it++) {
-		// If we've hit the terminal character
-		if (*it == ch) {
-			// If we have some characters accumulated
-			if (!next.empty()) {
-				// Add them to the result vector
-				result.push_back(next);
-				next.clear();
-			}
-		}
-		else {
-			// Accumulate the next character into the sequence
-			next += *it;
-		}
-	}
-	if (!next.empty())
-		result.push_back(next);
-	return result;
 }
 
 // Utils
+
+void updateWebsocketState(bool force, bool state) {
+	ts3Functions.setPluginMenuEnabled(tokovoip->plugin->id().c_str(), connectButtonId, (force) ? !state : !isWebsocketThreadRunning());
+}
+
+bool isWebsocketThreadRunning() {
+	DWORD lpExitCode;
+	GetExitCodeThread(threadWebSocket, &lpExitCode);
+	return lpExitCode == STILL_ACTIVE;
+}
+
+bool killWebsocketThread() {
+	if (isWebsocketThreadRunning()) {
+		outputLog("TokoVoip is still in the process of running or handshaking. Killing ...");
+		if (wsConnection) wsConnection->send_close(0);
+		TerminateThread(threadWebSocket, 0);
+		Sleep(1000);
+		if (isWebsocketThreadRunning()) {
+			outputLog("Failed to kill running tokovoip.");
+			return false;
+		}
+		outputLog("Successfully killed running instance.");
+		resetState();
+	}
+	updateWebsocketState();
+	return true;
+}
+
+void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message) {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (client_id != getMyId(serverId)) return;
+	char* channelName = "";
+	ts3Functions.getChannelVariableAsString(serverId, new_channel_id, CHANNEL_NAME, &channelName);
+	if (channelName == "") return;
+	string name = channelName;
+	transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return tolower(c); });
+	if (name.find("tokovoip") != string::npos) {
+		outputLog("Detected 'TokoVoip' in channel name, booting ..");
+		initWebSocket();
+	}
+}
+
+void onTokovoipCurrentServerConnectionChanged(uint64 sch_id) {
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	if (!serverId) return;
+	char* res;
+	ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_INPUT_DEACTIVATED, &res);
+	isPTT = (res == "0") ? false : true;
+}
 
 bool isChannelWhitelisted(json data, string channel) {
 	if (data == NULL) return false;
@@ -609,7 +718,7 @@ bool isChannelWhitelisted(json data, string channel) {
 void playWavFile(const char* fileNameWithoutExtension)
 {
 	char pluginPath[PATH_BUFSIZE];
-	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->getPluginID());
+	ts3Functions.getPluginPath(pluginPath, PATH_BUFSIZE, tokovoip->plugin->id().c_str());
 	std::string path = std::string((string)pluginPath);
 	DWORD error;
 	std::string to_play = path + "tokovoip/" + std::string(fileNameWithoutExtension) + ".wav";
@@ -619,16 +728,10 @@ void playWavFile(const char* fileNameWithoutExtension)
 	}
 }
 
-void	setClientName(string name)
-{
+void	setClientName(string name) {
 	DWORD error;
 	char* currentName;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-
-	// Cancel name change is anti-spam timer still active
-	if (time(nullptr) - lastNameSetTick < 2) return;
-
-	lastNameSetTick = time(nullptr);
 
 	if ((error = ts3Functions.flushClientSelfUpdates(serverId, NULL)) != ERROR_ok && error != ERROR_ok_no_update)
 		return outputLog("Can't flush self updates.", error);
@@ -639,10 +742,15 @@ void	setClientName(string name)
 	// Cancel name changing if name is already the same
 	if (name == (string)currentName) return;
 
+	// Cancel name change is anti-spam timer still active
+	if (time(nullptr) - lastNameSetTick < 2) return;
+
+	lastNameSetTick = time(nullptr);
+
 	// Set name
 	if ((error = ts3Functions.setClientSelfVariableAsString(serverId, CLIENT_NICKNAME, name.c_str())) != ERROR_ok)
 		return outputLog("Error setting client nickname", error);
-		
+
 	if ((error = ts3Functions.flushClientSelfUpdates(serverId, NULL)) != ERROR_ok && error != ERROR_ok_no_update)
 		outputLog("Can't flush self updates.", error);
 }
@@ -651,8 +759,14 @@ void setClientTalking(bool status)
 {
 	DWORD error;
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
-	if (status)
-	{
+	char* vad;
+	if ((error = ts3Functions.getPreProcessorConfigValue(serverId, "vad", &vad)) != ERROR_ok) {
+		outputLog("Error retrieving vad setting");
+		return;
+	}
+	if (strcmp(vad, "true") == 0 && !isPTT) return;
+
+	if (status) {
 		if ((error = ts3Functions.setClientSelfVariableAsInt(serverId, CLIENT_INPUT_DEACTIVATED, 0)) != ERROR_ok)
 			outputLog("Can't active input.", error);
 		error = ts3Functions.flushClientSelfUpdates(serverId, NULL);
@@ -666,21 +780,6 @@ void setClientTalking(bool status)
 		error = ts3Functions.flushClientSelfUpdates(serverId, NULL);
 		if (error != ERROR_ok && error != ERROR_ok_no_update)
 			outputLog("Can't flush self updates.", error);
-	}
-}
-
-void	sendCallback(string str)
-{
-	for (auto &a_connection : server.get_connections()) {
-		auto send_stream = make_shared<WsServer::OutMessage>();
-		*send_stream << str;
-
-		a_connection->send(send_stream, [](const SimpleWeb::error_code& ec) {
-			if (ec) {
-				string errorMsg = "Server: Error sending message:" + ec.message();
-				outputLog((char*)errorMsg.c_str(), 1);
-			}
-		});
 	}
 }
 
