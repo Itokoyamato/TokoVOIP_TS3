@@ -8,7 +8,7 @@ const axios = require('axios');
 const lodash = require('lodash');
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 const chalk = require('chalk');
-const config = require('./config.json');
+const config = require('./config.js');
 
 let masterHeartbeatInterval;
 const clients = {};

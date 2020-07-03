@@ -1,7 +1,0 @@
-{
-  "TSServer": "127.0.0.1",
-  "WSServerIP": "127.0.0.1",
-  "WSServerPort": 3000,
-  "FivemServerIP": "127.0.0.1",
-  "FivemServerPort": 32000
-}
