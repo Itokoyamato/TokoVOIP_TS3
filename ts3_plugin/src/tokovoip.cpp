@@ -8,6 +8,9 @@
 #include "core/ts_helpers_qt.h"
 #include "core/ts_logging_qt.h"
 
+#include <QDesktopServices>
+#include <QUrl>
+
 #include "plugin.h" //pluginID
 #include "ts3_functions.h"
 #include "core/ts_serversinfo.h"
@@ -615,9 +618,9 @@ void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int 
 		} else if (menuItemID == unmuteButtonId) {
 			unmuteAll(ts3Functions.getCurrentServerConnectionHandlerID());
 		} else if (menuItemID == supportButtonId) {
-			system("start https://patreon.com/Itokoyamato");
+			QDesktopServices::openUrl(QUrl("https://patreon.com/Itokoyamato"));
 		} else if (menuItemID == projectButtonId) {
-			system("start https://github.com/Itokoyamato/TokoVOIP_TS3");
+			QDesktopServices::openUrl(QUrl("https://github.com/Itokoyamato/TokoVOIP_TS3"));
 		}
 	}
 }
