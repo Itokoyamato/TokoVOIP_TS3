@@ -7,8 +7,8 @@ Downloads are available on the [releases](https://github.com/Itokoyamato/TokoVOI
 
 If you like TokoVOIP, give it a star ! It'd be much appreciated <3  
 
-We have a [Discord](https://discord.gg/nfRqshm) server to discuss, or if you need help !  
-[![Discord](https://img.shields.io/discord/728723568824680560?color=blue&label=Discord)](https://discord.gg/nfRqshm)
+We have a [Discord](https://discord.gg/nbEprAw) server to discuss, or if you need help !  
+[![Discord](https://img.shields.io/discord/728723568824680560?color=blue&label=Discord)](https://discord.gg/nbEprAw)
 
 You can support my work:  
 [![Patreon](https://img.shields.io/badge/Become%20a-patron-orange)](https://www.patreon.com/Itokoyamato)
