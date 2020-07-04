@@ -51,7 +51,11 @@ Note: **TSServer** must be an **IP**, domain names are currently not supported. 
 * **Run the server**
   * **Running as Standalone**  
 It can be run as a standalone NodeJS application, on the same machine as your fivem server, or on a completely different machine  
-
+	* Download [Node.js](https://nodejs.org/en/)
+	* Open ws-server folder in cmd / terminal
+	* Execute `npm i`
+	* After its done run `node index.js`
+	I recommend using pm2 module to run the ws-server in the background
   * **Running as FXServer resource**  
 The ws-server is compatible and can be run as a FXServer resource directly
 Just start it the same way you'd start any other resource  
