@@ -45,7 +45,7 @@ The TS3 Plugin will try to connect if you join a TS3 channel containing 'tokovoi
 You can use the buttons in `Plugins->TokoVoip` to manually connect/disconnect the TS3 Plugin  
 ## (servers) Setting up the ws-server
 * **Configure the server**  
-Edit [config.js](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/feat-websocket-proxy/ws_server/config.js) to match your configuration. Fill the IPs using your host's public IP.  
+Edit [config.js](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/ws_server/config.js) to match your configuration. Fill the IPs using your host's public IP.  
 Note: **TSServer** must be an **IP**, domain names are currently not supported. Please open an issue if that's something you would like to see available  
 
 * **Run the server**
