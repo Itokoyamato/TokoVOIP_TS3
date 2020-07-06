@@ -152,7 +152,7 @@ local function clientProcessing()
 					end
 
 
-					if (remotePlayerChannel <= voip.config.radioClickMaxChannel) then
+					if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel) then
 						founduserData.radioEffect = true;
 					end
 
