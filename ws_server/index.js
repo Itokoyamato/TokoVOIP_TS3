@@ -49,19 +49,15 @@ app.use(express.json());
 
   if (!config.TSServer || !config.WSServerIP || !config.WSServerPort || !config.FivemServerIP || !config.FivemServerPort) {
     console.error(chalk`{red Config error:
-      Missing one of TSServer, WSServerIP, WSServerPort, FivemServerIP or FivemServerPort}`
-            );
+Missing one of TSServer, WSServerIP, WSServerPort, FivemServerIP or FivemServerPort}`
+    );
     return;
   }
 
   // Boot
   http.listen(config.WSServerPort, async _ => {
-    console.log(`Listening on ${config.WSServerIP}:${config.WSServerPort}`);
-    await sleep(0);
-
     console.log('Checking configuration ...');
     let configError = false;
-    // Configuration checks
     const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
     if (!IPv4Regex.test(config.TSServer)) {
       configError = true;
@@ -75,10 +71,9 @@ Domain names are not supported.}`
         net.createConnection(10011, config.TSServer).on('connect', resolve).on('error', reject);
       })
       .catch(e => {
-        configError = true;
-        console.warn(chalk`{yellow Failed to reach TeamSpeak server.
-    Please check your configuration.
-    It could be using a different ServerQuery port, in which case you can ignore this warning.}`
+        console.warn(chalk`{yellow Failed to reach TeamSpeak server at ${config.TSServer}:10011.
+Please check your configuration.
+It could be using a different ServerQuery port, in which case you can ignore this warning.}`
         );
       });
     }
@@ -117,6 +112,9 @@ You might need to open your ports to run it locally.}`);
     if (configError) return;
 
     console.log(chalk`Everything looks {green good} ! Have fun`);
+    await sleep(0);
+
+    console.log(chalk`Listening on "{cyan ${config.WSServerIP}:${config.WSServerPort}}" (copy and paste this address as "wsServer" in tokovoip_script/c_config.lua)`);
 
     masterHeartbeat();
     masterHeartbeatInterval = setInterval(masterHeartbeat, 300000);
