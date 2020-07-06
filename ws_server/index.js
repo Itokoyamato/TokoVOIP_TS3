@@ -19,11 +19,59 @@ console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {h
 
 app.use(express.json());
 
-http.listen(config.WSServerPort, () => {
-  console.log(`Listening on *:${config.WSServerPort}`);
-  masterHeartbeat();
-  masterHeartbeatInterval = setInterval(masterHeartbeat, 300000);
-});
+(async _ => {
+  let configError = false;
+  // Configuration checks
+  const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
+  if (!IPv4Regex.test(config.TSServer)) {
+    configError = true;
+    console.error(chalk`{red Config error:
+TSServer is invalid.
+It must be an IPv4 address.
+Domain names are not supported.}`
+    );
+  }
+
+  const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
+  await axios.get(FiveMURI)
+  .catch(e => {
+    configError = true
+    console.error(chalk`{red Config error:
+Could not check FiveM server.
+Is it accessible from the internet ?
+Make sure your configuration is correct and your ports are open.}
+{cyan (${FiveMURI})}`
+    );
+  });
+  const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`
+  await axios.get(wsURI)
+  .catch(e => {
+    configError = true;
+    console.error(chalk`{red Config error:
+Could not check WS server.
+Is it accessible from the internet ?
+Make sure your configuration is correct and your ports are open.}
+{cyan (${wsURI})}`
+    );
+  });
+
+  if (config.FivemServerIP.includes('127.0.0.1') || config.FivemServerIP.includes('localhost')) {
+    configError = true;
+    console.error(chalk`{red Config error:
+FiveMServerIP cannot be 127.0.0.1 or localhost.
+It will be blocked by FiveM.
+It has to be a valid public IPv4.
+You might need to open your ports to run it locally.}`);
+  }
+  if (configError) process.exit();
+
+  // Boot
+  http.listen(config.WSServerPort, async _ => {
+    console.log(`Listening on *:${config.WSServerPort}`);
+    masterHeartbeat();
+    masterHeartbeatInterval = setInterval(masterHeartbeat, 300000);
+  });
+})()
 
 app.get('/', (_, res) => {
   res.send({
@@ -168,15 +216,16 @@ function socketHeartbeat(socket) {
   });
 }
 
-function masterHeartbeat() {
-  console.log('Heartbeat sent');
+async function masterHeartbeat() {
   axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
     tsServer: config.TSServer,
     WSServerIP: config.WSServerIP,
     WSServerPort: config.WSServerPort,
     FivemServerIP: config.FivemServerIP,
     FivemServerPort: config.FivemServerPort,
-  }).catch(e => console.error('Sending heartbeat failed with error:', e.code));
+  })
+  .then(_ => console.log('Heartbeat sent'))
+  .catch(e => console.error('Sending heartbeat failed with error:', e.code));
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
