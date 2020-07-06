@@ -6,9 +6,19 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const axios = require('axios');
 const lodash = require('lodash');
-require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 const chalk = require('chalk');
 const config = require('./config.js');
+const publicIp = require('public-ip');
+
+let hostIP;
+let runningOnFivem = false;
+
+try {
+  eval('GetResourcePath(GetCurrentResourceName())');
+  runningOnFivem = true;
+} catch(e) {}
+
+require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 
 let masterHeartbeatInterval;
 const clients = {};
@@ -20,54 +30,94 @@ console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {h
 app.use(express.json());
 
 (async _ => {
-  let configError = false;
-  // Configuration checks
-  const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
-  if (!IPv4Regex.test(config.TSServer)) {
-    configError = true;
+  hostIP = await publicIp.v4();
+  if (config.WSServerIP === undefined) {
+    config.WSServerIP = hostIP;
+    console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan WSServerIP} to {cyan ${hostIP}} (you can manually edit in config.js)`);
+    await sleep(0);
+  }
+  if (config.FivemServerIP === undefined) {
+    config.FivemServerIP = hostIP;
+    console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan FivemServerIP} to {cyan ${hostIP}} (you can manually edit in config.js)`);
+    await sleep(0);
+  }
+  if (config.FivemServerPort === undefined && runningOnFivem) {
+    config.FivemServerPort = GetConvar('netPort');
+    console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan FivemServerPort} to {cyan ${config.FivemServerPort}} (you can manually edit in config.js)`);
+    await sleep(0);
+  }
+
+  if (!config.TSServer || !config.WSServerIP || !config.WSServerPort || !config.FivemServerIP || !config.FivemServerPort) {
     console.error(chalk`{red Config error:
+      Missing one of TSServer, WSServerIP, WSServerPort, FivemServerIP or FivemServerPort}`
+            );
+    return;
+  }
+
+  // Boot
+  http.listen(config.WSServerPort, async _ => {
+    console.log(`Listening on ${config.WSServerIP}:${config.WSServerPort}`);
+    await sleep(0);
+
+    console.log('Checking configuration ...');
+    let configError = false;
+    // Configuration checks
+    const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
+    if (!IPv4Regex.test(config.TSServer)) {
+      configError = true;
+      console.error(chalk`{red Config error:
 TSServer is invalid.
 It must be an IPv4 address.
 Domain names are not supported.}`
-    );
-  }
+      );
+    } else {
+      await new Promise((resolve, reject) => {
+        net.createConnection(10011, config.TSServer).on('connect', resolve).on('error', reject);
+      })
+      .catch(e => {
+        configError = true;
+        console.warn(chalk`{yellow Failed to reach TeamSpeak server.
+    Please check your configuration.
+    It could be using a different ServerQuery port, in which case you can ignore this warning.}`
+        );
+      });
+    }
 
-  const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
-  await axios.get(FiveMURI)
-  .catch(e => {
-    configError = true
-    console.error(chalk`{red Config error:
-Could not check FiveM server.
+    const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
+    await axios.get(FiveMURI)
+    .catch(e => {
+      configError = true
+      console.error(chalk`{red Config error:
+FiveM server does not seem online.
 Is it accessible from the internet ?
 Make sure your configuration is correct and your ports are open.}
 {cyan (${FiveMURI})}`
-    );
-  });
-  const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`
-  await axios.get(wsURI)
-  .catch(e => {
-    configError = true;
-    console.error(chalk`{red Config error:
-Could not check WS server.
+      );
+    });
+    const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`
+    await axios.get(wsURI)
+    .catch(e => {
+      configError = true;
+      console.error(chalk`{red Config error:
+Could not access WS server.
 Is it accessible from the internet ?
 Make sure your configuration is correct and your ports are open.}
 {cyan (${wsURI})}`
-    );
-  });
+      );
+    });
 
-  if (config.FivemServerIP.includes('127.0.0.1') || config.FivemServerIP.includes('localhost')) {
-    configError = true;
-    console.error(chalk`{red Config error:
+    if (config.FivemServerIP.includes('127.0.0.1') || config.FivemServerIP.includes('localhost')) {
+      configError = true;
+      console.error(chalk`{red Config error:
 FiveMServerIP cannot be 127.0.0.1 or localhost.
 It will be blocked by FiveM.
 It has to be a valid public IPv4.
 You might need to open your ports to run it locally.}`);
-  }
-  if (configError) process.exit();
+    }
+    if (configError) return;
 
-  // Boot
-  http.listen(config.WSServerPort, async _ => {
-    console.log(`Listening on *:${config.WSServerPort}`);
+    console.log(chalk`Everything looks {green good} ! Have fun`);
+
     masterHeartbeat();
     masterHeartbeatInterval = setInterval(masterHeartbeat, 300000);
   });
