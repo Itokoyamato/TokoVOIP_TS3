@@ -65,7 +65,8 @@ You can use the buttons in `Plugins->TokoVoip` to manually connect/disconnect th
     * Edit the `TSChannel` to match your Teamspeak configuration
     * Edit other settings to your preferences
   * Open and edit [s_config.lua](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/fivem_script/tokovoip_script/s_config.lua) to your preference  
-
+	* Add `tokovoip` to your waiting channel name on your teamspeak server, it is case **in**sensitive
+	
   A documentation for the FiveM script is available [here](fivem_script)  
 
 ## (servers) Setting up ws-server as Standalone
@@ -114,6 +115,14 @@ Once the fivem websocket & ts3 websocket successfully handshaked, the master ser
 Read the following:
 - [How does it work ?](#how-does-it-work-?)
 - [TokoVOIP 1.5.0](https://github.com/Itokoyamato/TokoVOIP_TS3/pull/117)
+
+# TROUBLESHOOTING
+**The status keeps saying PLUGIN OFFLINE**:
+- FiveM didn't successfuly handshake with the websocket server.
+- Make sure your **waiting** channel has `tokovoip` in the name
+- Make sure your websocket port is open
+- Make sure your websocket has proper teamspeak and fivem ip
+- Try manually using the connect button in Plugins -> TokoVoip -> Connect
 
 # Terms and conditions
 A 'TokoVOIP' watermark must be visible on screen. You can move it, change it's design however you like.  
