@@ -269,8 +269,8 @@ end)
 --	Radio functions
 --------------------------------------------------------------------------------
 
-function addPlayerToRadio(channel)
-	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId);
+function addPlayerToRadio(channel, radio)
+	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId, radio);
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
