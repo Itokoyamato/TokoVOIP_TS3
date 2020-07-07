@@ -156,7 +156,7 @@ local function clientProcessing()
 						founduserData.radioEffect = true;
 					end
 
-					if(not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then
+					if(not remotePlayerUsingRadio) then
 						founduserData.radioEffect = false;
 						if not founduserData.forceUnmuted then
 							founduserData.muted = true;
