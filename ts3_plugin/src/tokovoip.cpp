@@ -494,34 +494,26 @@ void sendWSMessage(string endpoint, json value) {
 	wsConnection->send("42" + send.dump());
 }
 
-json downloadJSON(string host, string path) {
-	httplib::Client cli(host.c_str());
-	cli.set_follow_location(true);
-	auto res = cli.Get(path.c_str());
-	if (res && res->status == 200) {
-		json parsedJSON = json::parse(res->body, nullptr, false);
-		if (parsedJSON.is_discarded()) {
-			outputLog("Downloaded JSON is invalid");
-			return NULL;
-		}
-		return parsedJSON;
-	} else {
-		outputLog("Couldn't retrieve JSON (Code: " + to_string(res->status) + ")");
-		return NULL;
-	}
-
-	return NULL;
-}
-
 void checkUpdate() {
-	json updateJSON = downloadJSON("itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
-	if (updateJSON != NULL) {
-		outputLog("Got update json");
+	json updateJSON;
+	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	cli.set_follow_location(true);
+	auto res = cli.Get("/version");
+	if (res && (res->status == 200 || res->status == 301)) {
+		updateJSON = json::parse(res->body, nullptr, false);
+		if (updateJSON.is_discarded()) {
+			outputLog("Downloaded JSON is invalid");
+			return;
+		}
+	} else {
+		outputLog("Couldn't retrieve JSON");
+		return;
 	}
+
+	if (updateJSON != NULL) outputLog("Got update json");
 
 	if (updateJSON == NULL || updateJSON.find("minVersion") == updateJSON.end() || updateJSON.find("currentVersion") == updateJSON.end()) {
 		outputLog("Invalid update JSON");
-		Sleep(600000); // Don't check for another 10mins
 		return;
 	}
 
