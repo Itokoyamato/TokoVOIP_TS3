@@ -66,16 +66,6 @@ TSServer is invalid.
 It must be an IPv4 address.
 Domain names are not supported.}`
       );
-    } else {
-      await new Promise((resolve, reject) => {
-        net.createConnection(10011, config.TSServer).on('connect', resolve).on('error', reject);
-      })
-      .catch(e => {
-        console.warn(chalk`{yellow Failed to reach TeamSpeak server at ${config.TSServer}:10011.
-Please check your configuration.
-It could be using a different ServerQuery port, in which case you can ignore this warning.}`
-        );
-      });
     }
 
     const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
