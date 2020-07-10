@@ -43,6 +43,7 @@ void onTokovoipCurrentServerConnectionChanged(uint64 sch_id);
 bool isWebsocketThreadRunning();
 bool killWebsocketThread();
 void updateWebsocketState(bool force = false, bool state = false);
+bool stringIncludes(string target, string toMatch);
 
 class Tokovoip {
 private:
