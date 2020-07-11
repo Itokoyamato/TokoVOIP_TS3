@@ -129,49 +129,50 @@ local function clientProcessing()
 	-- Process channels
 	for _, channel in pairs(voip.myChannels) do
 		for _, subscriber in pairs(channel.subscribers) do
-			if (subscriber ~= voip.serverId) then
-					local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
-					local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
-					local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
+			if (subscriber == voip.serverId) then goto continue end
 
-					local founduserData = nil
-					for k, v in pairs(usersdata) do
-						if(v.uuid == remotePlayerUuid) then
-							founduserData = v
-						end
-					end
+			local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
+			local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
+			local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
 
-					if not founduserData then
-						founduserData = {
-							uuid = remotePlayerUuid,
-							radioEffect = false,
-							resave = true,
-							volume = 0,
-							muted = 1
-						}
-					end
-
-
-					if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel and remotePlayerUsingRadio == channel.id) then
-						founduserData.radioEffect = true;
-					end
-
-					if(remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
-						founduserData.muted = false
-						founduserData.volume = 0;
-						founduserData.posX = 0;
-						founduserData.posY = 0;
-						founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-					end
-
-					if founduserData.forceUnmuted then
-						founduserData.muted = false;
-					end
-
-					if(founduserData.resave) then
-						usersdata[#usersdata + 1] = founduserData
-					end
+			local founduserData = nil
+			for k, v in pairs(usersdata) do
+				if(v.uuid == remotePlayerUuid) then
+					founduserData = v
 				end
+			end
+
+			if not founduserData then
+				founduserData = {
+					uuid = remotePlayerUuid,
+					radioEffect = false,
+					resave = true,
+					volume = 0,
+					muted = 1
+				}
+			end
+
+			if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel and remotePlayerUsingRadio == channel.id) then
+				founduserData.radioEffect = true;
+			end
+
+			if (remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
+				founduserData.muted = false
+				founduserData.volume = 0;
+				founduserData.posX = 0;
+				founduserData.posY = 0;
+				founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+			end
+
+			if founduserData.forceUnmuted then
+				founduserData.muted = false;
+			end
+
+			if(founduserData.resave) then
+				usersdata[#usersdata + 1] = founduserData
+			end
+
+			::continue::
 		end
 	end
 
@@ -226,44 +227,46 @@ AddEventHandler("initializeVoip", function()
 	RequestAnimDict("facials@gen_male@base");
 
 	-- Debug data stuff
-	local debugData = false;
-	Citizen.CreateThread(function()
-		while true do
-			Wait(5)
-
-			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
-				if (IsControlJustPressed(1, Keys["9"]) or IsDisabledControlJustPressed(1, Keys["9"])) then
-					debugData = not debugData;
+	if (voip.config.enableDebug) then
+		local debugData = false;
+		Citizen.CreateThread(function()
+			while true do
+				Wait(5)
+	
+				if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
+					if (IsControlJustPressed(1, Keys["9"]) or IsDisabledControlJustPressed(1, Keys["9"])) then
+						debugData = not debugData;
+					end
 				end
-			end
-
-			if (debugData) then
-				local pos_y;
-				local pos_x;
-				local players = GetActivePlayers();
-
-				for i = 1, #players do
-					local player = players[i];
-					local playerServerId = GetPlayerServerId(players[i]);
-
-					pos_y = 1.1 + (math.ceil(i/12) * 0.1);
-					pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15);
-
-					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
-				end
-				local i = 0;
-				for channelIndex, channel in pairs(voip.myChannels) do
-					i = i + 1;
-					drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
-					local j = 0;
-					for _, player in pairs(channel.subscribers) do
-						j = j + 1;
-						drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
+	
+				if (debugData) then
+					local pos_y;
+					local pos_x;
+					local players = GetActivePlayers();
+	
+					for i = 1, #players do
+						local player = players[i];
+						local playerServerId = GetPlayerServerId(players[i]);
+	
+						pos_y = 1.1 + (math.ceil(i/12) * 0.1);
+						pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15);
+	
+						drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
+					end
+					local i = 0;
+					for channelIndex, channel in pairs(voip.myChannels) do
+						i = i + 1;
+						drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
+						local j = 0;
+						for _, player in pairs(channel.subscribers) do
+							j = j + 1;
+							drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
+						end
 					end
 				end
 			end
-		end
-	end);
+		end);
+	end
 end)
 --------------------------------------------------------------------------------
 --	Radio functions
