@@ -27,6 +27,7 @@ You can support my work:
   - [(servers) Onesync Infinity](#servers-onesync-infinity)
 - [How does it work ?](#how-does-it-work-)
 - [Why do I need a ws-server ?](#why-do-i-need-a-ws-server-)
+- [TROUBLESHOOTING (only 1.5.2)](#troubleshooting-only-152)
 - [Terms and conditions](#terms-and-conditions)
 - [Contributing](#contributing)
   - [Building the TS3 plugin](#building-the-ts3-plugin)
@@ -124,8 +125,8 @@ Read the following:
 - Make sure firewall isn't blocking your port
 
 **Ts3 websocket keeps saying Not connected**:
-- Make sure your **waiting** channel has `tokovoip` in the name:
-- FiveM and Ts3 didn't successfuly handshake. the name
+- Make sure your **waiting** channel has `tokovoip` in the name
+- FiveM and Ts3 didn't successfuly handshake
 - Make sure your websocket has proper teamspeak, fivem and ws ip
 - Try manually using the connect button in **Plugins -> TokoVoip -> Connect**
 
