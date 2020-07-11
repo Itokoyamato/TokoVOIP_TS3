@@ -29,12 +29,12 @@ TokoVoipConfig = {
 
 		-- Optional: TeamSpeak waiting channel name, players wait in this channel and will be moved to the TSChannel automatically
 		-- If the TSChannel is public and people can join directly, you can leave this empty and not use the auto-move
-		TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC",
+		TSChannelWait = "[TokoVOIP] Waiting channel", -- You NEED tokovoip in the wait channel name!
 
 		-- Blocking screen informations
 		TSServer = "ts.yourserver.com", -- TeamSpeak server address to be displayed on blocking screen
 		TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak support channel name displayed on blocking screen
-		TSDownload = "https://github.com/Itokoyamato/TokoVOIP_TS3/releases", -- Download link displayed on blocking screen
+		TSDownload = "https://voip.itokoyamato.net", -- Download link displayed on blocking screen
 		TSChannelWhitelist = { -- Black screen will not be displayed when users are in those TS channels
 			"Support 1",
 			"Support 2",
@@ -55,7 +55,9 @@ TokoVoipConfig = {
 AddEventHandler("onClientResourceStart", function(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
 		Citizen.CreateThread(function()
-			TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			if(TokoVoipConfig.plugin_data.localName == '') then
+				TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			end
 		end);
 		TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 	end

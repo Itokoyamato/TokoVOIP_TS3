@@ -37,17 +37,18 @@ local function setPlayerTalkingState(player, playerServerId)
 	animStates[playerServerId] = talking;
 end
 
-RegisterNUICallback("updatePluginData", function(data)
+RegisterNUICallback("updatePluginData", function(data, cb)
 	local payload = data.payload;
 	if (voip[payload.key] == payload.data) then return end
 	voip[payload.key] = payload.data;
 	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
 	voip:updateConfig();
 	voip:updateTokoVoipInfo(true);
+	cb('ok')
 end);
 
 -- Receives data from the TS plugin on microphone toggle
-RegisterNUICallback("setPlayerTalking", function(data)
+RegisterNUICallback("setPlayerTalking", function(data, cb)
 	voip.talking = tonumber(data.state);
 
 	if (voip.talking == 1) then
@@ -57,6 +58,7 @@ RegisterNUICallback("setPlayerTalking", function(data)
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
 		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 	end
+	cb('ok')
 end)
 
 local function clientProcessing()
@@ -84,6 +86,7 @@ local function clientProcessing()
 		if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
+			if(dist > 40) then goto continue end
 
 			if (not getPlayerData(playerServerId, "voip:mode")) then
 				setPlayerData(playerServerId, "voip:mode", 1);
@@ -123,6 +126,7 @@ local function clientProcessing()
 
 			usersdata[#usersdata + 1] = tbl
 			setPlayerTalkingState(player, playerServerId);
+			::continue::
 		end
 	end
 
