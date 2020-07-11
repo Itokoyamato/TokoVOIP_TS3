@@ -30,6 +30,11 @@ console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {h
 app.use(express.json());
 
 (async _ => {
+  config.TSServer = process.env.TSServer || config.TSServer;
+  config.WSServerPort = parseInt(process.env.WSServerPort, 10) || parseInt(config.WSServerPort, 10);
+  config.WSServerIP = process.env.WSServerIP || config.WSServerIP;
+  config.FivemServerIP = process.env.FivemServerIP || config.FivemServerIP;
+  config.FivemServerPort = parseInt(process.env.FivemServerPort, 10) || parseInt(config.FivemServerPort, 10);
   hostIP = await publicIp.v4();
   if (config.WSServerIP === undefined) {
     config.WSServerIP = hostIP;
