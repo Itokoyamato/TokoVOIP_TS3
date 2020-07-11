@@ -1,3 +1,4 @@
+
 # Introduction: TokoVOIP
 TokoVOIP is a TeamSpeak plugin used along a FiveM script to add a custom proximity chat and radio system to [FiveM](https://fivem.net/)  
 
@@ -64,7 +65,8 @@ You can use the buttons in `Plugins->TokoVoip` to manually connect/disconnect th
     * Edit `wsServer` with the `IP:PORT` you copied from the ws-server console in [**Step 1: Setting up the ws-server**](#step-1-setting-up-the-ws-server)
     * Edit the `TSChannel` to match your Teamspeak configuration
     * Edit other settings to your preferences
-  * Open and edit [s_config.lua](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/fivem_script/tokovoip_script/s_config.lua) to your preference  
+  * Open and edit [s_config.lua](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/fivem_script/tokovoip_script/s_config.lua) to your preference
+  * Add `tokovoip` to your waiting channel name on your teamspeak server, it is [**case insensitive**](https://www.yourdictionary.com/case-insensitive)
 
   A documentation for the FiveM script is available [here](fivem_script)  
 
@@ -115,6 +117,20 @@ Read the following:
 - [How does it work ?](#how-does-it-work-?)
 - [TokoVOIP 1.5.0](https://github.com/Itokoyamato/TokoVOIP_TS3/pull/117)
 
+# TROUBLESHOOTING (only 1.5.2)
+**FiveM websocket keeps saying Not connected**:
+- FiveM didn't successfuly connect to the websocket server.
+- Make sure your websocket port is open
+- Make sure firewall isn't blocking your port
+
+**Ts3 websocket keeps saying Not connected**:
+- Make sure your **waiting** channel has `tokovoip` in the name:
+- FiveM and Ts3 didn't successfuly handshake. the name
+- Make sure your websocket has proper teamspeak, fivem and ws ip
+- Try manually using the connect button in **Plugins -> TokoVoip -> Connect**
+
+**Could not find dependency yarn for resource ws_server**:
+- Install yarn resource from [cfx-server-data repo](https://github.com/citizenfx/cfx-server-data/tree/master/resources/%5Bsystem%5D/%5Bbuilders%5D)
 # Terms and conditions
 A 'TokoVOIP' watermark must be visible on screen. You can move it, change it's design however you like.  
 Just keep one somewhere. Thanks  
