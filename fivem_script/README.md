@@ -1,3 +1,4 @@
+
 # Setting up
 The script must be placed in a folder named `tokovoip_script` (NUI restriction)
 
@@ -27,6 +28,11 @@ If the channel name contains 'Call' it will be displayed as a call on the ingame
     <td>channel</td>
     <td>number</td>
     <td>Id of the radio channel</td>
+  </tr>
+    <tr>
+    <td>isRadio</td>
+    <td>boolean</td>
+    <td>If set to true, channel will be handled as a radio, false will handle the channel as a phone call</td>
   </tr>
   </table>
 

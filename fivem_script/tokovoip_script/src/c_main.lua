@@ -37,17 +37,18 @@ local function setPlayerTalkingState(player, playerServerId)
 	animStates[playerServerId] = talking;
 end
 
-RegisterNUICallback("updatePluginData", function(data)
+RegisterNUICallback("updatePluginData", function(data, cb)
 	local payload = data.payload;
 	if (voip[payload.key] == payload.data) then return end
 	voip[payload.key] = payload.data;
 	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
 	voip:updateConfig();
 	voip:updateTokoVoipInfo(true);
+	cb('ok')
 end);
 
 -- Receives data from the TS plugin on microphone toggle
-RegisterNUICallback("setPlayerTalking", function(data)
+RegisterNUICallback("setPlayerTalking", function(data, cb)
 	voip.talking = tonumber(data.state);
 
 	if (voip.talking == 1) then
@@ -57,6 +58,7 @@ RegisterNUICallback("setPlayerTalking", function(data)
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
 		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 	end
+	cb('ok')
 end)
 
 local function clientProcessing()
@@ -84,6 +86,7 @@ local function clientProcessing()
 		if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
+			if(dist < 40) then goto continue end
 
 			if (not getPlayerData(playerServerId, "voip:mode")) then
 				setPlayerData(playerServerId, "voip:mode", 1);
@@ -123,6 +126,7 @@ local function clientProcessing()
 
 			usersdata[#usersdata + 1] = tbl
 			setPlayerTalkingState(player, playerServerId);
+			::continue::
 		end
 	end
 
@@ -132,46 +136,46 @@ local function clientProcessing()
 			if (subscriber ~= voip.serverId) then
 				local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
 				local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
-					local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
+				local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
 
-					local founduserData = nil
-					for k, v in pairs(usersdata) do
-						if(v.uuid == remotePlayerUuid) then
-							founduserData = v
-						end
-					end
-
-					if not founduserData then
-						founduserData = {
-							uuid = getPlayerData(subscriber, "voip:pluginUUID"),
-							radioEffect = false,
-							resave = true,
-							volume = 0,
-							muted = 1
-						}
-					end
-
-
-					if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel) then
-						founduserData.radioEffect = true;
-					end
-
-					if(not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then
-						founduserData.radioEffect = false;
-						if not founduserData.forceUnmuted then
-							founduserData.muted = true;
-						end
-					else
-						founduserData.muted = false
-						founduserData.volume = 0;
-						founduserData.posX = 0;
-						founduserData.posY = 0;
-						founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-				 	end
-					if(founduserData.resave) then
-						usersdata[#usersdata + 1] = founduserData
+				local founduserData = nil
+				for k, v in pairs(usersdata) do
+					if(v.uuid == remotePlayerUuid) then
+						founduserData = v
 					end
 				end
+
+				if not founduserData then
+					founduserData = {
+						uuid = remotePlayerUuid,
+						radioEffect = false,
+						resave = true,
+						volume = 0,
+						muted = 1
+					}
+				end
+
+
+				if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel and remotePlayerUsingRadio == channel.id) then
+					founduserData.radioEffect = true;
+				end
+
+				if(remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
+					founduserData.muted = false
+					founduserData.volume = 0;
+					founduserData.posX = 0;
+					founduserData.posY = 0;
+					founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+				end
+
+				if founduserData.forceUnmuted then
+					founduserData.muted = false;
+				end
+
+				if(founduserData.resave) then
+					usersdata[#usersdata + 1] = founduserData
+				end
+			end
 		end
 	end
 
@@ -269,8 +273,8 @@ end)
 --	Radio functions
 --------------------------------------------------------------------------------
 
-function addPlayerToRadio(channel)
-	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId);
+function addPlayerToRadio(channel, radio)
+	TriggerServerEvent("TokoVoip:addPlayerToRadio", channel, voip.serverId, radio);
 end
 RegisterNetEvent("TokoVoip:addPlayerToRadio");
 AddEventHandler("TokoVoip:addPlayerToRadio", addPlayerToRadio);
