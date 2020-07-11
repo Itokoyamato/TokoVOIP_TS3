@@ -52,6 +52,9 @@ int supportButtonId;
 int projectButtonId;
 bool isPTT = true;
 
+float defaultMicClicksVolume = -15;
+string oldClickVolume = "";
+
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
 
@@ -99,6 +102,14 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 	bool local_click_off = json_data["local_click_off"];
 	bool remote_click_on = json_data["remote_click_on"];
 	bool remote_click_off = json_data["remote_click_off"];
+
+	string clickVolume = json_data["ClickVolume"];
+
+	if (clickVolume != "" && clickVolume != oldClickVolume)
+	{
+		oldClickVolume = clickVolume;
+		ts3Functions.setPlaybackConfigValue(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", clickVolume.c_str());
+	}
 
 	//--------------------------------------------------------
 
@@ -648,6 +659,7 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 	projectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Project page", "");
 	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
+	ts3Functions.getPlaybackConfigValueAsFloat(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", &defaultMicClicksVolume);
 
 	outputLog("TokoVOIP initialized", 0);
 
@@ -890,6 +902,7 @@ void resetPositionAll(uint64 serverConnectionHandlerID)
 
 void resetClientsAll() {
 	uint64 serverConnectionHandlerID = ts3Functions.getCurrentServerConnectionHandlerID();
+	ts3Functions.setPlaybackConfigValue(serverConnectionHandlerID, "volume_factor_wave", to_string(defaultMicClicksVolume).c_str());
 	resetPositionAll(serverConnectionHandlerID);
 	resetVolumeAll(serverConnectionHandlerID);
 	unmuteAll(serverConnectionHandlerID);
