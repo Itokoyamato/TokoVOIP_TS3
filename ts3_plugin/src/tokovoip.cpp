@@ -447,7 +447,15 @@ string getWebSocketEndpoint() {
 	outputLog("Successfully handshaked");
 
 	json server = fivemServer["server"];
+	if (!server["ip"].is_string()) {
+		outputLog("Invalid type in WS server IP");
+		return "";
+	}
 	string fivemServerIP = server["ip"];
+	if (!server["port"].is_number()) {
+		outputLog("Invalid type in WS server PORT");
+		return "";
+	}
 	int fivemServerPORT = server["port"];
 
 	return fivemServerIP + ":" + to_string(fivemServerPORT) + "/socket.io/?EIO=3&transport=websocket&from=ts3";
