@@ -227,44 +227,46 @@ AddEventHandler("initializeVoip", function()
 	RequestAnimDict("facials@gen_male@base");
 
 	-- Debug data stuff
-	local debugData = false;
-	Citizen.CreateThread(function()
-		while true do
-			Wait(5)
-
-			if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
-				if (IsControlJustPressed(1, Keys["9"]) or IsDisabledControlJustPressed(1, Keys["9"])) then
-					debugData = not debugData;
+	if (voip.config.enableDebug) then
+		local debugData = false;
+		Citizen.CreateThread(function()
+			while true do
+				Wait(5)
+	
+				if (IsControlPressed(0, Keys["LEFTSHIFT"])) then
+					if (IsControlJustPressed(1, Keys["9"]) or IsDisabledControlJustPressed(1, Keys["9"])) then
+						debugData = not debugData;
+					end
 				end
-			end
-
-			if (debugData) then
-				local pos_y;
-				local pos_x;
-				local players = GetActivePlayers();
-
-				for i = 1, #players do
-					local player = players[i];
-					local playerServerId = GetPlayerServerId(players[i]);
-
-					pos_y = 1.1 + (math.ceil(i/12) * 0.1);
-					pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15);
-
-					drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
-				end
-				local i = 0;
-				for channelIndex, channel in pairs(voip.myChannels) do
-					i = i + 1;
-					drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
-					local j = 0;
-					for _, player in pairs(channel.subscribers) do
-						j = j + 1;
-						drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
+	
+				if (debugData) then
+					local pos_y;
+					local pos_x;
+					local players = GetActivePlayers();
+	
+					for i = 1, #players do
+						local player = players[i];
+						local playerServerId = GetPlayerServerId(players[i]);
+	
+						pos_y = 1.1 + (math.ceil(i/12) * 0.1);
+						pos_x = 0.60 + ((i - (12 * math.floor(i/12)))/15);
+	
+						drawTxt(pos_x, pos_y, 1.0, 1.0, 0.2, "[" .. playerServerId .. "] " .. GetPlayerName(player) .. "\nMode: " .. tostring(getPlayerData(playerServerId, "voip:mode")) .. "\nChannel: " .. tostring(getPlayerData(playerServerId, "radio:channel")) .. "\nRadioTalking: " .. tostring(getPlayerData(playerServerId, "radio:talking")) .. "\npluginStatus: " .. tostring(getPlayerData(playerServerId, "voip:pluginStatus")) .. "\npluginVersion: " .. tostring(getPlayerData(playerServerId, "voip:pluginVersion")) .. "\nTalking: " .. tostring(getPlayerData(playerServerId, "voip:talking")), 255, 255, 255, 255);
+					end
+					local i = 0;
+					for channelIndex, channel in pairs(voip.myChannels) do
+						i = i + 1;
+						drawTxt(0.8 + i/12, 0.5, 1.0, 1.0, 0.2, channel.name .. "(" .. channelIndex .. ")", 255, 255, 255, 255);
+						local j = 0;
+						for _, player in pairs(channel.subscribers) do
+							j = j + 1;
+							drawTxt(0.8 + i/12, 0.5 + j/60, 1.0, 1.0, 0.2, player, 255, 255, 255, 255);
+						end
 					end
 				end
 			end
-		end
-	end);
+		end);
+	end
 end)
 --------------------------------------------------------------------------------
 --	Radio functions
