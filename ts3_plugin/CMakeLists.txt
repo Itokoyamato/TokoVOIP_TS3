@@ -52,10 +52,10 @@ add_library(TokoVoip SHARED
     ${TOKOVOIP_SRC} ${PLUGIN_SRC} ${TS_QT_CORE} ${TS_QT_VOLUME} ${DSP_FILTERS})
 
 if("${CMAKE_SIZEOF_VOID_P}" STREQUAL "4")
-    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto32MD.lib)
+    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto32MD.lib libssl32MD.lib)
     set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win32")
 ELSE()
-    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto64MD.lib)
+    target_link_libraries(TokoVoip crypt32.lib normaliz.lib libcrypto64MD.lib libssl64MD.lib)
     set_target_properties(TokoVoip PROPERTIES OUTPUT_NAME "tokovoip_win64")
 ENDIF()
 

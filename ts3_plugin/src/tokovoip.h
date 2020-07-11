@@ -2,6 +2,8 @@
 
 #include "core/plugin_base.h"
 #include "json.hpp"
+#include <ws2tcpip.h> 
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 
 using namespace std;
 using json = nlohmann::json;
@@ -43,6 +45,7 @@ void onTokovoipCurrentServerConnectionChanged(uint64 sch_id);
 bool isWebsocketThreadRunning();
 bool killWebsocketThread();
 void updateWebsocketState(bool force = false, bool state = false);
+bool stringIncludes(string target, string toMatch);
 
 class Tokovoip {
 private:
