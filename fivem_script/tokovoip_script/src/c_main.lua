@@ -129,49 +129,50 @@ local function clientProcessing()
 	-- Process channels
 	for _, channel in pairs(voip.myChannels) do
 		for _, subscriber in pairs(channel.subscribers) do
-			if (subscriber ~= voip.serverId) then
-					local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
-					local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
-					local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
+			if (subscriber == voip.serverId) then goto continue end
 
-					local founduserData = nil
-					for k, v in pairs(usersdata) do
-						if(v.uuid == remotePlayerUuid) then
-							founduserData = v
-						end
-					end
+			local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
+			local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
+			local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
 
-					if not founduserData then
-						founduserData = {
-							uuid = remotePlayerUuid,
-							radioEffect = false,
-							resave = true,
-							volume = 0,
-							muted = 1
-						}
-					end
-
-
-					if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel and remotePlayerUsingRadio == channel.id) then
-						founduserData.radioEffect = true;
-					end
-
-					if(remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
-						founduserData.muted = false
-						founduserData.volume = 0;
-						founduserData.posX = 0;
-						founduserData.posY = 0;
-						founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-					end
-
-					if founduserData.forceUnmuted then
-						founduserData.muted = false;
-					end
-
-					if(founduserData.resave) then
-						usersdata[#usersdata + 1] = founduserData
-					end
+			local founduserData = nil
+			for k, v in pairs(usersdata) do
+				if(v.uuid == remotePlayerUuid) then
+					founduserData = v
 				end
+			end
+
+			if not founduserData then
+				founduserData = {
+					uuid = remotePlayerUuid,
+					radioEffect = false,
+					resave = true,
+					volume = 0,
+					muted = 1
+				}
+			end
+
+			if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel and remotePlayerUsingRadio == channel.id) then
+				founduserData.radioEffect = true;
+			end
+
+			if (remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
+				founduserData.muted = false
+				founduserData.volume = 0;
+				founduserData.posX = 0;
+				founduserData.posY = 0;
+				founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
+			end
+
+			if founduserData.forceUnmuted then
+				founduserData.muted = false;
+			end
+
+			if(founduserData.resave) then
+				usersdata[#usersdata + 1] = founduserData
+			end
+
+			::continue::
 		end
 	end
 
