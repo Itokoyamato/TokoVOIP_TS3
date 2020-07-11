@@ -2,6 +2,8 @@
 
 #include "core/plugin_base.h"
 #include "json.hpp"
+#include <ws2tcpip.h> 
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 
 using namespace std;
 using json = nlohmann::json;
