@@ -3,6 +3,7 @@ TokoVoipConfig = {
 	networkRefreshRate = 2000, -- Rate at which the network data is updated/reset on the local ped
 	playerListRefreshRate = 5000, -- Rate at which the playerList is updated
 	minVersion = "1.5.0", -- Version of the TS plugin required to play on the server
+	enableDebug = false, -- Enable or disable tokovoip debug (Shift+9)
 
 	distance = {
 		15, -- Normal speech distance in gta distance units
@@ -28,12 +29,12 @@ TokoVoipConfig = {
 
 		-- Optional: TeamSpeak waiting channel name, players wait in this channel and will be moved to the TSChannel automatically
 		-- If the TSChannel is public and people can join directly, you can leave this empty and not use the auto-move
-		TSChannelWait = "TokoVOIP Server Waiting Room IPS DESC",
+		TSChannelWait = "[TokoVOIP] Waiting channel", -- You NEED tokovoip in the wait channel name!
 
 		-- Blocking screen informations
 		TSServer = "ts.yourserver.com", -- TeamSpeak server address to be displayed on blocking screen
 		TSChannelSupport = "S1: Waiting For Support", -- TeamSpeak support channel name displayed on blocking screen
-		TSDownload = "https://github.com/Itokoyamato/TokoVOIP_TS3/releases", -- Download link displayed on blocking screen
+		TSDownload = "https://voip.itokoyamato.net", -- Download link displayed on blocking screen
 		TSChannelWhitelist = { -- Black screen will not be displayed when users are in those TS channels
 			"Support 1",
 			"Support 2",
@@ -45,6 +46,7 @@ TokoVoipConfig = {
 		remote_click_on = false, -- Is remote click on sound active
 		remote_click_off = true, -- Is remote click off sound active
 		enableStereoAudio = true, -- If set to true, positional audio will be stereo (you can hear people more on the left or the right around you)
+		-- ClickVolume = -15, -- Set the radio clicks volume, -15 is a good default
 
 		localName = "", -- If set, this name will be used as the user's teamspeak display name
 		localNamePrefix = "[" .. GetPlayerServerId(PlayerId()) .. "] ", -- If set, this prefix will be added to the user's teamspeak display name
@@ -54,7 +56,9 @@ TokoVoipConfig = {
 AddEventHandler("onClientResourceStart", function(resource)
 	if (resource == GetCurrentResourceName()) then	--	Initialize the script when this resource is started
 		Citizen.CreateThread(function()
-			TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			if(TokoVoipConfig.plugin_data.localName == '') then
+				TokoVoipConfig.plugin_data.localName = escape(GetPlayerName(PlayerId())); -- Set the local name
+			end
 		end);
 		TriggerEvent("initializeVoip"); -- Trigger this event whenever you want to start the voip
 	end

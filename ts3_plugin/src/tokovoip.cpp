@@ -52,6 +52,9 @@ int supportButtonId;
 int projectButtonId;
 bool isPTT = true;
 
+float defaultMicClicksVolume = -15;
+int oldClickVolume;
+
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
 
@@ -99,6 +102,15 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 	bool local_click_off = json_data["local_click_off"];
 	bool remote_click_on = json_data["remote_click_on"];
 	bool remote_click_off = json_data["remote_click_off"];
+
+	int clickVolume;
+	if (json_data["ClickVolume"].is_number()) clickVolume = json_data["ClickVolume"];
+	if (json_data["ClickVolume"].is_string()) clickVolume = stoi((string)json_data["ClickVolume"]);
+
+	if (clickVolume && clickVolume != oldClickVolume) {
+		oldClickVolume = clickVolume;
+		ts3Functions.setPlaybackConfigValue(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", to_string(clickVolume).c_str());
+	}
 
 	//--------------------------------------------------------
 
@@ -405,7 +417,7 @@ string getWebSocketEndpoint() {
 		verifyData = verifyTSServer();
 		if (verifyData == "") {
 			Sleep(5000);
-			if(tries >= 5) {
+			if(tries >= 2) {
 				outputLog("Failed to verify TS server");
 				return "";
 			}
@@ -420,13 +432,23 @@ string getWebSocketEndpoint() {
 	outputLog("Successfully verified TS server");
 
 	tries = 0;
+	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
+	string channelOnBoot = getChannelName(serverId, getMyId(serverId));
+	bool wasAutoBoot = stringIncludes(getChannelName(serverId, getMyId(serverId)), "tokovoip");
 	while (fivemServer == NULL) {
 		tries += 1;
 		outputLog("Handshaking (attempt " + to_string(tries) + ")");
 		fivemServer = handshake(clientIP);
 		if (fivemServer == NULL) {
 			Sleep(5000);
-			if (tries >= 10) {
+			bool inTokovoipChannel = stringIncludes((string)getChannelName(serverId, getMyId(serverId)), "tokovoip");
+			// If auto detect boot, stop handhshaking once we leave the channel
+			if (wasAutoBoot && !inTokovoipChannel) {
+				outputLog("Not in tokovoip channel anymore, stopping handshake");
+				return "";
+			}
+			// More retries if current channel has tokovoip in name, only 5 reties otherwise
+			if (tries >= ((inTokovoipChannel) ? 60 : 5)) {
 				outputLog("Failed to handshake");
 				return "";
 			}
@@ -437,7 +459,15 @@ string getWebSocketEndpoint() {
 	outputLog("Successfully handshaked");
 
 	json server = fivemServer["server"];
+	if (!server["ip"].is_string()) {
+		outputLog("Invalid type in WS server IP");
+		return "";
+	}
 	string fivemServerIP = server["ip"];
+	if (!server["port"].is_number()) {
+		outputLog("Invalid type in WS server PORT");
+		return "";
+	}
 	int fivemServerPORT = server["port"];
 
 	return fivemServerIP + ":" + to_string(fivemServerPORT) + "/socket.io/?EIO=3&transport=websocket&from=ts3";
@@ -494,34 +524,26 @@ void sendWSMessage(string endpoint, json value) {
 	wsConnection->send("42" + send.dump());
 }
 
-json downloadJSON(string host, string path) {
-	httplib::Client cli(host.c_str());
-	cli.set_follow_location(true);
-	auto res = cli.Get(path.c_str());
-	if (res && res->status == 200) {
-		json parsedJSON = json::parse(res->body, nullptr, false);
-		if (parsedJSON.is_discarded()) {
-			outputLog("Downloaded JSON is invalid");
-			return NULL;
-		}
-		return parsedJSON;
-	} else {
-		outputLog("Couldn't retrieve JSON (Code: " + to_string(res->status) + ")");
-		return NULL;
-	}
-
-	return NULL;
-}
-
 void checkUpdate() {
-	json updateJSON = downloadJSON("itokoyamato.net", "/files/tokovoip/tokovoip_info.json");
-	if (updateJSON != NULL) {
-		outputLog("Got update json");
+	json updateJSON;
+	httplib::Client cli("master.tokovoip.itokoyamato.net");
+	cli.set_follow_location(true);
+	auto res = cli.Get("/version");
+	if (res && (res->status == 200 || res->status == 301)) {
+		updateJSON = json::parse(res->body, nullptr, false);
+		if (updateJSON.is_discarded()) {
+			outputLog("Downloaded JSON is invalid");
+			return;
+		}
+	} else {
+		outputLog("Couldn't retrieve JSON");
+		return;
 	}
+
+	if (updateJSON != NULL) outputLog("Got update json");
 
 	if (updateJSON == NULL || updateJSON.find("minVersion") == updateJSON.end() || updateJSON.find("currentVersion") == updateJSON.end()) {
 		outputLog("Invalid update JSON");
-		Sleep(600000); // Don't check for another 10mins
 		return;
 	}
 
@@ -592,7 +614,7 @@ json handshake(string clientIP) {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	unsigned int error;
 
-	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	httplib::Client cli("master.tokovoip.itokoyamato.net");
 	string path = "/handshake?ip=" + string(clientIP);
 	cli.set_follow_location(true);
 	outputLog("Getting " + path);
@@ -638,6 +660,7 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 	projectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Project page", "");
 	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
+	ts3Functions.getPlaybackConfigValueAsFloat(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", &defaultMicClicksVolume);
 
 	outputLog("TokoVOIP initialized", 0);
 
@@ -683,15 +706,19 @@ bool killWebsocketThread() {
 	return true;
 }
 
+bool stringIncludes(string target, string toMatch) {
+	string tmp = target;
+	transform(tmp.begin(), tmp.end(), tmp.begin(), [](unsigned char c) { return tolower(c); });
+	return (tmp.find(toMatch) != string::npos) ? true : false;
+}
+
 void onTokovoipClientMove(uint64 sch_id, anyID client_id, uint64 old_channel_id, uint64 new_channel_id, int visibility, anyID my_id, const char * move_message) {
 	uint64 serverId = ts3Functions.getCurrentServerConnectionHandlerID();
 	if (client_id != getMyId(serverId)) return;
 	char* channelName = "";
 	ts3Functions.getChannelVariableAsString(serverId, new_channel_id, CHANNEL_NAME, &channelName);
 	if (channelName == "") return;
-	string name = channelName;
-	transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return tolower(c); });
-	if (name.find("tokovoip") != string::npos) {
+	if (stringIncludes((string)channelName, "tokovoip")) {
 		outputLog("Detected 'TokoVoip' in channel name, booting ..");
 		initWebSocket();
 	}
@@ -703,6 +730,7 @@ void onTokovoipCurrentServerConnectionChanged(uint64 sch_id) {
 	char* res;
 	ts3Functions.getClientSelfVariableAsString(serverId, CLIENT_INPUT_DEACTIVATED, &res);
 	isPTT = (res == "0") ? false : true;
+	initWebSocket();
 }
 
 bool isChannelWhitelisted(json data, string channel) {
@@ -875,6 +903,7 @@ void resetPositionAll(uint64 serverConnectionHandlerID)
 
 void resetClientsAll() {
 	uint64 serverConnectionHandlerID = ts3Functions.getCurrentServerConnectionHandlerID();
+	ts3Functions.setPlaybackConfigValue(serverConnectionHandlerID, "volume_factor_wave", to_string(defaultMicClicksVolume).c_str());
 	resetPositionAll(serverConnectionHandlerID);
 	resetVolumeAll(serverConnectionHandlerID);
 	unmuteAll(serverConnectionHandlerID);

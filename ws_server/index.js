@@ -30,6 +30,11 @@ console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {h
 app.use(express.json());
 
 (async _ => {
+  config.TSServer = process.env.TSServer || config.TSServer;
+  config.WSServerPort = parseInt(process.env.WSServerPort, 10) || parseInt(config.WSServerPort, 10);
+  config.WSServerIP = process.env.WSServerIP || config.WSServerIP;
+  config.FivemServerIP = process.env.FivemServerIP || config.FivemServerIP;
+  config.FivemServerPort = parseInt(process.env.FivemServerPort, 10) || parseInt(config.FivemServerPort, 10);
   hostIP = await publicIp.v4();
   if (config.WSServerIP === undefined) {
     config.WSServerIP = hostIP;
@@ -66,16 +71,6 @@ TSServer is invalid.
 It must be an IPv4 address.
 Domain names are not supported.}`
       );
-    } else {
-      await new Promise((resolve, reject) => {
-        net.createConnection(10011, config.TSServer).on('connect', resolve).on('error', reject);
-      })
-      .catch(e => {
-        console.warn(chalk`{yellow Failed to reach TeamSpeak server at ${config.TSServer}:10011.
-Please check your configuration.
-It could be using a different ServerQuery port, in which case you can ignore this warning.}`
-        );
-      });
     }
 
     const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
@@ -141,13 +136,13 @@ http.on('upgrade', (req, socket) => {
 
 io.on('connection', async socket => {
   socket.from = socket.request._query.from;
-  socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
+  socket.clientIp = socket.handshake.headers['x-forwared-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
   socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
   socket.on('disconnect', _ => onSocketDisconnect(socket));
 
-  console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {cyan opened} - ${socket.safeIp}`);
+  log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {cyan opened} - ${socket.safeIp}`);
 
   // TS3 Handshake
   if (socket.from === 'ts3') {
@@ -174,7 +169,7 @@ io.on('connection', async socket => {
     client.ts3.linkedAt = (new Date()).toISOString();
     handshakes.splice(handshake, 1);
 
-    console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
+    log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
 
     socket.on('setTS3Data', data => setTS3Data(socket, data));
     socket.on('onTalkStatusChanged', data => setTS3Data(socket, { key: 'talking', value: data }));
@@ -235,7 +230,7 @@ function onIncomingData(socket, data) {
 }
 
 async function onSocketDisconnect(socket) {
-  console.log(chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
+  log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
   if (socket.from === 'fivem') {
     const handshake = handshakes.findIndex(item => item == socket);
     if (handshake !== -1) handshakes.splice(handshake, 1);
@@ -277,3 +272,8 @@ async function masterHeartbeat() {
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function log(type, msg) {
+  if (!config.enableLogs) return;
+  console[type](msg);
+}

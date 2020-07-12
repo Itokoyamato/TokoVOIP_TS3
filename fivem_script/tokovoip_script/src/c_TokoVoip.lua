@@ -82,7 +82,11 @@ function TokoVoip.updateTokoVoipInfo(self, forceUpdate) -- Update the top-left i
 end
 
 function TokoVoip.updatePlugin(self, event, payload)
-	exports.tokovoip_script:doSendNuiMessage(event, payload);
+	--exports.tokovoip_script:doSendNuiMessage(event, payload);
+	SendNUIMessage({
+			type = event,
+			payload = payload
+	})
 end
 
 function TokoVoip.updateConfig(self)
