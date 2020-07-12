@@ -53,7 +53,7 @@ int projectButtonId;
 bool isPTT = true;
 
 float defaultMicClicksVolume = -15;
-string oldClickVolume = "";
+int oldClickVolume;
 
 int handleMessage(shared_ptr<WsClient::Connection> connection, string message_str) {
 	int currentPluginStatus = 1;
@@ -103,12 +103,13 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 	bool remote_click_on = json_data["remote_click_on"];
 	bool remote_click_off = json_data["remote_click_off"];
 
-	string clickVolume = json_data["ClickVolume"];
+	int clickVolume;
+	if (json_data["ClickVolume"].is_number()) clickVolume = json_data["ClickVolume"];
+	if (json_data["ClickVolume"].is_string()) clickVolume = stoi((string)json_data["ClickVolume"]);
 
-	if (clickVolume != "" && clickVolume != oldClickVolume)
-	{
+	if (clickVolume && clickVolume != oldClickVolume) {
 		oldClickVolume = clickVolume;
-		ts3Functions.setPlaybackConfigValue(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", clickVolume.c_str());
+		ts3Functions.setPlaybackConfigValue(ts3Functions.getCurrentServerConnectionHandlerID(), "volume_factor_wave", to_string(clickVolume).c_str());
 	}
 
 	//--------------------------------------------------------
