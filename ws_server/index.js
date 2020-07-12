@@ -16,7 +16,7 @@ let runningOnFivem = false;
 try {
   eval('GetResourcePath(GetCurrentResourceName())');
   runningOnFivem = true;
-} catch(e) {}
+} catch (e) { }
 
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 
@@ -75,26 +75,26 @@ Domain names are not supported.}`
 
     const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
     await axios.get(FiveMURI)
-    .catch(e => {
-      configError = true
-      console.error(chalk`{red Config error:
+      .catch(e => {
+        configError = true
+        console.error(chalk`{red Config error:
 FiveM server does not seem online.
 Is it accessible from the internet ?
 Make sure your configuration is correct and your ports are open.}
 {cyan (${FiveMURI})}`
-      );
-    });
+        );
+      });
     const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`
     await axios.get(wsURI)
-    .catch(e => {
-      configError = true;
-      console.error(chalk`{red Config error:
+      .catch(e => {
+        configError = true;
+        console.error(chalk`{red Config error:
 Could not access WS server.
 Is it accessible from the internet ?
 Make sure your configuration is correct and your ports are open.}
 {cyan (${wsURI})}`
-      );
-    });
+        );
+      });
 
     if (config.FivemServerIP.includes('127.0.0.1') || config.FivemServerIP.includes('localhost')) {
       configError = true;
@@ -136,7 +136,7 @@ http.on('upgrade', (req, socket) => {
 
 io.on('connection', async socket => {
   socket.from = socket.request._query.from;
-  socket.clientIp = socket.request.connection.remoteAddress.replace('::ffff:', '');
+  socket.clientIp = socket.handshake.headers['x-forwared-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
   socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
 
@@ -175,7 +175,7 @@ io.on('connection', async socket => {
     socket.on('onTalkStatusChanged', data => setTS3Data(socket, { key: 'talking', value: data }));
     socketHeartbeat(socket);
 
-  // FiveM Handshake
+    // FiveM Handshake
   } else if (socket.from === 'fivem') {
     socketHeartbeat(socket);
     await registerHandshake(socket);
@@ -183,7 +183,7 @@ io.on('connection', async socket => {
   }
 });
 
-async function registerHandshake(socket) {
+async function registerHandshake (socket) {
   handshakes.push(socket);
   let client;
   let tries = 0;
@@ -211,7 +211,7 @@ async function registerHandshake(socket) {
   if (lodash.get(client, 'ts3.data.uuid')) socket.emit('setTS3Data', client.ts3.data);
 }
 
-function setTS3Data(socket, data) {
+function setTS3Data (socket, data) {
   const client = clients[socket.uuid];
   if (!client) return;
   lodash.set(client.ts3, `data.${data.key}`, data.value);
@@ -220,7 +220,7 @@ function setTS3Data(socket, data) {
   }
 }
 
-function onIncomingData(socket, data) {
+function onIncomingData (socket, data) {
   const client = clients[socket.uuid];
   if (!socket.uuid || !client || !client.ts3.socket) return;
   socket.tokoData = data;
@@ -229,7 +229,7 @@ function onIncomingData(socket, data) {
   client.ts3.socket.emit('processTokovoip', client.fivem.data);
 }
 
-async function onSocketDisconnect(socket) {
+async function onSocketDisconnect (socket) {
   log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
   if (socket.from === 'fivem') {
     const handshake = handshakes.findIndex(item => item == socket);
@@ -247,7 +247,7 @@ async function onSocketDisconnect(socket) {
   }
 }
 
-function socketHeartbeat(socket) {
+function socketHeartbeat (socket) {
   if (!socket) return;
   const start = new Date();
   socket.emit('ping');
@@ -259,7 +259,7 @@ function socketHeartbeat(socket) {
   });
 }
 
-async function masterHeartbeat() {
+async function masterHeartbeat () {
   axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
     tsServer: config.TSServer,
     WSServerIP: config.WSServerIP,
@@ -267,13 +267,13 @@ async function masterHeartbeat() {
     FivemServerIP: config.FivemServerIP,
     FivemServerPort: config.FivemServerPort,
   })
-  .then(_ => console.log('Heartbeat sent'))
-  .catch(e => console.error('Sending heartbeat failed with error:', e.code));
+    .then(_ => console.log('Heartbeat sent'))
+    .catch(e => console.error('Sending heartbeat failed with error:', e.code));
 }
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function log(type, msg) {
+function log (type, msg) {
   if (!config.enableLogs) return;
   console[type](msg);
 }
