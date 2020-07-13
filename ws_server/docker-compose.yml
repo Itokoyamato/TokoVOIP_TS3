@@ -1,0 +1,16 @@
+version: "2"
+services:
+  ws_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ws_server
+    container_name: ws_server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - TSServer=<TS Server IPv4>
+      - WSServerPort=3000
+      - FivemServerIP=<FiveM Server IPv4>
+      - FivemServerPort=<PORT>
