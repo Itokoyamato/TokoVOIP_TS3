@@ -83,10 +83,21 @@ local function clientProcessing()
 	for i=1, #playerList do
 		local player = playerList[i];
 		local playerServerId = GetPlayerServerId(player);
-		if (GetPlayerPed(player) and voip.serverId ~= playerServerId) then
+
+		local userData = {
+			uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
+			volume = -30,
+			muted = 1,
+			radioEffect = false
+		};
+
+		if (not GetPlayerPed(player) or voip.serverId == playerServerId or not getPlayerData(playerServerId, "voip:talking")) then goto continue end
+
+		do
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
-			if(dist > 40) then goto continue end
+			if (dist > 40) then goto continue end
+
 
 			if (not getPlayerData(playerServerId, "voip:mode")) then
 				setPlayerData(playerServerId, "voip:mode", 1);
@@ -102,83 +113,43 @@ local function clientProcessing()
 			--
 			local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
 
-			-- Set player's default data
-			local tbl = {
-				uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
-				volume = -30,
-				muted = 1,
-				radioEffect = false,
-				posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
-				posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
-				posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
-			};
+			-- Set player's position
+			userData.posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0;
+			userData.posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0;
+			userData.posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0;
 			--
 
 			-- Process proximity
-			tbl.forceUnmuted = 0
 			if (dist >= voip.distance[mode]) then
-				tbl.muted = 1;
+				userData.muted = 1;
 			else
-				tbl.volume = volume;
-				tbl.muted = 0;
-				tbl.forceUnmuted = 1
+				userData.volume = volume;
+				userData.muted = 0;
 			end
 
-			usersdata[#usersdata + 1] = tbl
 			setPlayerTalkingState(player, playerServerId);
-			::continue::
+			userData.active = true;
 		end
-	end
 
-	-- Process channels
-	for _, channel in pairs(voip.myChannels) do
-		for _, subscriber in pairs(channel.subscribers) do
-			if (subscriber == voip.serverId) then goto continue end
+		::continue::
 
-			local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
-			local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
-			local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
-
-			local founduserData = nil
-			for k, v in pairs(usersdata) do
-				if(v.uuid == remotePlayerUuid) then
-					founduserData = v
-				end
+		-- Process radio channels
+		local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
+		local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
+		if (remotePlayerUsingRadio and voip.myChannels[remotePlayerChannel]) then
+			if (type(remotePlayerChannel) == "number" and (remotePlayerChannel <= voip.config.radioClickMaxChannel or voip.myChannels[remotePlayerChannel].radio)) then
+				userData.radioEffect = true;
 			end
 
-			if not founduserData then
-				founduserData = {
-					uuid = remotePlayerUuid,
-					radioEffect = false,
-					resave = true,
-					volume = 0,
-					muted = 1
-				}
-			end
-
-
-			if (remotePlayerUsingRadio and remotePlayerChannel == channel.id) then
-				if (type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel) then
-					founduserData.radioEffect = true;
-				end
-
-				founduserData.muted = false
-				founduserData.volume = 0;
-				founduserData.posX = 0;
-				founduserData.posY = 0;
-				founduserData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-			end
-
-			if founduserData.forceUnmuted then
-				founduserData.muted = false;
-			end
-
-			if(founduserData.resave) then
-				usersdata[#usersdata + 1] = founduserData
-			end
-
-			::continue::
+			userData.active = true;
+			userData.muted = 0;
+			userData.volume = 0;
+			userData.posX = 0;
+			userData.posY = 0;
+			userData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
 		end
+
+		if (userData.active) then usersdata[#usersdata + 1] = tbl end;
 	end
 
 	voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
