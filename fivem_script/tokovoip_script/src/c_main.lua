@@ -221,15 +221,27 @@ AddEventHandler("initializeVoip", function()
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
 
-	voip.processFunction = clientProcessing; -- Link the processing function that will be looped
-	voip:initialize(); -- Initialize the websocket and controls
-	voip:loop(); -- Start TokoVoip's loop
-
-	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
-
 	-- Request this stuff here only one time
 	RequestAnimDict("mp_facial");
 	RequestAnimDict("facials@gen_male@base");
+
+	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
+
+	local response;
+	Citizen.CreateThread(function()
+		local function handler(serverId) response = serverId or "N/A"; end
+		RegisterNetEvent("TokoVoip:onClientGetServerId");
+		AddEventHandler("TokoVoip:onClientGetServerId", handler);
+		TriggerServerEvent("TokoVoip:getServerId");
+		while (not response) do Wait(5) end
+
+		voip.serverId = response;
+		print("TokoVoip: FiveM Server ID is " .. voip.serverId);
+
+		voip.processFunction = clientProcessing; -- Link the processing function that will be looped
+		voip:initialize(); -- Initialize the websocket and controls
+		voip:loop(); -- Start TokoVoip's loop
+	end);
 
 	-- Debug data stuff
 	if (voip.config.enableDebug) then
