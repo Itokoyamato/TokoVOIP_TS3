@@ -248,8 +248,12 @@ AddEventHandler("initializeVoip", function()
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
 	-- Request this stuff here only one time
-	RequestAnimDict("mp_facial");
-	RequestAnimDict("facials@gen_male@base");
+	if TokoVoipConfig.serverVersion == 'FiveM' then
+		RequestAnimDict("mp_facial");
+		RequestAnimDict("facials@gen_male@base");
+	elseif TokoVoipConfig.serverVersion == 'RedM' then
+		RequestAnimDict("face_human@gen_male@base");
+	end
 
 	-- Debug data stuff
 	if (voip.config.enableDebug) then
