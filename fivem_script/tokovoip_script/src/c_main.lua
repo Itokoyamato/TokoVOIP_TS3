@@ -84,14 +84,7 @@ local function clientProcessing()
 		local player = playerList[i];
 		local playerServerId = GetPlayerServerId(player);
 
-		local userData = {
-			uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
-			volume = -30,
-			muted = 1,
-			radioEffect = false
-		};
-
-		if (not GetPlayerPed(player) or voip.serverId == playerServerId or not getPlayerData(playerServerId, "voip:talking")) then goto continue end
+		if (voip.serverId == playerServerId or not GetPlayerPed(player) or not getPlayerData(playerServerId, "voip:talking")) then goto continue end
 
 		do
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
@@ -114,9 +107,15 @@ local function clientProcessing()
 			local angleToTarget = localHeading - math.atan(playerPos.y - localPos.y, playerPos.x - localPos.x);
 
 			-- Set player's position
-			userData.posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0;
-			userData.posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0;
-			userData.posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0;
+			local userData = {
+				uuid = getPlayerData(playerServerId, "voip:pluginUUID"),
+				volume = volume,
+				muted = 1,
+				radioEffect = false,
+				posX = voip.plugin_data.enableStereoAudio and math.cos(angleToTarget) * dist or 0,
+				posY = voip.plugin_data.enableStereoAudio and math.sin(angleToTarget) * dist or 0,
+				posZ = voip.plugin_data.enableStereoAudio and playerPos.z or 0
+			};
 			--
 
 			-- Process proximity
@@ -128,28 +127,49 @@ local function clientProcessing()
 			end
 
 			setPlayerTalkingState(player, playerServerId);
-			userData.active = true;
+			usersdata[#usersdata + 1] = userData;
 		end
 
 		::continue::
+	end
 
-		-- Process radio channels
-		local remotePlayerUsingRadio = getPlayerData(playerServerId, "radio:talking");
-		local remotePlayerChannel = getPlayerData(playerServerId, "radio:channel");
-		if (remotePlayerUsingRadio and voip.myChannels[remotePlayerChannel]) then
-			if (type(remotePlayerChannel) == "number" and (remotePlayerChannel <= voip.config.radioClickMaxChannel or voip.myChannels[remotePlayerChannel].radio)) then
+	-- Process channels
+	for _, channel in pairs(voip.myChannels) do
+		for _, subscriber in pairs(channel.subscribers) do
+			if (subscriber == voip.serverId) then goto channelContinue end
+
+			local remotePlayerUsingRadio = getPlayerData(subscriber, "radio:talking");
+			local remotePlayerChannel = getPlayerData(subscriber, "radio:channel");
+
+			if (not remotePlayerUsingRadio or remotePlayerChannel ~= channel.id) then goto channelContinue end
+
+			local remotePlayerUuid = getPlayerData(subscriber, "voip:pluginUUID");
+
+			local userData = {
+				uuid = remotePlayerUuid,
+				radioEffect = false,
+				muted = false,
+				volume = 0,
+				posX = 0,
+				posY = 0,
+				posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0
+			};
+
+			if ((type(remotePlayerChannel) == "number" and remotePlayerChannel <= voip.config.radioClickMaxChannel) or channel.radio) then
 				userData.radioEffect = true;
 			end
 
-			userData.active = true;
-			userData.muted = 0;
-			userData.volume = 0;
-			userData.posX = 0;
-			userData.posY = 0;
-			userData.posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0;
-		end
+			for k, v in pairs(usersdata) do
+				if (v.uuid == remotePlayerUuid) then
+					usersdata[k] = userData;
+					goto channelContinue;
+				end
+			end
 
-		if (userData.active) then usersdata[#usersdata + 1] = tbl end;
+			usersdata[#usersdata + 1] = userData;
+
+			::channelContinue::
+		end
 	end
 
 	voip.plugin_data.Users = usersdata; -- Update TokoVoip's data
