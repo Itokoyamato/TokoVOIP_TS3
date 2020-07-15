@@ -37,6 +37,14 @@ local function setPlayerTalkingState(player, playerServerId)
 	animStates[playerServerId] = talking;
 end
 
+local function PlayRedMFacialAnimation(player, animDict, animName)
+	RequestAnimDict(animDict)
+	while not HasAnimDictLoaded(animDict) do
+		Wait(100)
+	end
+    SetFacialIdleAnimOverride(player, animName, animDict)
+end
+
 RegisterNUICallback("updatePluginData", function(data, cb)
 	local payload = data.payload;
 	if (voip[payload.key] == payload.data) then return end
@@ -52,11 +60,21 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 	voip.talking = tonumber(data.state);
 
 	if (voip.talking == 1) then
-		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
+		if TokoVoipConfig.serverVersion == 'FiveM' then
+			setPlayerData(voip.serverId, "voip:talking", 1, true);
+			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
+		elseif TokoVoipConfig.serverVersion == 'RedM' then
+			setPlayerData(voip.serverId, "voip:talking", 1, true);
+			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal")
+		end
 	else
-		setPlayerData(voip.serverId, "voip:talking", 0, true);
-		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
+		if TokoVoipConfig.serverVersion == 'FiveM' then
+			setPlayerData(voip.serverId, "voip:talking", 0, true);
+			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
+		elseif TokoVoipConfig.serverVersion == 'RedM' then
+			setPlayerData(voip.serverId, "voip:talking", 0, true);
+			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal")
+		end
 	end
 	cb('ok')
 end)
@@ -125,7 +143,9 @@ local function clientProcessing()
 			end
 
 			usersdata[#usersdata + 1] = tbl
-			setPlayerTalkingState(player, playerServerId);
+			if TokoVoipConfig.serverVersion == 'FiveM' then
+				setPlayerTalkingState(player, playerServerId);
+			end
 			::continue::
 		end
 	end
