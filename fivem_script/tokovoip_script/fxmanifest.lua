@@ -1,5 +1,5 @@
 fx_version 'bodacious'
-games 'gta5'
+game 'gta5'
 
 client_script "src/c_utils.lua"
 client_script "c_config.lua"
