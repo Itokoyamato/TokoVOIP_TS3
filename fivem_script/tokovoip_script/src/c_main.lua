@@ -89,7 +89,7 @@ local function clientProcessing()
 		do
 			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
 			local dist = #(localPos - playerPos);
-			if (dist > 40) then goto continue end
+			if (dist > voip.distance[3]) then goto continue end
 
 
 			if (not getPlayerData(playerServerId, "voip:mode")) then
