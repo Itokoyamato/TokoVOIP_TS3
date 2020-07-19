@@ -65,7 +65,7 @@ local function clientProcessing()
 	local playerList = voip.playerList;
 	local usersdata = {};
 	local localHeading;
-	local ped = PlayerPedId()
+	local ped = PlayerPedId();
 
 	if (voip.headingType == 1) then
 		localHeading = math.rad(GetEntityHeading(ped));
@@ -83,11 +83,14 @@ local function clientProcessing()
 	for i=1, #playerList do
 		local player = playerList[i];
 		local playerServerId = GetPlayerServerId(player);
+		local playerPed = GetPlayerPed(player);
 
-		if (voip.serverId == playerServerId or not GetPlayerPed(player) or not getPlayerData(playerServerId, "voip:talking")) then goto continue end
+		local playerTalking = getPlayerData(playerServerId, "voip:talking");
+
+		if (voip.serverId == playerServerId or not playerPed or not playerTalking or playerTalking == 0) then goto continue end
 
 		do
-			local playerPos = GetPedBoneCoords(GetPlayerPed(player), HeadBone);
+			local playerPos = GetPedBoneCoords(playerPed, HeadBone);
 			local dist = #(localPos - playerPos);
 			if (dist > voip.distance[3]) then goto continue end
 
@@ -226,8 +229,8 @@ AddEventHandler("initializeVoip", function()
 		TriggerServerEvent("TokoVoip:getServerId");
 		while (not response) do Wait(5) end
 
-		voip.serverId = response;
-		print("TokoVoip: FiveM Server ID is " .. voip.serverId);
+		voip.fivemServerId = response;
+		print("TokoVoip: FiveM Server ID is " .. voip.fivemServerId);
 
 		voip.processFunction = clientProcessing; -- Link the processing function that will be looped
 		voip:initialize(); -- Initialize the websocket and controls
