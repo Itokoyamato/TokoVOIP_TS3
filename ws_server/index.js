@@ -17,7 +17,7 @@ require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 let masterHeartbeatInterval;
 const clients = {};
 
-const handshakes = [];
+const handshakes = {};
 
 console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {hex('#f96854') https://patreon.com/Itokoyamato}`);
 
@@ -87,7 +87,7 @@ app.get('/', (_, res) => {
 });
 
 app.get('/playerbyip', (req, res) => {
-  const player = handshakes.find(item => item.clientIp === req.query.ip);
+  const player = handshakes[req.query.ip];
   if (!player) return res.status(404).send();
   return res.status(204).send();
 });
@@ -113,8 +113,7 @@ io.on('connection', async socket => {
     let client = clients[socket.request._query.uuid];
     socket.uuid = socket.request._query.uuid;
 
-    const handshake = handshakes.findIndex(item => item.clientIp === socket.clientIp);
-    if (handshake === -1) {
+    if (!handshakes[socket.clientIp]) {
       socket.emit('disconnectMessage', 'handshakeNotFound');
       socket.disconnect(true);
       return;
@@ -131,7 +130,7 @@ io.on('connection', async socket => {
     };
     client.ts3.socket = socket;
     client.ts3.linkedAt = (new Date()).toISOString();
-    handshakes.splice(handshake, 1);
+    delete handshakes[socket.clientIp];
 
     log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
 
@@ -148,7 +147,7 @@ io.on('connection', async socket => {
 });
 
 async function registerHandshake(socket) {
-  handshakes.push(socket);
+  handshakes[socket.clientIp] = socket;
   let client;
   let tries = 0;
   while (!client) {
@@ -196,8 +195,7 @@ function onIncomingData(socket, data) {
 async function onSocketDisconnect(socket) {
   log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
   if (socket.from === 'fivem') {
-    const handshake = handshakes.findIndex(item => item == socket);
-    if (handshake !== -1) handshakes.splice(handshake, 1);
+    if (handshakes[socket.clientIp]) delete handshakes[socket.clientIp];
   }
   if (socket.uuid && clients[socket.uuid]) {
     const client = clients[socket.uuid];
