@@ -101,7 +101,7 @@ io.on('connection', async socket => {
   socket.from = socket.request._query.from;
   socket.clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
   socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
-  if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
+  if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1') || socket.clientIp.includes('192.168.')) socket.clientIp = hostIP;
   socket.fivemServerId = socket.request._query.serverId;
 
   socket.on('disconnect', _ => onSocketDisconnect(socket));
