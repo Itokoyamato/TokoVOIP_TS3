@@ -599,7 +599,7 @@ string verifyTSServer() {
 		return "";
 	}
 
-	httplib::Client cli("master.tokovoip.itokoyamato.net", 3000);
+	httplib::Client cli("master.tokovoip.itokoyamato.net");
 	string path = "/verify?address=" + string(serverIP);
 	cli.set_follow_location(true);
 	outputLog("Getting " + path);
