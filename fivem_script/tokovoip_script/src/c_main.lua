@@ -21,6 +21,7 @@ local scriptVersion = "1.5.3";
 local animStates = {}
 local displayingPluginScreen = false;
 local HeadBone = 0x796e;
+local radioVolume = 0;
 
 --------------------------------------------------------------------------------
 --	Plugin functions
@@ -46,6 +47,11 @@ RegisterNUICallback("updatePluginData", function(data, cb)
 	voip:updateTokoVoipInfo(true);
 	cb('ok')
 end);
+
+RegisterNetEvent('TokoVoip:setRadioVolume')
+AddEventHandler('TokoVoip:setRadioVolume', function(volume)
+    radioVolume = volume
+end)
 
 -- Receives data from the TS plugin on microphone toggle
 RegisterNUICallback("setPlayerTalking", function(data, cb)
@@ -152,7 +158,7 @@ local function clientProcessing()
 				uuid = remotePlayerUuid,
 				radioEffect = false,
 				muted = false,
-				volume = 0,
+				volume = radioVolume,
 				posX = 0,
 				posY = 0,
 				posZ = voip.plugin_data.enableStereoAudio and localPos.z or 0
