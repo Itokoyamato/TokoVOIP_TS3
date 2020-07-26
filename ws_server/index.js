@@ -55,6 +55,12 @@ Domain names are not supported.}`
       );
     }
 
+    if (config.WSServerPort < 30000) {
+      console.error(chalk`{yellow Config warning:
+It is advised to use a WSServerPort above 30k, some player networks block ports below it.}`
+      );
+    }
+
     const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`;
     await axios.get(wsURI)
     .catch(e => {
