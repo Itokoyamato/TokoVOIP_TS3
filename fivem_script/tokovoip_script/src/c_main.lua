@@ -38,6 +38,14 @@ local function setPlayerTalkingState(player, playerServerId)
 	animStates[playerServerId] = talking;
 end
 
+local function PlayRedMFacialAnimation(player, animDict, animName)
+	RequestAnimDict(animDict)
+	while not HasAnimDictLoaded(animDict) do
+		Wait(100)
+	end
+  SetFacialIdleAnimOverride(player, animName, animDict)
+end
+
 RegisterNUICallback("updatePluginData", function(data, cb)
 	local payload = data.payload;
 	if (voip[payload.key] == payload.data) then return end
@@ -59,12 +67,20 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
+		if (GetConvar("GameName") == "gta5") then
+			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
+		elseif (GetConvar("GameName") == "rdr3") then
+			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal");
+		end
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
-		PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
+		if (GetConvar("GameName") == "gta5") then
+			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
+		elseif (GetConvar("GameName") == "rdr3") then
+			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal");
+		end
 	end
-	cb('ok')
+	cb('ok');
 end)
 
 local function clientProcessing()
@@ -135,7 +151,9 @@ local function clientProcessing()
 				userData.muted = 0;
 			end
 
-			setPlayerTalkingState(player, playerServerId);
+			if (GetConvar("GameName") == "gta5") then
+				setPlayerTalkingState(player, playerServerId);
+			end
 			usersdata[#usersdata + 1] = userData;
 		end
 
@@ -222,8 +240,12 @@ AddEventHandler("initializeVoip", function()
 	targetPed = GetPlayerPed(-1);
 
 	-- Request this stuff here only one time
-	RequestAnimDict("mp_facial");
-	RequestAnimDict("facials@gen_male@base");
+	if (GetConvar("GameName") == "gta5") then
+		RequestAnimDict("mp_facial");
+		RequestAnimDict("facials@gen_male@base");
+	elseif (GetConvar("GameName") == "rdr3") then
+		RequestAnimDict("face_human@gen_male@base");
+	end
 
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
