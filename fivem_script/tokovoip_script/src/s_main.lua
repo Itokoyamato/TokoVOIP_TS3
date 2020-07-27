@@ -17,6 +17,8 @@
 local channels = TokoVoipConfig.channels;
 local serverId;
 
+SetConvarReplicated("gametype", GetConvar("GameName"));
+
 function addPlayerToRadio(channelId, playerServerId, radio)
 	if (not channels[channelId]) then
 		if(radio) then
