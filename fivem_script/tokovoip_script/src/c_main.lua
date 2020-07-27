@@ -53,13 +53,8 @@ RegisterNUICallback("updatePluginData", function(data, cb)
 	setPlayerData(voip.serverId, "voip:" .. payload.key, voip[payload.key], true);
 	voip:updateConfig();
 	voip:updateTokoVoipInfo(true);
-	cb('ok')
+	cb('ok');
 end);
-
-RegisterNetEvent('TokoVoip:setRadioVolume')
-AddEventHandler('TokoVoip:setRadioVolume', function(volume)
-    radioVolume = volume
-end)
 
 -- Receives data from the TS plugin on microphone toggle
 RegisterNUICallback("setPlayerTalking", function(data, cb)
@@ -377,6 +372,12 @@ function isPlayerInChannel(channel)
 	end
 end
 
+function setRadioVolume(volume)
+	radioVolume = volume;
+end
+RegisterNetEvent('TokoVoip:setRadioVolume');
+AddEventHandler('TokoVoip:setRadioVolume', setRadioVolume);
+
 --------------------------------------------------------------------------------
 --	Specific utils
 --------------------------------------------------------------------------------
@@ -405,3 +406,4 @@ end)
 exports("addPlayerToRadio", addPlayerToRadio);
 exports("removePlayerFromRadio", removePlayerFromRadio);
 exports("isPlayerInChannel", isPlayerInChannel);
+exports("setRadioVolume", setRadioVolume);
