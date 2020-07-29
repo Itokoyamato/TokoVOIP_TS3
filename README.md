@@ -76,9 +76,7 @@ It can be run as a standalone NodeJS application, on the same machine as your fi
   * Download [Node.js](https://nodejs.org/en/)
   * Open [config.js](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/ws_server/config.js)
     * Change "`TSServer`" to your Teamspeak server `IPv4`
-    * Change "`FivemServerPort`" to your FiveM server `port`
     * If the ws-server is hosted on a separate machine:  
-    Change "`FivemServerIP`" to your FiveM server `IPv4`
   * Open ws-server folder in cmd / terminal
   * Execute `npm i`
   * After its done run `node index.js`  

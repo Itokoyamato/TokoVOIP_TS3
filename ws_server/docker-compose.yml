@@ -8,9 +8,7 @@ services:
     container_name: ws_server
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "33250:33250"
     environment:
       - TSServer=<TS Server IPv4>
-      - WSServerPort=3000
-      - FivemServerIP=<FiveM Server IPv4>
-      - FivemServerPort=<PORT>
+      - WSServerPort=33250

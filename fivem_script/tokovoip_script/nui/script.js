@@ -57,11 +57,11 @@ function disconnect (src) {
 	}
 }
 
-function init (address) {
+function init (address, serverId) {
 	if (!address) return;
 	endpoint = address;
 	console.log('TokoVOIP: attempt new connection');
-	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem`);
+	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem&serverId=${serverId}`);
 
 	websocket.onopen = () => {
 		updateWsState('FiveM', OK)

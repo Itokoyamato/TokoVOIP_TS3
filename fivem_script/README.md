@@ -146,3 +146,20 @@ If the channel name contains 'Call' it will be displayed as a call on the ingame
     <td>If set to true, the data will be synced to all players, otherwise only to the client who requested it</td>
   </tr>
   </table>
+
+- ### setRadioVolume(volume)
+
+  Changes the volume of voices over radio
+
+  <table>
+  <tr>
+    <th>Params</th>
+    <th>type</th>
+    <th>Details</th>
+  </tr>
+  <tr>
+    <td>volume</td>
+    <td>number</td>
+    <td>Changes the radio volume</td>
+  </tr>
+  </table>

@@ -11,19 +11,13 @@ const config = require('./config.js');
 const publicIp = require('public-ip');
 
 let hostIP;
-let runningOnFivem = false;
-
-try {
-  eval('GetResourcePath(GetCurrentResourceName())');
-  runningOnFivem = true;
-} catch(e) {}
 
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 
 let masterHeartbeatInterval;
 const clients = {};
 
-const handshakes = [];
+const handshakes = {};
 
 console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {hex('#f96854') https://patreon.com/Itokoyamato}`);
 
@@ -33,28 +27,16 @@ app.use(express.json());
   config.TSServer = process.env.TSServer || config.TSServer;
   config.WSServerPort = parseInt(process.env.WSServerPort, 10) || parseInt(config.WSServerPort, 10);
   config.WSServerIP = process.env.WSServerIP || config.WSServerIP;
-  config.FivemServerIP = process.env.FivemServerIP || config.FivemServerIP;
-  config.FivemServerPort = parseInt(process.env.FivemServerPort, 10) || parseInt(config.FivemServerPort, 10);
   hostIP = await publicIp.v4();
   if (config.WSServerIP === undefined) {
     config.WSServerIP = hostIP;
     console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan WSServerIP} to {cyan ${hostIP}} (you can manually edit in config.js)`);
     await sleep(0);
   }
-  if (config.FivemServerIP === undefined) {
-    config.FivemServerIP = hostIP;
-    console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan FivemServerIP} to {cyan ${hostIP}} (you can manually edit in config.js)`);
-    await sleep(0);
-  }
-  if (config.FivemServerPort === undefined && runningOnFivem) {
-    config.FivemServerPort = GetConvar('netPort');
-    console.log(chalk`{yellow AUTOCONFIG:} Setting {cyan FivemServerPort} to {cyan ${config.FivemServerPort}} (you can manually edit in config.js)`);
-    await sleep(0);
-  }
 
-  if (!config.TSServer || !config.WSServerIP || !config.WSServerPort || !config.FivemServerIP || !config.FivemServerPort) {
+  if (!config.TSServer || !config.WSServerIP || !config.WSServerPort) {
     console.error(chalk`{red Config error:
-Missing one of TSServer, WSServerIP, WSServerPort, FivemServerIP or FivemServerPort}`
+Missing one of TSServer, WSServerIP or WSServerPort}`
     );
     return;
   }
@@ -73,18 +55,13 @@ Domain names are not supported.}`
       );
     }
 
-    const FiveMURI = `http://${config.FivemServerIP}:${config.FivemServerPort}/info.json`;
-    await axios.get(FiveMURI)
-    .catch(e => {
-      configError = true
-      console.error(chalk`{red Config error:
-FiveM server does not seem online.
-Is it accessible from the internet ?
-Make sure your configuration is correct and your ports are open.}
-{cyan (${FiveMURI})}`
+    if (config.WSServerPort < 30000) {
+      console.error(chalk`{yellow Config warning:
+It is advised to use a WSServerPort above 30k, some player networks block ports below it.}`
       );
-    });
-    const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`
+    }
+
+    const wsURI = `http://${config.WSServerIP}:${config.WSServerPort}`;
     await axios.get(wsURI)
     .catch(e => {
       configError = true;
@@ -96,14 +73,6 @@ Make sure your configuration is correct and your ports are open.}
       );
     });
 
-    if (config.FivemServerIP.includes('127.0.0.1') || config.FivemServerIP.includes('localhost')) {
-      configError = true;
-      console.error(chalk`{red Config error:
-FiveMServerIP cannot be 127.0.0.1 or localhost.
-It will be blocked by FiveM.
-It has to be a valid public IPv4.
-You might need to open your ports to run it locally.}`);
-    }
     if (configError) return;
 
     console.log(chalk`Everything looks {green good} ! Have fun`);
@@ -124,7 +93,7 @@ app.get('/', (_, res) => {
 });
 
 app.get('/playerbyip', (req, res) => {
-  const player = handshakes.find(item => item.clientIp === req.query.ip);
+  const player = handshakes[req.query.ip];
   if (!player) return res.status(404).send();
   return res.status(204).send();
 });
@@ -136,9 +105,10 @@ http.on('upgrade', (req, socket) => {
 
 io.on('connection', async socket => {
   socket.from = socket.request._query.from;
-  socket.clientIp = socket.handshake.headers['x-forwared-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
+  socket.clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
   socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
-  if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1')) socket.clientIp = process.env.LOCAL_IP;
+  if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1') || socket.clientIp.includes('192.168.')) socket.clientIp = hostIP;
+  socket.fivemServerId = socket.request._query.serverId;
 
   socket.on('disconnect', _ => onSocketDisconnect(socket));
 
@@ -149,8 +119,7 @@ io.on('connection', async socket => {
     let client = clients[socket.request._query.uuid];
     socket.uuid = socket.request._query.uuid;
 
-    const handshake = handshakes.findIndex(item => item.clientIp === socket.clientIp);
-    if (handshake === -1) {
+    if (!handshakes[socket.clientIp]) {
       socket.emit('disconnectMessage', 'handshakeNotFound');
       socket.disconnect(true);
       return;
@@ -167,7 +136,7 @@ io.on('connection', async socket => {
     };
     client.ts3.socket = socket;
     client.ts3.linkedAt = (new Date()).toISOString();
-    handshakes.splice(handshake, 1);
+    delete handshakes[socket.clientIp];
 
     log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
 
@@ -184,7 +153,7 @@ io.on('connection', async socket => {
 });
 
 async function registerHandshake(socket) {
-  handshakes.push(socket);
+  handshakes[socket.clientIp] = socket;
   let client;
   let tries = 0;
   while (!client) {
@@ -232,8 +201,7 @@ function onIncomingData(socket, data) {
 async function onSocketDisconnect(socket) {
   log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
   if (socket.from === 'fivem') {
-    const handshake = handshakes.findIndex(item => item == socket);
-    if (handshake !== -1) handshakes.splice(handshake, 1);
+    if (handshakes[socket.clientIp]) delete handshakes[socket.clientIp];
   }
   if (socket.uuid && clients[socket.uuid]) {
     const client = clients[socket.uuid];
@@ -264,8 +232,6 @@ async function masterHeartbeat() {
     tsServer: config.TSServer,
     WSServerIP: config.WSServerIP,
     WSServerPort: config.WSServerPort,
-    FivemServerIP: config.FivemServerIP,
-    FivemServerPort: config.FivemServerPort,
   })
   .then(_ => console.log('Heartbeat sent'))
   .catch(e => console.error('Sending heartbeat failed with error:', e.code));
