@@ -165,14 +165,19 @@ async function registerHandshake(socket) {
       return;
     }
     client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
-    await axios.post('https://master.tokovoip.itokoyamato.net/register', {
-      ip: socket.clientIp,
-      server: {
-        tsServer: config.TSServer,
-        ip: config.WSServerIP,
-        port: config.WSServerPort,
-      },
-    });
+    try {
+      await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+        ip: socket.clientIp,
+        server: {
+          tsServer: config.TSServer,
+          ip: config.WSServerIP,
+          port: config.WSServerPort,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   }
   socket.uuid = client.uuid;
   client.fivem.socket = socket;
