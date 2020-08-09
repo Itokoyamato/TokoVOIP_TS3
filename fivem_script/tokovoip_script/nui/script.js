@@ -24,7 +24,8 @@ let websocket;
 let endpoint;
 let connected = false;
 let lastOk = 0;
-let scriptName = GetParentResourceName()
+let scriptName = GetParentResourceName();
+let clientIp;
 
 let voip = {};
 
@@ -57,9 +58,29 @@ function disconnect (src) {
 	}
 }
 
+async function updateClientIP(endpoint) {
+	if (!endpoint) {
+		console.error('updateClientIP: endpoint missing');
+		return;
+	}
+	if (voipStatus !== OK) {
+		const res = await fetch(`http://${endpoint}/getmyip`)
+		.catch(e => console.error('TokoVOIP: failed to update cient IP', e));
+
+		if (res) {
+			const ip = await res.text();
+			clientIp = ip;
+			console.log('TokoVOIP: updated client IP');
+			if (websocket && websocket.readyState === websocket.OPEN) websocket.send(`42${JSON.stringify(['updateClientIP', { ip: clientIp }])}`);
+		}
+	}
+	setTimeout(_ => updateClientIP(endpoint), 10000);
+}
+
 function init (address, serverId) {
 	if (!address) return;
 	endpoint = address;
+	await updateClientIP(endpoint);
 	console.log('TokoVOIP: attempt new connection');
 	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem&serverId=${serverId}`);
 
