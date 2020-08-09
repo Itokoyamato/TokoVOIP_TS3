@@ -233,13 +233,20 @@ async function onSocketDisconnect(socket) {
 function socketHeartbeat(socket) {
   if (!socket) return;
   const start = new Date();
-  socket.emit('ping');
   socket.once('pong', _ => {
     setTimeout(_ => socketHeartbeat(socket), 1000);
-    socket.latency = (new Date).getTime() - start.getTime();
+    socket.latency = (new Date()).getTime() - start.getTime();
     if (!socket.uuid || !clients[socket.uuid]) return;
-    clients[socket.uuid].latency = lodash.get(clients[socket.uuid], 'fivem.latency', 0) + lodash.get(clients[socket.uuid], 'ts3.latency', 0);
+    clients[socket.uuid].latency = lodash.get(clients[socket.uuid], 'fivem.socket.latency', 0) + lodash.get(clients[socket.uuid], 'ts3.socket.latency', 0);
+    if (socket.from === 'fivem') {
+      socket.emit('onLatency', {
+        total: clients[socket.uuid].latency,
+        fivem: lodash.get(clients[socket.uuid], 'fivem.socket.latency', 0),
+        ts3: lodash.get(clients[socket.uuid], 'ts3.socket.latency', 0),
+      });
+    }
   });
+  socket.emit('ping');
 }
 
 async function masterHeartbeat() {
