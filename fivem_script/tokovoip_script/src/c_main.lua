@@ -382,6 +382,10 @@ AddEventHandler('TokoVoip:setRadioVolume', setRadioVolume);
 --	Specific utils
 --------------------------------------------------------------------------------
 
+RegisterCommand("tokovoiplatency", function()
+	SendNUIMessage({ type = "toggleLatency" });
+end);
+
 -- Toggle the blocking screen with usage explanation
 -- Not used
 function displayPluginScreen(toggle)
