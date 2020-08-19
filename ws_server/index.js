@@ -9,6 +9,7 @@ const lodash = require('lodash');
 const chalk = require('chalk');
 const config = require('./config.js');
 const publicIp = require('public-ip');
+const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
 
 let hostIP;
 
@@ -45,7 +46,6 @@ Missing one of TSServer, WSServerIP or WSServerPort}`
   http.listen(config.WSServerPort, async _ => {
     console.log('Checking configuration ...');
     let configError = false;
-    const IPv4Regex = new RegExp('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$');
     if (!IPv4Regex.test(config.TSServer)) {
       configError = true;
       console.error(chalk`{red Config error:
@@ -98,6 +98,11 @@ app.get('/playerbyip', (req, res) => {
   return res.status(204).send();
 });
 
+app.get('getmyip', (req, res) => {
+  const ip = (lodash.get(req, `headers.['x-forwarded-for']`) || lodash.get(req, `headers.['x-real-ip']`) || lodash.get(req, 'connection.remoteAddress')).replace('::ffff:', '');
+  res.send(ip);
+});
+
 http.on('upgrade', (req, socket) => {
   if (!req._query || !req._query.from) return socket.destroy();
   if (req._query.from === 'ts3' && !req._query.uuid) return socket.destroy();
@@ -147,8 +152,13 @@ io.on('connection', async socket => {
   // FiveM Handshake
   } else if (socket.from === 'fivem') {
     socketHeartbeat(socket);
+    socket.on('updateClientIP', data => {
+      if (!data || !data.ip || !IPv4Regex.test(data.ip) || !clients[socket.uuid]) return;
+      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      if (lodash.get(clients, `[${socket.uuid}].ts3.socket`)) clients[socket.uuid].ts3.socket.clientIp = data.ip;
+    });
     await registerHandshake(socket);
-    socket.on('data', (data) => onIncomingData(socket, data));
+    socket.on('data', data => onIncomingData(socket, data));
   }
 });
 
@@ -165,14 +175,19 @@ async function registerHandshake(socket) {
       return;
     }
     client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
-    await axios.post('https://master.tokovoip.itokoyamato.net/register', {
-      ip: socket.clientIp,
-      server: {
-        tsServer: config.TSServer,
-        ip: config.WSServerIP,
-        port: config.WSServerPort,
-      },
-    });
+    try {
+      await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+        ip: socket.clientIp,
+        server: {
+          tsServer: config.TSServer,
+          ip: config.WSServerIP,
+          port: config.WSServerPort,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
   }
   socket.uuid = client.uuid;
   client.fivem.socket = socket;
@@ -218,13 +233,20 @@ async function onSocketDisconnect(socket) {
 function socketHeartbeat(socket) {
   if (!socket) return;
   const start = new Date();
-  socket.emit('ping');
   socket.once('pong', _ => {
     setTimeout(_ => socketHeartbeat(socket), 1000);
-    socket.latency = (new Date).getTime() - start.getTime();
+    socket.latency = (new Date()).getTime() - start.getTime();
     if (!socket.uuid || !clients[socket.uuid]) return;
-    clients[socket.uuid].latency = lodash.get(clients[socket.uuid], 'fivem.latency', 0) + lodash.get(clients[socket.uuid], 'ts3.latency', 0);
+    clients[socket.uuid].latency = lodash.get(clients[socket.uuid], 'fivem.socket.latency', 0) + lodash.get(clients[socket.uuid], 'ts3.socket.latency', 0);
+    if (socket.from === 'fivem') {
+      socket.emit('onLatency', {
+        total: clients[socket.uuid].latency,
+        fivem: lodash.get(clients[socket.uuid], 'fivem.socket.latency', 0),
+        ts3: lodash.get(clients[socket.uuid], 'ts3.socket.latency', 0),
+      });
+    }
   });
+  socket.emit('ping');
 }
 
 async function masterHeartbeat() {

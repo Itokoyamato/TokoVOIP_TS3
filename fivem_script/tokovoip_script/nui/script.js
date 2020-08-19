@@ -24,7 +24,10 @@ let websocket;
 let endpoint;
 let connected = false;
 let lastOk = 0;
-let scriptName = GetParentResourceName()
+let scriptName = GetParentResourceName();
+let clientIp;
+let latency = {};
+let displayLatency = false;
 
 let voip = {};
 
@@ -57,9 +60,29 @@ function disconnect (src) {
 	}
 }
 
-function init (address, serverId) {
+async function updateClientIP(endpoint) {
+	if (!endpoint) {
+		console.error('updateClientIP: endpoint missing');
+		return;
+	}
+	if (voipStatus !== OK) {
+		const res = await fetch(`http://${endpoint}/getmyip`)
+		.catch(e => console.error('TokoVOIP: failed to update cient IP', e));
+
+		if (res) {
+			const ip = await res.text();
+			clientIp = ip;
+			console.log('TokoVOIP: updated client IP');
+			if (websocket && websocket.readyState === websocket.OPEN) websocket.send(`42${JSON.stringify(['updateClientIP', { ip: clientIp }])}`);
+		}
+	}
+	setTimeout(_ => updateClientIP(endpoint), 10000);
+}
+
+async function init(address, serverId) {
 	if (!address) return;
 	endpoint = address;
+	await updateClientIP(endpoint);
 	console.log('TokoVOIP: attempt new connection');
 	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem&serverId=${serverId}`);
 
@@ -91,6 +114,11 @@ function init (address, serverId) {
 		if (msg.event === 'ping') websocket.send(`42${JSON.stringify(['pong', ''])}`);
 
 		if (msg.event === 'disconnectMessage') { console.error('disconnectMessage: ' + msg.data); disconnect('Ts3') }
+
+		if (msg.event === 'onLatency') {
+			latency = msg.data;
+			document.querySelector('#latency').innerHTML = `Latency Total: ${latency.total}ms<br>Latency FiveM: ${latency.fivem}ms<br>Latency TS3: ${latency.ts3}ms`;
+		}
 	};
 
 	websocket.onerror = (evt) => {
@@ -171,6 +199,9 @@ function receivedClientCall (event) {
 		} else if (eventName == 'disconnect') {
 			sendData('disconnect');
 			voipStatus = NOT_CONNECTED;
+		} else if (eventName == 'toggleLatency') {
+			displayLatency = !displayLatency;
+			document.querySelector('#latency').style.display = (displayLatency) ? 'block' : 'none';
 		}
 	}
 
