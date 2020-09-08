@@ -228,7 +228,7 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 	{
 		if (isTalking)
 		{
-			setClientTalking(false);
+			//setClientTalking(false);
 			if (radioClicks == true && local_click_off == true)
 				playWavFile("mic_click_off");
 			isTalking = false;
