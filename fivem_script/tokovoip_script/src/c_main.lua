@@ -22,6 +22,7 @@ local animStates = {}
 local displayingPluginScreen = false;
 local HeadBone = 0x796e;
 local radioVolume = 0;
+local nuiLoaded = false
 
 --------------------------------------------------------------------------------
 --	Plugin functions
@@ -256,7 +257,10 @@ AddEventHandler("initializeVoip", function()
 		print("TokoVoip: FiveM Server ID is " .. voip.fivemServerId);
 
 		voip.processFunction = clientProcessing; -- Link the processing function that will be looped
-		voip:initialize(); -- Initialize the websocket and controls
+		while not nuiLoaded do
+			voip:initialize(); -- Initialize the websocket and controls
+			Citizen.Wait(5000)
+		end
 		voip:loop(); -- Start TokoVoip's loop
 	end);
 
@@ -404,6 +408,12 @@ end
 AddEventHandler("updateVoipTargetPed", function(newTargetPed, useLocal)
 	targetPed = newTargetPed
 	useLocalPed = useLocal
+end)
+
+-- Used to prevent bad nui loading
+RegisterNUICallback("nuiLoaded", function(data, cb)
+	nuiLoaded = true
+	cb("ok")
 end)
 
 -- Make exports available on first tick

@@ -188,8 +188,8 @@ function receivedClientCall (event) {
 
 	} else if (voip) {
 		if (eventName == 'initializeSocket') {
+			$.post(`http://${scriptName}/nuiLoaded`)
 			init(payload);
-
 		} else if (eventName == 'updateTokovoipInfo') {
 			if (connected)
 				updateTokovoipInfo(payload, 1);
