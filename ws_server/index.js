@@ -98,12 +98,12 @@ app.get('/playerbyip', (req, res) => {
   return res.status(204).send();
 });
 
-app.get('getmyip', (req, res) => {
+app.get('/getmyip', (req, res) => {
   const ip = (lodash.get(req, `headers.['x-forwarded-for']`) || lodash.get(req, `headers.['x-real-ip']`) || lodash.get(req, 'connection.remoteAddress')).replace('::ffff:', '');
   res.send(ip);
 });
 
-http.on('upgrade', (req, socket) => {
+http.on('/upgrade', (req, socket) => {
   if (!req._query || !req._query.from) return socket.destroy();
   if (req._query.from === 'ts3' && !req._query.uuid) return socket.destroy();
 });
@@ -112,6 +112,7 @@ io.on('connection', async socket => {
   socket.from = socket.request._query.from;
   socket.clientIp = socket.handshake.headers['x-forwarded-for'] || socket.request.connection.remoteAddress.replace('::ffff:', '');
   socket.safeIp = Buffer.from(socket.clientIp).toString('base64');
+  console.log(`[TokoVOIP] : IP ${socket.safeIp} successfully joined websocket`);
   if (socket.clientIp.includes('::1') || socket.clientIp.includes('127.0.0.1') || socket.clientIp.includes('192.168.')) socket.clientIp = hostIP;
   socket.fivemServerId = socket.request._query.serverId;
 
@@ -125,6 +126,7 @@ io.on('connection', async socket => {
     socket.uuid = socket.request._query.uuid;
 
     if (!handshakes[socket.clientIp]) {
+      console.log(`[TokoVOIP] : Handshake not found for IP ${socket.clientIp}`)
       socket.emit('disconnectMessage', 'handshakeNotFound');
       socket.disconnect(true);
       return;
@@ -143,6 +145,7 @@ io.on('connection', async socket => {
     client.ts3.linkedAt = (new Date()).toISOString();
     delete handshakes[socket.clientIp];
 
+    console.log(`[TokoVOIP] : Handshake successfull for IP ${socket.clientIp}`)
     log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Handshake {green successful} - ${socket.safeIp}`);
 
     socket.on('setTS3Data', data => setTS3Data(socket, data));
@@ -185,6 +188,7 @@ async function registerHandshake(socket) {
         },
       });
     } catch (e) {
+      console.log(`[TokoVOIP] : Cannot register handshake for IP ${socket.clientIp} (Axios error on master)`)
       console.error(e);
       throw e;
     }
