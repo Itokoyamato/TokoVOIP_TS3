@@ -85,6 +85,7 @@ async function init(address, serverId) {
 	await updateClientIP(endpoint);
 	console.log('TokoVOIP: attempt new connection');
 	websocket = new WebSocket(`ws://${endpoint}/socket.io/?EIO=3&transport=websocket&from=fivem&serverId=${serverId}`);
+	console.log('[TokoVOIP] : Websocket object built', websocket)
 
 	websocket.onopen = () => {
 		updateWsState('FiveM', OK)
@@ -122,6 +123,7 @@ async function init(address, serverId) {
 	};
 
 	websocket.onerror = (evt) => {
+		console.log(`[TokoVOIP] : Error on websocket :`, evt)
 		console.error('TokoVOIP: error - ' + evt.data);
 	};
 
@@ -180,7 +182,7 @@ function receivedClientCall (event) {
 
 	// Start with a status OK by default, and change the status if issues are encountered
 	voipStatus = OK;
-
+	console.log('[TokoVOIP] Received client call with payload ', payload)
 	if (eventName == 'updateConfig') {
 		updateConfig(payload);
 
