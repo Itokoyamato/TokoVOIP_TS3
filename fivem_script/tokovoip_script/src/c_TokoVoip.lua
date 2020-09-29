@@ -101,7 +101,6 @@ end
 function TokoVoip.initialize(self)
 	self:updateConfig();
 	self:updatePlugin("initializeSocket", self.wsServer);
-	print('[TokoVOIP] Client : NUI event sent to initialize websocket')
 	Citizen.CreateThread(function()
 		while (true) do
 			Citizen.Wait(5);
