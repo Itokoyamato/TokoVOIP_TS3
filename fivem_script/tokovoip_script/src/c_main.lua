@@ -105,6 +105,10 @@ local function clientProcessing()
 
 		local playerTalking = getPlayerData(playerServerId, "voip:talking");
 
+		if (GetConvar("gametype") == "gta5") then
+			setPlayerTalkingState(player, playerServerId);
+		end
+
 		if (voip.serverId == playerServerId or not playerPed or not playerTalking or playerTalking == 0) then goto continue end
 
 		do
@@ -147,9 +151,6 @@ local function clientProcessing()
 				userData.muted = 0;
 			end
 
-			if (GetConvar("gametype") == "gta5") then
-				setPlayerTalkingState(player, playerServerId);
-			end
 			usersdata[#usersdata + 1] = userData;
 		end
 
