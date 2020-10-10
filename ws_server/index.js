@@ -98,12 +98,12 @@ app.get('/playerbyip', (req, res) => {
   return res.status(204).send();
 });
 
-app.get('getmyip', (req, res) => {
+app.get('/getmyip', (req, res) => {
   const ip = (lodash.get(req, `headers.['x-forwarded-for']`) || lodash.get(req, `headers.['x-real-ip']`) || lodash.get(req, 'connection.remoteAddress')).replace('::ffff:', '');
   res.send(ip);
 });
 
-http.on('upgrade', (req, socket) => {
+http.on('/upgrade', (req, socket) => {
   if (!req._query || !req._query.from) return socket.destroy();
   if (req._query.from === 'ts3' && !req._query.uuid) return socket.destroy();
 });

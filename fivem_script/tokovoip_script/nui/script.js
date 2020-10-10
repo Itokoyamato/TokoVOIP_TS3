@@ -180,14 +180,13 @@ function receivedClientCall (event) {
 
 	// Start with a status OK by default, and change the status if issues are encountered
 	voipStatus = OK;
-
 	if (eventName == 'updateConfig') {
 		updateConfig(payload);
 
 	} else if (voip) {
 		if (eventName == 'initializeSocket') {
+			$.post(`http://${scriptName}/nuiLoaded`)
 			init(payload);
-
 		} else if (eventName == 'updateTokovoipInfo') {
 			if (connected)
 				updateTokovoipInfo(payload, 1);
