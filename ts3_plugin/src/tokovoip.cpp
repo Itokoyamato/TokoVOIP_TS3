@@ -10,6 +10,8 @@
 
 #include <QDesktopServices>
 #include <QUrl>
+#include <QInputDialog>
+#include <QSettings>
 
 #include "plugin.h" //pluginID
 #include "ts3_functions.h"
@@ -34,6 +36,7 @@ HANDLE threadWebSocket = INVALID_HANDLE_VALUE;
 bool exitWebSocketThread = FALSE;
 shared_ptr<WsClient::Connection> wsConnection;
 
+string currentEndpoint = "";
 bool isTalking = false;
 char* originalName = "";
 time_t lastNameSetTick = 0;
@@ -50,6 +53,8 @@ int disconnectButtonId;
 int unmuteButtonId;
 int supportButtonId;
 int projectButtonId;
+int manualConnectButtonId;
+
 bool isPTT = true;
 
 float defaultMicClicksVolume = -15;
@@ -315,7 +320,12 @@ void tokovoipProcess() {
 		Sleep(1000);
 	}
 
-	string endpoint = getWebSocketEndpoint();
+	string endpoint;
+	if (currentEndpoint != "") endpoint = currentEndpoint;
+	else {
+		getWebSocketEndpoint();
+		currentEndpoint = endpoint;
+	}
 	if (endpoint == "") {
 		outputLog("WebsocketServer: Failed to retrieve the websocket endpoint.");
 		return;
@@ -634,6 +644,7 @@ void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int 
 {
 	if (type == PLUGIN_MENU_TYPE_GLOBAL) {
 		if (menuItemID == connectButtonId) {
+			currentEndpoint = "";
 			initWebSocket();
 		} else if (menuItemID == disconnectButtonId) {
 			killWebsocketThread();
@@ -644,6 +655,33 @@ void onButtonClicked(uint64 serverConnectionHandlerID, PluginMenuType type, int 
 		} else if (menuItemID == projectButtonId) {
 			QDesktopServices::openUrl(QUrl("https://github.com/Itokoyamato/TokoVOIP_TS3"));
 		}
+		else if (menuItemID == manualConnectButtonId) {
+			QSettings cfg(TSHelpers::GetFullConfigPath(), QSettings::IniFormat);
+			cfg.beginGroup("TokoVOIP");
+			{
+				currentEndpoint = cfg.value("currentEndpoint", "").toString().toStdString();
+			}
+			cfg.endGroup();
+			bool ok;
+			QString text = QInputDialog::getText(0,
+				"Manual connect",
+				"\nEnter the ws_server address below\n\nYou can find it on the in-game blocking screen\nOr ask the server owner/support\n\n",
+				QLineEdit::Normal,
+				QString::fromStdString(currentEndpoint),
+				&ok,
+				Qt::WindowCloseButtonHint
+			);
+			if (!ok || text.isEmpty()) return;
+			outputLog("Setting currentEndpoint to: " + text.toStdString());
+			currentEndpoint = text.toStdString();
+			cfg.beginGroup("TokoVOIP");
+			{
+				cfg.setValue("currentEndpoint", QString::fromStdString(currentEndpoint));
+			}
+			cfg.endGroup();
+			killWebsocketThread();
+			initWebSocket();
+		}
 	}
 }
 
@@ -653,10 +691,11 @@ int Tokovoip::initialize(char *id, QObject* parent) {
 
 	plugin = qobject_cast<Plugin_Base*>(parent);
 	auto& context_menu = plugin->context_menu();
-	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect", "");
+	supportButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Support the project on Patreon", "logo.png");
+	connectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect (Auto Discover)", "");
+	manualConnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Connect (Manual)", "");
 	disconnectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Disconnect", "");
 	unmuteButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Unmute All", "");
-	supportButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Support on Patreon", "");
 	projectButtonId = context_menu.Register(plugin, PLUGIN_MENU_TYPE_GLOBAL, "Project page", "");
 	ts3Functions.setPluginMenuEnabled(plugin->id().c_str(), disconnectButtonId, false);
 	parent->connect(&context_menu, &TSContextMenu::FireContextMenuEvent, parent, &onButtonClicked);
