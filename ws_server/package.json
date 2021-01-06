@@ -11,7 +11,7 @@
   "author": "Itokoyamato",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "chalk": "^4.1.0",
     "console-stamp": "^0.2.9",
     "express": "^4.17.1",
