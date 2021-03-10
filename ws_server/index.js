@@ -154,7 +154,10 @@ io.on('connection', async socket => {
     socketHeartbeat(socket);
     socket.on('updateClientIP', data => {
       if (!data || !data.ip || !IPv4Regex.test(data.ip) || !clients[socket.uuid]) return;
-      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) {
+        delete handshakes[clients[socket.uuid].fivem.socket.clientIp];
+        clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      }
       if (lodash.get(clients, `[${socket.uuid}].ts3.socket`)) clients[socket.uuid].ts3.socket.clientIp = data.ip;
     });
     await registerHandshake(socket);
