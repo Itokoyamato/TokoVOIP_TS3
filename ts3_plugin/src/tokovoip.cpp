@@ -88,8 +88,9 @@ int handleMessage(shared_ptr<WsClient::Connection> connection, string message_st
 
 	// Load the json //
 	json json_data = json::parse(message_str.c_str(), nullptr, false);
-	if (json_data.is_discarded()) {
-		ts3Functions.logMessage("Invalid JSON data", LogLevel_INFO, "TokoVOIP", 0);
+	if (json_data.is_discarded() || !json_data.is_object()) {
+		if (json_data.is_discarded()) outputLog("Invalid JSON data");
+		else outputLog("Invalid JSON data, expected object");
 		tokovoip->setProcessingState(false, currentPluginStatus);
 		return (0);
 	}
