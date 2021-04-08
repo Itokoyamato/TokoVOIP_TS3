@@ -331,7 +331,7 @@ function updateConfig (payload) {
 	document.getElementById('TSDownload').innerHTML = voip.plugin_data.TSDownload;
 	document.getElementById('pluginVersion').innerHTML = `Plugin version: <font color="red">Not found</font> (Minimal version: ${voip.minVersion})`;
 	document.getElementById('wsInfo').style.display = voip.displayWSInfo ? 'block' : 'none';
-	document.getElementById('wsInfo').innerHTML = `WS Server address: <font color="#01b0f0">${voip.wsServer}</font><br>(Use this to manually connect on TeamSpeak, plugins->TokoVOIP->Connect (Manual))`;
+	document.getElementById('wsInfo').innerHTML = `WS Server address: <font color="#01b0f0">${voip.wsServer}</font><br><font color="#a8a8a8" size="1">Use this to manually connect on TeamSpeak <br> TS3->Plugins->TokoVOIP->Connect (Manual)</font>`;
 }
 
 function updatePlugin () {
