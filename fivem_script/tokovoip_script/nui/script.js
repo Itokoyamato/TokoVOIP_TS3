@@ -128,7 +128,6 @@ async function init(address, serverId) {
 	};
 
 	websocket.onclose = () => {
-		sendData('disconnect');
 		disconnect('FiveM')
 		console.log('FiveM Disconnected')
 
