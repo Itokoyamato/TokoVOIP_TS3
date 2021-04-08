@@ -323,7 +323,7 @@ void tokovoipProcess() {
 	string endpoint;
 	if (currentEndpoint != "") endpoint = currentEndpoint;
 	else {
-		getWebSocketEndpoint();
+		endpoint = getWebSocketEndpoint();
 		currentEndpoint = endpoint;
 	}
 	if (endpoint == "") {
