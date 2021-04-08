@@ -60,6 +60,7 @@ function disconnect (src) {
 	}
 }
 
+let clientIPTimeout;
 async function updateClientIP(endpoint) {
 	if (!endpoint) {
 		console.error('updateClientIP: endpoint missing');
@@ -72,11 +73,12 @@ async function updateClientIP(endpoint) {
 		if (res) {
 			const ip = await res.text();
 			clientIp = ip;
-			console.log('TokoVOIP: updated client IP');
 			if (websocket && websocket.readyState === websocket.OPEN) websocket.send(`42${JSON.stringify(['updateClientIP', { ip: clientIp }])}`);
 		}
 	}
-	setTimeout(_ => updateClientIP(endpoint), 10000);
+
+	if (clientIPTimeout) clearTimeout(clientIPTimeout);
+	clientIPTimeout = setTimeout(_ => updateClientIP(endpoint), 10000);
 }
 
 async function init(address, serverId) {
