@@ -67,10 +67,9 @@ async function updateClientIP(endpoint) {
 		return;
 	}
 	if (voipStatus !== OK) {
-		const res = await fetch(`http://${endpoint}/getmyip`)
-		.catch(e => console.error('TokoVOIP: failed to update cient IP', e));
-
-		if (res) {
+		const res = await fetch(`http://${endpoint}/getmyip`);
+		if (!res.ok) console.error(`TokoVOIP: failed to update cient IP (error: ${res.status})`);
+		else {
 			const ip = await res.text();
 			clientIp = ip;
 			if (websocket && websocket.readyState === websocket.OPEN) websocket.send(`42${JSON.stringify(['updateClientIP', { ip: clientIp }])}`);
