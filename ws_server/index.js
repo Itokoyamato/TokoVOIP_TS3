@@ -209,7 +209,7 @@ function setTS3Data(socket, data) {
 
 function onIncomingData(socket, data) {
   const client = clients[socket.uuid];
-  if (!socket.uuid || !client || !client.ts3.socket) return;
+  if (!socket.uuid || !client || !client.ts3.socket || typeof data !== 'object') return;
   socket.tokoData = data;
   client.fivem.data = socket.tokoData;
   client.fivem.updatedAt = (new Date()).toISOString();
