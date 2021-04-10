@@ -19,6 +19,7 @@ TokoVoipConfig = {
 	radioAnim = true, -- Enable or disable the radio animation
 	radioEnabled = true, -- Enable or disable using the radio
 	wsServer = "ip:port", -- Address of the websocket server
+	displayWSInfo = true, -- Enable or disable the WS info on the blocking screen, used to manually connect in TeamSpeak
 
 	plugin_data = {
 		-- TeamSpeak channel name used by the voip
