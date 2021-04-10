@@ -60,23 +60,24 @@ function disconnect (src) {
 	}
 }
 
+let clientIPTimeout;
 async function updateClientIP(endpoint) {
 	if (!endpoint) {
 		console.error('updateClientIP: endpoint missing');
 		return;
 	}
 	if (voipStatus !== OK) {
-		const res = await fetch(`http://${endpoint}/getmyip`)
-		.catch(e => console.error('TokoVOIP: failed to update cient IP', e));
-
-		if (res) {
+		const res = await fetch(`http://${endpoint}/getmyip`);
+		if (!res.ok) console.error(`TokoVOIP: failed to update cient IP (error: ${res.status})`);
+		else {
 			const ip = await res.text();
 			clientIp = ip;
-			console.log('TokoVOIP: updated client IP');
 			if (websocket && websocket.readyState === websocket.OPEN) websocket.send(`42${JSON.stringify(['updateClientIP', { ip: clientIp }])}`);
 		}
 	}
-	setTimeout(_ => updateClientIP(endpoint), 10000);
+
+	if (clientIPTimeout) clearTimeout(clientIPTimeout);
+	clientIPTimeout = setTimeout(_ => updateClientIP(endpoint), 10000);
 }
 
 async function init(address, serverId) {
@@ -126,7 +127,6 @@ async function init(address, serverId) {
 	};
 
 	websocket.onclose = () => {
-		sendData('disconnect');
 		disconnect('FiveM')
 		console.log('FiveM Disconnected')
 
@@ -330,6 +330,8 @@ function updateConfig (payload) {
 	document.getElementById('TSChannel').innerHTML = `TeamSpeak channel: <font color="#01b0f0">${(voip.plugin_data.TSChannelWait) ? voip.plugin_data.TSChannelWait.replace(/\[[a-z]spacer(.*?)\]/, '') : voip.plugin_data.TSChannel.replace(/\[[a-z]spacer(.*?)\]/, '')}</font>`;
 	document.getElementById('TSDownload').innerHTML = voip.plugin_data.TSDownload;
 	document.getElementById('pluginVersion').innerHTML = `Plugin version: <font color="red">Not found</font> (Minimal version: ${voip.minVersion})`;
+	document.getElementById('wsInfo').style.display = voip.displayWSInfo ? 'block' : 'none';
+	document.getElementById('wsInfo').innerHTML = `WS Server address: <font color="#01b0f0">${voip.wsServer}</font><br><font color="#a8a8a8" size="1">Use this to manually connect on TeamSpeak <br> TS3->Plugins->TokoVOIP->Connect (Manual)</font>`;
 }
 
 function updatePlugin () {
