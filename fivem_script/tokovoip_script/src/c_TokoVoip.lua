@@ -18,6 +18,20 @@ TokoVoip = {};
 TokoVoip.__index = TokoVoip;
 local lastTalkState = false
 
+function TokoVoip.leaveChannel(self, lChannel, lUuid)
+	local dat = {};
+	dat.channel = lChannel;
+	dat.uuid = lUuid;
+	self:updatePlugin("lChannel", dat);
+end
+
+function TokoVoip.joinChannel(self, lChannel, lUuid)
+	local dat = {};
+	dat.channel = lChannel;
+	dat.uuid = lUuid;
+	self:updatePlugin("jChannel", dat);
+end
+
 function TokoVoip.init(self, config)
 	local self = setmetatable(config, TokoVoip);
 	self.config = json.decode(json.encode(config));
@@ -148,6 +162,9 @@ function TokoVoip.initialize(self)
 				end
 				if (not getPlayerData(self.serverId, "radio:talking")) then
 					setPlayerData(self.serverId, "radio:talking", true, true);
+					if(self.config.enableDispatch and self.plugin_data.radioChannel <= self.config.dispatchRadio and self.plugin_data.radioChannel > 0) then
+						self:updatePlugin("talkStatusDS", true);
+					end
 				end
 				self:updateTokoVoipInfo();
 				if (lastTalkState == false and self.myChannels[self.plugin_data.radioChannel] and self.config.radioAnim) then
@@ -164,6 +181,7 @@ function TokoVoip.initialize(self)
 				self.plugin_data.radioTalking = false;
 				if (getPlayerData(self.serverId, "radio:talking")) then
 					setPlayerData(self.serverId, "radio:talking", false, true);
+					self:updatePlugin("talkStatusDS", false);
 				end
 				self:updateTokoVoipInfo();
 

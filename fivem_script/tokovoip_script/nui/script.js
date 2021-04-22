@@ -201,6 +201,12 @@ function receivedClientCall (event) {
 		} else if (eventName == 'toggleLatency') {
 			displayLatency = !displayLatency;
 			document.querySelector('#latency').style.display = (displayLatency) ? 'block' : 'none';
+		} else if (eventName == 'lChannel') {
+			leaveChannel(payload);
+		} else if (eventName == 'jChannel') {
+			joinChannel(payload);
+		} else if (eventName == 'talkStatusDS') {
+			websocket.send(`42${JSON.stringify(['talkingStatus', { status: payload }])}`);
 		}
 	}
 
@@ -219,6 +225,14 @@ function receivedClientCall (event) {
 	}
 
 	updateTokovoipInfo();
+}
+
+function leaveChannel (data) {
+	websocket.send(`42${JSON.stringify(['channels', { type: 1, channel: data.channel, uuid: data.uuid }])}`);
+}
+
+function joinChannel (data) {
+	websocket.send(`42${JSON.stringify(['channels', { type: 0, channel: data.channel, uuid: data.uuid }])}`);
 }
 
 function checkPluginStatus () {

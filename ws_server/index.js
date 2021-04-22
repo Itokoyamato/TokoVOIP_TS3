@@ -18,6 +18,10 @@ require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss.l' });
 let masterHeartbeatInterval;
 const clients = {};
 
+const channelsubs = {};
+
+const ADS = {};
+
 const handshakes = {};
 
 console.log(chalk`Like {cyan TokoVOIP} ? Consider supporting the development: {hex('#f96854') https://patreon.com/Itokoyamato}`);
@@ -162,6 +166,22 @@ io.on('connection', async socket => {
     });
     await registerHandshake(socket);
     socket.on('data', data => onIncomingData(socket, data));
+    socket.on('channels', data => onChannelSub(socket, data));
+    socket.on('talkingStatus', data => talkStatus(socket, data));
+  } else if (socket.from === 'ds') {
+    socketHeartbeat(socket);
+    socket.on('updateClientIP', data => {
+      if (!data || !data.ip || !IPv4Regex.test(data.ip) || !clients[socket.uuid]) return;
+      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      if (lodash.get(clients, `[${socket.uuid}].ts3.socket`)) clients[socket.uuid].ts3.socket.clientIp = data.ip;
+    });
+    socket.ds = true;
+    await registerHandshake(socket);
+    socket.on('data', data => onIncomingDataDS(socket, data));
+    socket.on('requestList', data => requestList(socket, data));
+    socket.on('disconnect', (socket) => {
+      delete ADS[socket.uuid];
+    });
   }
 });
 
@@ -192,6 +212,14 @@ async function registerHandshake(socket) {
       throw e;
     }
   }
+  if(socket.ds) {
+    ADS[client.uuid] = {
+      channel: 1,
+      uuid: client.uuid,
+      talking: false
+    }
+    socket.emit('newDataList', channelsubs);
+  }
   socket.uuid = client.uuid;
   client.fivem.socket = socket;
   client.fivem.linkedAt = (new Date()).toISOString();
@@ -205,30 +233,138 @@ function setTS3Data(socket, data) {
   if (client.fivem.socket) {
     client.fivem.socket.emit('setTS3Data', client.ts3.data);
   }
+  if (data.key === 'talking') {
+    if(client.fivem.socket.from === 'ds') {
+      ADS[socket.uuid].talking = data.value;
+      for (const [key, value] of Object.entries(clients)) {
+        if(value.uuid != socket.uuid) {
+          if(!value.fivem.data.Users.find(item => item.uuid === socket.uuid) && value.fivem.data.radioChannel == ADS[socket.uuid].channel) {
+            value.fivem.data.Users.push({
+              uuid: socket.uuid,
+              radioEffect: true,
+              muted: !ADS[socket.uuid].talking,
+              radioTalking: ADS[socket.uuid].talking,
+              radioChannel: ADS[socket.uuid].channel,
+              volume: 100,
+              posX: 0,
+              posY: 0,
+              posZ: 0
+            });
+            client.ts3.socket.emit('processTokovoip', client.fivem.data);
+          } else if(value.fivem.data.radioChannel === ADS[socket.uuid].channel) {
+            value.fivem.data.Users.find(item => item.uuid === socket.uuid).radioTalking = ADS[socket.uuid].talking;
+            client.ts3.socket.emit('processTokovoip', client.fivem.data);
+          }
+        } else {
+          client.ts3.socket.emit('processTokovoip', client.fivem.data);
+        }
+      }
+    }
+  }
+}
+
+function talkStatus(socket, data) {
+  dsclients = Object.values(clients).filter(item => item.fivem.socket.from === 'ds');
+  let payload = {
+    status: data.status,
+    uuid: socket.uuid,
+    channel: socket.tokoData.radioChannel
+  };
+  for (const [key, value] of Object.entries(dsclients)) {
+    value.fivem.socket.emit("talkStatusSet", payload);
+  }
 }
 
 function onIncomingData(socket, data) {
   const client = clients[socket.uuid];
   if (!socket.uuid || !client || !client.ts3.socket || typeof data !== 'object') return;
   socket.tokoData = data;
+  for (const [key, value] of Object.entries(ADS)) {
+    if(socket.tokoData.radioChannel == value.channel) {
+      socket.tokoData.Users.push({
+        uuid: key,
+        radioEffect: true,
+        muted: !value.talking,
+        radioTalking: value.talking,
+        radioChannel: value.channel,
+        volume: 0,
+        posX: 0,
+        posY: 0,
+        posZ: 0
+      });
+    }
+  }
   client.fivem.data = socket.tokoData;
   client.fivem.updatedAt = (new Date()).toISOString();
   client.ts3.socket.emit('processTokovoip', client.fivem.data);
 }
 
+function onIncomingDataDS(socket, data) {
+  const client = clients[socket.uuid];
+  if (!socket.uuid || !client || !client.ts3.socket) return;
+  socket.tokoData = data;
+  ADS[socket.uuid].channel = socket.tokoData.radioChannel;
+  for (const [key, value] of Object.entries(ADS)) {
+    if(socket.tokoData.radioChannel == value.channel && key !== socket.uuid) {
+      socket.tokoData.Users.push({
+        uuid: key,
+        radioEffect: true,
+        muted: !value.talking,
+        radioTalking: value.talking,
+        radioChannel: value.channel,
+        volume: 0,
+        posX: 0,
+        posY: 0,
+        posZ: 0
+      });
+    }
+  }
+  client.fivem.data = socket.tokoData;
+  client.fivem.updatedAt = (new Date()).toISOString();
+  client.ts3.socket.emit('processTokovoip', client.fivem.data);
+}
+
+function onChannelSub(socket, data) {
+  const client = clients[socket.uuid];
+  if (!socket.uuid || !client || !client.ts3.socket) return;
+  if(data.type == 0) {
+    channelsubs[data.uuid] = data.channel;
+  } else {
+    delete channelsubs[data.uuid];
+  }
+  dsclients = Object.values(clients).filter(item => item.fivem.socket.from === 'ds');
+  for (const [key, value] of Object.entries(dsclients)) {
+    value.fivem.socket.emit("newDataList", channelsubs);
+  }
+}
+
+function requestList(socket, data) {
+  socket.emit("newDataList", channelsubs);
+}
+
 async function onSocketDisconnect(socket) {
   log('log', chalk`{${socket.from === 'ts3' ? 'cyan' : 'yellow'} ${socket.from}} | Connection {red lost} - ${socket.safeIp}`);
-  if (socket.from === 'fivem') {
+  if (socket.from === 'fivem' || socket.from === 'ds') {
     if (handshakes[socket.clientIp]) delete handshakes[socket.clientIp];
   }
   if (socket.uuid && clients[socket.uuid]) {
     const client = clients[socket.uuid];
     delete clients[socket.uuid];
+    if(channelsubs[socket.uuid]) {
+      delete channelsubs[socket.uuid];
+    }
     const secondary = (socket.from === 'fivem') ? 'ts3' : 'fivem';
     if (client[secondary].socket) {
       client[secondary].socket.emit('disconnectMessage', `${socket.from}Disconnected`);
       if (secondary === 'ts3') sleep(100) && client[secondary].socket.disconnect(true);
       else registerHandshake(client[secondary].socket);
+    }
+    if (socket.from === 'ds') {
+      if (client['ts3'].socket) {
+        client.ts3.socket.emit("disconnectMessage", "Disconnected");
+        sleep(100);
+        client['ts3'].socket.disconnect(true);
+      }
     }
   }
 }
