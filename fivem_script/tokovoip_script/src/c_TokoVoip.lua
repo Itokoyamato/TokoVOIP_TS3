@@ -162,7 +162,7 @@ function TokoVoip.initialize(self)
 				end
 				if (not getPlayerData(self.serverId, "radio:talking")) then
 					setPlayerData(self.serverId, "radio:talking", true, true);
-					if(self.config.enableDispatch and self.plugin_data.radioChannel <= self.config.dispatchRadio and self.plugin_data.radioChannel > 0) then
+					if(self.config.enableDispatch and self.plugin_data.radioChannel <= self.config.dispatchRadioMaxChannel and self.plugin_data.radioChannel > 0) then
 						self:updatePlugin("talkStatusDS", true);
 					end
 				end
@@ -181,7 +181,9 @@ function TokoVoip.initialize(self)
 				self.plugin_data.radioTalking = false;
 				if (getPlayerData(self.serverId, "radio:talking")) then
 					setPlayerData(self.serverId, "radio:talking", false, true);
-					self:updatePlugin("talkStatusDS", false);
+					if(self.config.enableDispatch and self.plugin_data.radioChannel <= self.config.dispatchRadioMaxChannel and self.plugin_data.radioChannel > 0) then
+						self:updatePlugin("talkStatusDS", false);
+					end
 				end
 				self:updateTokoVoipInfo();
 

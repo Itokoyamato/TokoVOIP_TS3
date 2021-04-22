@@ -342,7 +342,9 @@ AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServe
 
 		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
-			voip:leaveChannel(previousChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			if (voip.config.enableDispatch and voip.config.dispatchRadioMaxChannel >= previousChannel) then
+				voip:leaveChannel(previousChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			end
 		end
 
 	-- Remote player left channel we are subscribed to
@@ -362,7 +364,9 @@ AddEventHandler("TokoVoip:onPlayerJoinChannel", function(channelId, playerServer
 
 		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
-			voip:joinChannel(voip.plugin_data.radioChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			if (voip.config.enableDispatch and voip.config.dispatchRadioMaxChannel >= voip.plugin_data.radioChannel) then
+				voip:joinChannel(voip.plugin_data.radioChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			end
 		end
 
 	-- Remote player joined a channel we are subscribed to
