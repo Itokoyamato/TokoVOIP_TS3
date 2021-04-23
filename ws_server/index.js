@@ -234,7 +234,7 @@ function setTS3Data(socket, data) {
     client.fivem.socket.emit('setTS3Data', client.ts3.data);
   }
   if (data.key === 'talking') {
-    if(client.fivem.socket.from === 'ds') {
+    if(client.fivem.socket && client.fivem.socket.from === 'ds') {
       ADS[socket.uuid].talking = data.value;
       for (const [key, value] of Object.entries(clients)) {
         if(value.uuid != socket.uuid) {
