@@ -55,7 +55,7 @@ function TokoVoip.loop(self)
 				self:updateTokoVoipInfo();
 			end
 			if (self.lastPlayerListUpdate >= self.playerListRefreshRate) then
-				self.playerList = GetActivePlayers();
+				TriggerServerEvent('TokoVoip:returnPlayerList');
 				self.lastPlayerListUpdate = 0;
 			end
 		end
@@ -195,6 +195,12 @@ function TokoVoip.initialize(self)
 		end
 	end);
 end
+
+function updatePlayerList(players)
+	self.playerList = players;
+end
+RegisterNetEvent('TokoVoip:returnPlayerList');
+AddEventHandler('TokoVoip:returnPlayerList', updatePlayerList);
 
 function TokoVoip.disconnect(self)
 	self:updatePlugin("disconnect");

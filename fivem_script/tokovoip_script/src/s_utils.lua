@@ -40,6 +40,13 @@ end
 RegisterNetEvent("Tokovoip:refreshAllPlayerData");
 AddEventHandler("Tokovoip:refreshAllPlayerData", refreshAllPlayerData);
 
+function getPlayerList(source)
+	local players = GetPlayers()
+	TriggerClientEvent("Tokovoip:returnPlayerList", source, players);
+end
+RegisterNetEvent("Tokovoip:getPlayerList");
+AddEventHandler("Tokovoip:getPlayerList", getPlayerList);
+
 AddEventHandler("playerDropped", function()
 	playersData[source] = nil;
 	refreshAllPlayerData(true);
