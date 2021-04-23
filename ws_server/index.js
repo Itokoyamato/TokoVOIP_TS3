@@ -3,7 +3,7 @@ const bootTime = new Date();
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const io = require('socket.io')(http, { maxHttpBufferSize: 1e8 });
 const axios = require('axios');
 const lodash = require('lodash');
 const chalk = require('chalk');
@@ -154,7 +154,10 @@ io.on('connection', async socket => {
     socketHeartbeat(socket);
     socket.on('updateClientIP', data => {
       if (!data || !data.ip || !IPv4Regex.test(data.ip) || !clients[socket.uuid]) return;
-      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      if (lodash.get(clients, `[${socket.uuid}].fivem.socket`)) {
+        delete handshakes[clients[socket.uuid].fivem.socket.clientIp];
+        clients[socket.uuid].fivem.socket.clientIp = data.ip;
+      }
       if (lodash.get(clients, `[${socket.uuid}].ts3.socket`)) clients[socket.uuid].ts3.socket.clientIp = data.ip;
     });
     await registerHandshake(socket);
@@ -206,7 +209,7 @@ function setTS3Data(socket, data) {
 
 function onIncomingData(socket, data) {
   const client = clients[socket.uuid];
-  if (!socket.uuid || !client || !client.ts3.socket) return;
+  if (!socket.uuid || !client || !client.ts3.socket || typeof data !== 'object') return;
   socket.tokoData = data;
   client.fivem.data = socket.tokoData;
   client.fivem.updatedAt = (new Date()).toISOString();
