@@ -41,6 +41,7 @@ TokoVoipConfig = {
 		},
 
 		-- The following is purely TS client settings, to match tastes
+		localRadioClicks = true, -- Set to false to disable all radio clicks
 		local_click_on = true, -- Is local click on sound active
 		local_click_off = true, -- Is local click off sound active
 		remote_click_on = false, -- Is remote click on sound active
