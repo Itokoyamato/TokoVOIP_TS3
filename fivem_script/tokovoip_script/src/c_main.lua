@@ -239,7 +239,13 @@ AddEventHandler("initializeVoip", function()
 	-- Request this stuff here only one time
 	if (GetConvar("gametype") == "gta5") then
 		RequestAnimDict("mp_facial");
+		while not HasAnimDictLoaded("mp_facial") do
+			Citizen.Wait(5)
+		end
 		RequestAnimDict("facials@gen_male@base");
+		while not HasAnimDictLoaded("facials@gen_male") do
+			Citizen.Wait(5)
+		end
 	elseif (GetConvar("gametype") == "rdr3") then
 		RequestAnimDict("face_human@gen_male@base");
 	end
