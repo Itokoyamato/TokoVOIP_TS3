@@ -75,22 +75,6 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		-- Request this stuff here only one time
-		if (GetConvar("gametype") == "gta5") then
-			RequestAnimDict("mp_facial");
-			while not HasAnimDictLoaded("mp_facial") do
-				Citizen.Wait(5)
-			end
-			RequestAnimDict("facials@gen_male@base");
-			while not HasAnimDictLoaded("facials@gen_male@base") do
-				Citizen.Wait(5)
-			end
-		elseif (GetConvar("gametype") == "rdr3") then
-			RequestAnimDict("face_human@gen_male@base");
-			while not HasAnimDictLoaded("face_human@gen_male@base") do
-				Citizen.Wait(5)
-			end
-		end
 		if (GetConvar("gametype") == "gta5") then
 			if not HasAnimDictLoaded("mp_facial") then
 				RequestAnimDict("mp_facial");
@@ -100,7 +84,7 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 			end
 			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 		elseif (GetConvar("gametype") == "rdr3") then
-			if not HasAnimDictLoaded("face_human@genmale@base") then
+			if not HasAnimDictLoaded("face_human@gen_male@base") then
 				RequestAnimDict("face_human@gen_male@base");
 				while not HasAnimDictLoaded("face_human@gen_male@base") do
 					Citizen.Wait(5)
@@ -119,7 +103,7 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 			end
 			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 		elseif (GetConvar("gametype") == "rdr3") then
-			if not HasAnimDictLoaded("face_human@genmale@base") then
+			if not HasAnimDictLoaded("face_human@gen_male@base") then
 				RequestAnimDict("face_human@gen_male@base");
 				while not HasAnimDictLoaded("face_human@gen_male@base") do
 					Citizen.Wait(5)
