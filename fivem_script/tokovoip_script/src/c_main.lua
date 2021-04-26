@@ -32,8 +32,20 @@ local nuiLoaded = false
 local function setPlayerTalkingState(player, playerServerId)
 	local talking = tonumber(getPlayerData(playerServerId, "voip:talking"));
 	if (animStates[playerServerId] == 0 and talking == 1) then
+		if not HasAnimDictLoaded("mp_facial") then
+			RequestAnimDict("mp_facial");
+			while not HasAnimDictLoaded("mp_facial") do
+				Citizen.Wait(5)
+			end
+		end
 		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
 	elseif (animStates[playerServerId] == 1 and talking == 0) then
+		if not HasAnimDictLoaded("facials@gen_male@base") then
+			RequestAnimDict("facials@gen_male@base");
+			while not HasAnimDictLoaded("facials@gen_male@base") do
+				Citizen.Wait(5)
+			end
+		end
 		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
 	end
 	animStates[playerServerId] = talking;
@@ -44,7 +56,7 @@ local function PlayRedMFacialAnimation(player, animDict, animName)
 	while not HasAnimDictLoaded(animDict) do
 		Wait(100)
 	end
-  SetFacialIdleAnimOverride(player, animName, animDict)
+  	SetFacialIdleAnimOverride(player, animName, animDict)
 end
 
 RegisterNUICallback("updatePluginData", function(data, cb)
@@ -64,15 +76,39 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
 		if (GetConvar("gametype") == "gta5") then
+			if not HasAnimDictLoaded("mp_facial") then
+				RequestAnimDict("mp_facial");
+				while not HasAnimDictLoaded("mp_facial") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 		elseif (GetConvar("gametype") == "rdr3") then
+			if not HasAnimDictLoaded("face_human@gen_male@base") then
+				RequestAnimDict("face_human@gen_male@base");
+				while not HasAnimDictLoaded("face_human@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal");
 		end
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
 		if (GetConvar("gametype") == "gta5") then
+			if not HasAnimDictLoaded("facials@gen_male@base") then
+				RequestAnimDict("facials@gen_male@base");
+				while not HasAnimDictLoaded("facials@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 		elseif (GetConvar("gametype") == "rdr3") then
+			if not HasAnimDictLoaded("face_human@gen_male@base") then
+				RequestAnimDict("face_human@gen_male@base");
+				while not HasAnimDictLoaded("face_human@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal");
 		end
 	end
@@ -236,14 +272,6 @@ AddEventHandler("initializeVoip", function()
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
 
-	-- Request this stuff here only one time
-	if (GetConvar("gametype") == "gta5") then
-		RequestAnimDict("mp_facial");
-		RequestAnimDict("facials@gen_male@base");
-	elseif (GetConvar("gametype") == "rdr3") then
-		RequestAnimDict("face_human@gen_male@base");
-	end
-
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
 	local response;
@@ -342,6 +370,9 @@ AddEventHandler("TokoVoip:onPlayerLeaveChannel", function(channelId, playerServe
 
 		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+			if (voip.config.enableDispatch and voip.config.dispatchRadioMaxChannel >= previousChannel) then
+				voip:leaveChannel(previousChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			end
 		end
 
 	-- Remote player left channel we are subscribed to
@@ -361,6 +392,9 @@ AddEventHandler("TokoVoip:onPlayerJoinChannel", function(channelId, playerServer
 
 		if (previousChannel ~= voip.plugin_data.radioChannel) then -- Update network data only if we actually changed radio channel
 			setPlayerData(voip.serverId, "radio:channel", voip.plugin_data.radioChannel, true);
+			if (voip.config.enableDispatch and voip.config.dispatchRadioMaxChannel >= voip.plugin_data.radioChannel) then
+				voip:joinChannel(voip.plugin_data.radioChannel, getPlayerData(voip.serverId, "voip:pluginUUID"));
+			end
 		end
 
 	-- Remote player joined a channel we are subscribed to
