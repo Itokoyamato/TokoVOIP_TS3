@@ -32,8 +32,20 @@ local nuiLoaded = false
 local function setPlayerTalkingState(player, playerServerId)
 	local talking = tonumber(getPlayerData(playerServerId, "voip:talking"));
 	if (animStates[playerServerId] == 0 and talking == 1) then
+		if not HasAnimDictLoaded("mp_facial") then
+			RequestAnimDict("mp_facial");
+			while not HasAnimDictLoaded("mp_facial") do
+				Citizen.Wait(5)
+			end
+		end
 		PlayFacialAnim(GetPlayerPed(player), "mic_chatter", "mp_facial");
 	elseif (animStates[playerServerId] == 1 and talking == 0) then
+		if not HasAnimDictLoaded("facials@gen_male@base") then
+			RequestAnimDict("facials@gen_male@base");
+			while not HasAnimDictLoaded("facials@gen_male@base") do
+				Citizen.Wait(5)
+			end
+		end
 		PlayFacialAnim(GetPlayerPed(player), "mood_normal_1", "facials@gen_male@base");
 	end
 	animStates[playerServerId] = talking;
@@ -44,7 +56,7 @@ local function PlayRedMFacialAnimation(player, animDict, animName)
 	while not HasAnimDictLoaded(animDict) do
 		Wait(100)
 	end
-  SetFacialIdleAnimOverride(player, animName, animDict)
+  	SetFacialIdleAnimOverride(player, animName, animDict)
 end
 
 RegisterNUICallback("updatePluginData", function(data, cb)
@@ -63,16 +75,56 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
+		-- Request this stuff here only one time
 		if (GetConvar("gametype") == "gta5") then
+			RequestAnimDict("mp_facial");
+			while not HasAnimDictLoaded("mp_facial") do
+				Citizen.Wait(5)
+			end
+			RequestAnimDict("facials@gen_male@base");
+			while not HasAnimDictLoaded("facials@gen_male@base") do
+				Citizen.Wait(5)
+			end
+		elseif (GetConvar("gametype") == "rdr3") then
+			RequestAnimDict("face_human@gen_male@base");
+			while not HasAnimDictLoaded("face_human@gen_male@base") do
+				Citizen.Wait(5)
+			end
+		end
+		if (GetConvar("gametype") == "gta5") then
+			if not HasAnimDictLoaded("mp_facial") then
+				RequestAnimDict("mp_facial");
+				while not HasAnimDictLoaded("mp_facial") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 		elseif (GetConvar("gametype") == "rdr3") then
+			if not HasAnimDictLoaded("face_human@genmale@base") then
+				RequestAnimDict("face_human@gen_male@base");
+				while not HasAnimDictLoaded("face_human@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal");
 		end
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
 		if (GetConvar("gametype") == "gta5") then
+			if not HasAnimDictLoaded("facials@gen_male@base") then
+				RequestAnimDict("facials@gen_male@base");
+				while not HasAnimDictLoaded("facials@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 		elseif (GetConvar("gametype") == "rdr3") then
+			if not HasAnimDictLoaded("face_human@genmale@base") then
+				RequestAnimDict("face_human@gen_male@base");
+				while not HasAnimDictLoaded("face_human@gen_male@base") do
+					Citizen.Wait(5)
+				end
+			end
 			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal");
 		end
 	end
@@ -235,20 +287,6 @@ AddEventHandler("initializeVoip", function()
 
 	-- Set targetped (used for spectator mod for admins)
 	targetPed = GetPlayerPed(-1);
-
-	-- Request this stuff here only one time
-	if (GetConvar("gametype") == "gta5") then
-		RequestAnimDict("mp_facial");
-		while not HasAnimDictLoaded("mp_facial") do
-			Citizen.Wait(5)
-		end
-		RequestAnimDict("facials@gen_male@base");
-		while not HasAnimDictLoaded("facials@gen_male") do
-			Citizen.Wait(5)
-		end
-	elseif (GetConvar("gametype") == "rdr3") then
-		RequestAnimDict("face_human@gen_male@base");
-	end
 
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
