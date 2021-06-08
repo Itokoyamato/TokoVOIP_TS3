@@ -369,6 +369,10 @@ AddEventHandler("TokoVoip:onPlayerJoinChannel", function(channelId, playerServer
 	end
 end)
 
+function getPlayerChannels()
+	return voip.myChannels
+end
+
 function isPlayerInChannel(channel)
 	if (voip.myChannels[channel]) then
 		return true;
@@ -420,5 +424,6 @@ end)
 -- Make exports available on first tick
 exports("addPlayerToRadio", addPlayerToRadio);
 exports("removePlayerFromRadio", removePlayerFromRadio);
+exports("getPlayerChannels", getPlayerChannels);
 exports("isPlayerInChannel", isPlayerInChannel);
 exports("setRadioVolume", setRadioVolume);
