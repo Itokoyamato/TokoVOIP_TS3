@@ -52,6 +52,10 @@ If the channel name contains 'Call' it will be displayed as a call on the ingame
     <td>Id of the radio channel</td>
   </tr>
   </table>
+	
+- ### getPlayerChannels()
+
+  Returns a list of the players currently connected radio channels
 
 - ### isPlayerInChannel(channel)
 
@@ -73,7 +77,6 @@ If the channel name contains 'Call' it will be displayed as a call on the ingame
 - ### clientRequestUpdateChannels()
 
   Requests to update the local radio channels
-  </table>
 
 - ### setPlayerData(playerName, key, data, shared)
 
