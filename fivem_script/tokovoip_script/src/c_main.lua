@@ -258,8 +258,8 @@ AddEventHandler("initializeVoip", function()
 		print("TokoVoip: FiveM Server ID is " .. voip.fivemServerId);
 
 		voip.processFunction = clientProcessing; -- Link the processing function that will be looped
+		voip:initialize(); -- Initialize the websocket and controls
 		while not nuiLoaded do
-			voip:initialize(); -- Initialize the websocket and controls
 			Citizen.Wait(5000)
 		end
 		voip:loop(); -- Start TokoVoip's loop
