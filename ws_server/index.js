@@ -166,6 +166,7 @@ io.on('connection', async socket => {
 });
 
 async function registerHandshake(socket) {
+  if ((socket.from === 'fivem') & (handshakes[socket.clientIp])) return;
   handshakes[socket.clientIp] = socket;
   let client;
   let tries = 0;
@@ -173,6 +174,7 @@ async function registerHandshake(socket) {
     ++tries;
     if (tries > 1) await sleep(5000);
     if (tries > 12) {
+	  handshakes[socket.clientIp] = null;
       socket.emit('disconnectMessage', 'ts3HandshakeFailed');
       socket.disconnect(true);
       return;
