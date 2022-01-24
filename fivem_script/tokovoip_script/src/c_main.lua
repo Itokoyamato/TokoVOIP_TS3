@@ -63,16 +63,16 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
-		elseif (GetConvar("gametype") == "rdr3") then
+		elseif (GetConvar("gametype", "rdr3") == "rdr3") then
 			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal");
 		end
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
-		elseif (GetConvar("gametype") == "rdr3") then
+		elseif (GetConvar("gametype", "rdr3") == "rdr3") then
 			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal");
 		end
 	end
@@ -105,7 +105,7 @@ local function clientProcessing()
 
 		local playerTalking = getPlayerData(playerServerId, "voip:talking");
 
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			setPlayerTalkingState(player, playerServerId);
 		end
 
@@ -237,10 +237,10 @@ AddEventHandler("initializeVoip", function()
 	targetPed = GetPlayerPed(-1);
 
 	-- Request this stuff here only one time
-	if (GetConvar("gametype") == "gta5") then
+	if (GetConvar("gametype", "gta5") == "gta5") then
 		RequestAnimDict("mp_facial");
 		RequestAnimDict("facials@gen_male@base");
-	elseif (GetConvar("gametype") == "rdr3") then
+	elseif (GetConvar("gametype", "rdr3") == "rdr3") then
 		RequestAnimDict("face_human@gen_male@base");
 	end
 
