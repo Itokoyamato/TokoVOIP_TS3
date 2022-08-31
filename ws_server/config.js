@@ -13,4 +13,7 @@ module.exports = {
 
   //-- [OPTIONAL] Enable connection/disconnection logs
   enableLogs: false,
+
+  //-- [REQUIRED] Endpoint of the handshake server
+  handshakeServer: "http://yourserver:33251"
 };

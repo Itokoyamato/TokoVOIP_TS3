@@ -4,7 +4,7 @@ TokoVOIP is a TeamSpeak plugin used along a FiveM script to add a custom proximi
 
 It includes radio effects thanks to the integration of the [RadioFX](https://www.myteamspeak.com/addons/f2e04859-d0db-489b-a781-19c2fab29def) plugin  
 
-Downloads are available on the [releases](https://github.com/Itokoyamato/TokoVOIP_TS3/releases) page  
+Downloads are available on the [releases](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/releases) page  
 
 If you like TokoVOIP, give it a star ! It'd be much appreciated <3  
 
@@ -24,6 +24,8 @@ You can support my work:
     - [Step 1: Setting up the ws-server](#step-1-setting-up-the-ws-server)
     - [Step 2: Setting up the fivem-script](#step-2-setting-up-the-fivem-script)
   - [(servers) Setting up ws-server as Standalone](#servers-setting-up-ws-server-as-standalone)
+  - [(servers) Setting up the handshake-server](#servers-setting-up-the-handshake-server)
+    - [(servers) Steps](#)
   - [(servers) Onesync Infinity](#servers-onesync-infinity)
 - [How does it work ?](#how-does-it-work-)
 - [Why do I need a ws-server ?](#why-do-i-need-a-ws-server-)
@@ -35,11 +37,11 @@ You can support my work:
 - [Dependencies and sources](#dependencies-and-sources)
 
 # Setting up TokoVOIP
-You can download the ws-server,  fivem-script & ts3-plugin on the [release](https://github.com/Itokoyamato/TokoVOIP_TS3/releases) page
+You can download the ws-server,  fivem-script & ts3-plugin on the [release](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/releases) page
 
 ## (players) Setting up the ts3-plugin
 Every player must install Teamspeak 3 and the TokoVOIP plugin
-* Install the plugin downloaded on the [release](https://github.com/Itokoyamato/TokoVOIP_TS3/releases) page
+* Install the plugin downloaded on the [release](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/releases) page
 * Connect to the fivem server
 * Connect to the TS3 server
 * Join the right TS3 channel
@@ -51,22 +53,22 @@ You can use the buttons in `Plugins->TokoVoip` to manually connect/disconnect th
 ## (servers) Setting up the ws-server and fivem-script
 
 ### Step 1: Setting up the ws-server
-  * Download ws-server from the [release](https://github.com/Itokoyamato/TokoVOIP_TS3/releases) page
+  * Download ws-server from the [release](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/releases) page
   * Extract it in your fivem resources folder
-  * Open [ws_server/config.js](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/ws_server/config.js)
+  * Open [ws_server/config.js](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/ws_server/config.js)
   * Change "`TSServer`" to your Teamspeak server IPv4  
     Note: domain names are currently not supported. Please open an issue if that's something you would like to see available
   * start `ws_server` in your fivem server console
   * Copy the `IP:PORT` in the console after `Listening on` and save it for [**Step 2: Setting up the fivem-script**](#step-2-setting-up-the-fivem-script)
 
 ### Step 2: Setting up the fivem-script
-  * Download tokovoip_script from the [release](https://github.com/Itokoyamato/TokoVOIP_TS3/releases) page
+  * Download tokovoip_script from the [release](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/releases) page
   * Extract it in your fivem resources folder
-  * Open [tokovoip_script/c_config.lua](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/fivem_script/tokovoip_script/c_config.lua)
+  * Open [tokovoip_script/c_config.lua](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/fivem_script/tokovoip_script/c_config.lua)
     * Edit `wsServer` with the `IP:PORT` you copied from the ws-server console in [**Step 1: Setting up the ws-server**](#step-1-setting-up-the-ws-server)
     * Edit the `TSChannel` to match your Teamspeak configuration
     * Edit other settings to your preferences
-  * Open and edit [s_config.lua](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/fivem_script/tokovoip_script/s_config.lua) to your preference
+  * Open and edit [s_config.lua](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/fivem_script/tokovoip_script/s_config.lua) to your preference
   * Add `tokovoip` to your waiting channel name on your teamspeak server, it is [**case insensitive**](https://www.yourdictionary.com/case-insensitive)
 
   A documentation for the FiveM script is available [here](fivem_script)  
@@ -74,13 +76,46 @@ You can use the buttons in `Plugins->TokoVoip` to manually connect/disconnect th
 ## (servers) Setting up ws-server as Standalone
 It can be run as a standalone NodeJS application, on the same machine as your fivem server, or on a completely different machine
   * Download [Node.js](https://nodejs.org/en/)
-  * Open [config.js](https://github.com/Itokoyamato/TokoVOIP_TS3/blob/master/ws_server/config.js)
+  * Open [config.js](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/ws_server/config.js)
     * Change "`TSServer`" to your Teamspeak server `IPv4`
     * If the ws-server is hosted on a separate machine:  
   * Open ws-server folder in cmd / terminal
   * Execute `npm i`
   * After its done run `node index.js`  
   A module such as `pm2` can be used to run the ws-server in the background
+
+## (servers) Setting up the handshake-server
+This fork provides the handshake-server as a standalone.
+It is REQUIRED with this fork to run the handshake-server as a standalone.
+
+It can be run as a standalone NodeJS application, on the same machine as your fivem server, or on a completely different machine
+  * Download [Node.js](https://nodejs.org/en/)
+  * Open handshake-server's [config.ts](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/handshake_server/config.ts)
+    * Change "`tsServer`" to your Teamspeak server `IPv4`
+    * Change "`wsServer`" to your ws-server `IPv4`
+    * Change "`wsPort`" to your ws-server port
+  * Open ws-server's [config.js](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/handshake_server/config.ts)
+    * Change "`handshakeServer`" to the full endpoint of your handshake-server, port included
+      * example: `http://yourserver:33251`
+  * Open ts3_plugin's [tokovoip.cpp](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/blob/master/ts3_plugin/src/tokovoip.cpp)
+    * Change "`handshakeServer`" at line `32` to the full endpoint of your handshake-server, port included
+      * example: `string handshakeServer = "http://yourserver:33251";`
+    * Build the plugin for both win32 and win64 (see [Building the TS3 plugin](#building-the-ts3-plugin))
+  * Open ws-server folder in cmd / terminal
+    * Execute `npm i`
+    * After its done run `node index.js`
+  * Open handshake-server folder in cmd / terminal
+    * Execute `npm i`
+    * After its done run `npm start`
+  * I HIGHLY recommend using a module such as `pm2` to run the ws-server and handshake-server in the background.
+
+**WARNING**
+This fork was made *very quickly* to allow servers still using TokoVOIP to keep working.
+I do not own the original code.
+This fork **WILL NOT** be maintained and the code is provided as is. I won't provide any support nor will answer any question.
+I **strongly** suggest you quickly move away from TokoVOIP to alternatives like [pma-voice](https://github.com/AvarianKnight/pma-voice).
+The handshake-server API is **poorly** secured and I would not be responsible for any issue encountered by someone using this.
+If you do want to keep using TokoVOIP, I **strongly** suggest you secure this API.
 
 ## (servers) Onesync Infinity
 Onesync infinity is supported with TokoVOIP 1.5.0+  
@@ -114,7 +149,7 @@ Once the fivem websocket & ts3 websocket successfully handshaked, the master ser
 # Why do I need a ws-server ?
 Read the following:
 - [How does it work ?](#how-does-it-work-?)
-- [TokoVOIP 1.5.0](https://github.com/Itokoyamato/TokoVOIP_TS3/pull/117)
+- [TokoVOIP 1.5.0](https://github.com/stephanembl/TokoVOIP_TS3_Self_Hosted_API/pull/117)
 
 # TROUBLESHOOTING (only 1.5.2)
 **FiveM websocket keeps saying Not connected**:

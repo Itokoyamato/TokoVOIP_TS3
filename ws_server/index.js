@@ -176,7 +176,7 @@ async function registerHandshake(socket) {
     }
     client = Object.values(clients).find(item => !item.fivem.socket && item.ip === socket.clientIp);
     try {
-      await axios.post('https://master.tokovoip.itokoyamato.net/register', {
+      await axios.post(`${config.handshakeServer}/register`, {
         ip: socket.clientIp,
         server: {
           tsServer: config.TSServer,
@@ -250,7 +250,7 @@ function socketHeartbeat(socket) {
 }
 
 async function masterHeartbeat() {
-  axios.post('https://master.tokovoip.itokoyamato.net/heartbeat', {
+  axios.post(`${config.handshakeServer}/heartbeat`, {
     tsServer: config.TSServer,
     WSServerIP: config.WSServerIP,
     WSServerPort: config.WSServerPort,
