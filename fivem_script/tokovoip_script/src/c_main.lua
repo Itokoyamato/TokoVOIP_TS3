@@ -63,14 +63,14 @@ RegisterNUICallback("setPlayerTalking", function(data, cb)
 
 	if (voip.talking == 1) then
 		setPlayerData(voip.serverId, "voip:talking", 1, true);
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			PlayFacialAnim(GetPlayerPed(PlayerId()), "mic_chatter", "mp_facial");
 		elseif (GetConvar("gametype") == "rdr3") then
 			PlayRedMFacialAnimation(GetPlayerPed(PlayerId()), "face_human@gen_male@base", "mood_talking_normal");
 		end
 	else
 		setPlayerData(voip.serverId, "voip:talking", 0, true);
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			PlayFacialAnim(PlayerPedId(), "mood_normal_1", "facials@gen_male@base");
 		elseif (GetConvar("gametype") == "rdr3") then
 			PlayRedMFacialAnimation(PlayerPedId(), "face_human@gen_male@base", "mood_normal");
@@ -105,7 +105,7 @@ local function clientProcessing()
 
 		local playerTalking = getPlayerData(playerServerId, "voip:talking");
 
-		if (GetConvar("gametype") == "gta5") then
+		if (GetConvar("gametype", "gta5") == "gta5") then
 			setPlayerTalkingState(player, playerServerId);
 		end
 
@@ -204,7 +204,7 @@ end
 
 RegisterNetEvent("initializeVoip");
 AddEventHandler("initializeVoip", function()
-	Citizen.Wait(1000);
+	Wait(1000);
 	if (isRunning) then return Citizen.Trace("TokoVOIP is already running\n"); end
 	isRunning = true;
 
@@ -234,20 +234,20 @@ AddEventHandler("initializeVoip", function()
 	refreshAllPlayerData();
 
 	-- Set targetped (used for spectator mod for admins)
-	targetPed = GetPlayerPed(-1);
+	targetPed = PlayerPedId();
 
 	-- Request this stuff here only one time
-	if (GetConvar("gametype") == "gta5") then
+	if (GetConvar("gametype", "gta5") == "gta5") then
 		RequestAnimDict("mp_facial");
 		RequestAnimDict("facials@gen_male@base");
-	elseif (GetConvar("gametype") == "rdr3") then
+	elseif (GetConvar("gametype", "gta5") == "rdr3") then
 		RequestAnimDict("face_human@gen_male@base");
 	end
 
 	Citizen.Trace("TokoVoip: Initialized script (" .. scriptVersion .. ")\n");
 
 	local response;
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		local function handler(serverId) response = serverId or "N/A"; end
 		RegisterNetEvent("TokoVoip:onClientGetServerId");
 		AddEventHandler("TokoVoip:onClientGetServerId", handler);
@@ -260,7 +260,7 @@ AddEventHandler("initializeVoip", function()
 		voip.processFunction = clientProcessing; -- Link the processing function that will be looped
 		while not nuiLoaded do
 			voip:initialize(); -- Initialize the websocket and controls
-			Citizen.Wait(5000)
+			Wait(5000)
 		end
 		voip:loop(); -- Start TokoVoip's loop
 	end);
@@ -268,7 +268,7 @@ AddEventHandler("initializeVoip", function()
 	-- Debug data stuff
 	if (voip.config.enableDebug) then
 		local debugData = false;
-		Citizen.CreateThread(function()
+		CreateThread(function()
 			while true do
 				Wait(5)
 
