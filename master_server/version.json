@@ -1,0 +1,16 @@
+{
+  "minVersion": "1.2.3",
+  "currentVersion": "1.2.5",
+  "defaultUpdateMessage": "A new update is available for TokoVOIP ! \nDownload it at https://github.com/Itokoyamato/TokoVOIP_TS3/releases",
+  "minVersionWarningMessage": null,
+  "versions": {
+      "1.2.4": {
+          "updateMessage": "A new update is available for TokoVOIP ! \n\nMake sure your prefered server has been updated before downloading it, this release is not backward compatible.\n\nYou can download it at https://github.com/Itokoyamato/TokoVOIP_TS3/releases",
+          "updateUrl": "https://github.com/Itokoyamato/TokoVOIP_TS3/releases"
+      },
+      "1.2.5": {
+          "updateMessage": "A new update is available for TokoVOIP ! \n\nIt includes some bug fixes related to radio effects\n\nYou can download it at https://github.com/Itokoyamato/TokoVOIP_TS3/releases",
+          "updateUrl": "https://github.com/Itokoyamato/TokoVOIP_TS3/releases"
+      }
+  }
+}

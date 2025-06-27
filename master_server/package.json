@@ -1,0 +1,17 @@
+{
+  "name": "tokovoip-proxy-master",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Itokoyamato",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.0",
+    "console-stamp": "^0.2.9",
+    "cron": "^1.8.2",
+    "express": "^4.17.1"
+  }
+}
