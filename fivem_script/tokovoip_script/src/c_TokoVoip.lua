@@ -28,9 +28,9 @@ function TokoVoip.init(self, config)
 end
 
 function TokoVoip.loop(self)
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while (true) do
-			Citizen.Wait(self.refreshRate);
+			Wait(self.refreshRate);
 			self:processFunction();
 			self:sendDataToTS3();
 
@@ -101,9 +101,9 @@ end
 function TokoVoip.initialize(self)
 	self:updateConfig();
 	self:updatePlugin("initializeSocket", self.wsServer);
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while (true) do
-			Citizen.Wait(5);
+			Wait(5);
 
 			if ((self.keySwitchChannelsSecondary and IsControlPressed(0, self.keySwitchChannelsSecondary)) or not self.keySwitchChannelsSecondary) then -- Switch radio channels
 				if (IsControlJustPressed(0, self.keySwitchChannels) and tablelength(self.myChannels) > 0) then
