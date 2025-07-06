@@ -11,10 +11,6 @@ If you like TokoVOIP, give it a star ! It'd be much appreciated <3
 We have a [Discord](https://discord.gg/nbEprAw) server to discuss, or if you need help !  
 [![Discord](https://img.shields.io/discord/728723568824680560?color=blue&label=Discord)](https://discord.gg/nbEprAw)
 
-You can support my work:  
-[![Patreon](https://img.shields.io/badge/Become%20a-patron-orange)](https://www.patreon.com/Itokoyamato)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=H2UXEZBF5KQBL&source=url)  
-
 # Table of Contents
 - [Introduction: TokoVOIP](#introduction-tokovoip)
 - [Table of Contents](#table-of-contents)
@@ -130,10 +126,6 @@ Read the following:
 
 **Could not find dependency yarn for resource ws_server**:
 - Install yarn resource from [cfx-server-data repo](https://github.com/citizenfx/cfx-server-data/tree/master/resources/%5Bsystem%5D/%5Bbuilders%5D)
-# Terms and conditions
-A 'TokoVOIP' watermark must be visible on screen. You can move it, change it's design however you like.  
-Just keep one somewhere. Thanks  
-For the rest, refer to the [license](LICENSE.md)  
 
 # Contributing
 I am open to pull requests, feel free to build upon my work and improve it
