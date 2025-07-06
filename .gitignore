@@ -48,3 +48,7 @@ Temporary Items
 
 *.VC.opendb
 *.VC.db
+
+# Compiled Plugin files
+*.ts3_plugin
+*.dll
