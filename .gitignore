@@ -48,3 +48,4 @@ Temporary Items
 
 *.VC.opendb
 *.VC.db
+/master_server/node_modules

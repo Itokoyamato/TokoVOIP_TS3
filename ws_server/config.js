@@ -1,16 +1,20 @@
 module.exports = {
-  //-- [REQUIRED] IPv4 Address of your teamspeak 3 server
-  TSServer: "127.0.0.1",
+  // IP address of your TeamSpeak 3 server
+  TSServer: '152.53.181.170',
 
-  //-- [REQUIRED] Port of the ws_server
-  //-- Make sure you open the port you specify below
-  //-- Please use a port above 30k as some networks block those below it
+  // [OPTIONAL] IP address of the ws_server
+  // Set automatically by autoconfig if left commented
+  // WSServerIP: '127.0.0.1',
+
+  // Port of the ws_server
   WSServerPort: 33250,
 
-  //-- [OPTIONAL] IPv4 Address of the ws_server
-  //-- Set by autoconfig
-  // WSServerIP: "127.0.0.1",
-
-  //-- [OPTIONAL] Enable connection/disconnection logs
+  // Enable or disable logging
   enableLogs: false,
+
+  // Master server configuration (do not modify)
+  masterServer: {
+    registerUrl: 'https://master.chemnitzcityrp.de/register',
+    heartbeatUrl: 'https://master.chemnitzcityrp.de/heartbeat'
+  }
 };
