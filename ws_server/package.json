@@ -15,7 +15,7 @@
     "chalk": "^4.1.0",
     "console-stamp": "^0.2.9",
     "express": "^4.17.1",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.21",
     "public-ip": "^4.0.1",
     "socket.io": "^2.3.0"
   },
